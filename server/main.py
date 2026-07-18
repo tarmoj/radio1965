@@ -6,10 +6,12 @@ Run from the repo root with:
 """
 
 import logging
+import time
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from server import config, notifications
 
@@ -70,6 +72,27 @@ class SubscribeRequest(BaseModel):
     topic: str
 
 
+# Mirrors the Event JSON schema in project-description.md. All fields other
+# than title/summary have sensible defaults so the editor page only needs
+# to send title, summary and the article text (as payload.text) - the rest
+# is filled in automatically here.
+class EventIn(BaseModel):
+    id: str | None = None
+    type: str = "article"
+    title: str
+    summary: str
+    url: str = ""
+    thumbnail_url: str = ""
+    status: str = "live"
+    starts_at: str | None = None
+    ends_at: str = ""
+    source: str = "native"
+    source_ref: str = ""
+    tags: list[str] = Field(default_factory=list)
+    payload: dict = Field(default_factory=dict)
+    comments_enabled: bool = True
+
+
 @app.post("/notify/topic")
 def notify_topic(req: TopicNotificationRequest):
     message_id = notifications.send_to_topic(req.topic, req.title, req.body, req.event_id)
@@ -91,3 +114,21 @@ def notify_test():
 def subscribe_device(req: SubscribeRequest):
     response = notifications.subscribe_to_topic([req.token], req.topic)
     return {"success_count": response.success_count, "failure_count": response.failure_count}
+
+
+@app.post("/events/publish")
+def publish_event(event: EventIn):
+    """
+    Build a full Event JSON object (schema in project-description.md) from
+    the editor's input and immediately push a notification for it to
+    TEST_TOPIC. Storage in an Events DB is not implemented yet - this is
+    notification-only, per the current scope.
+    """
+    event_dict = event.model_dump()
+    if not event_dict["id"]:
+        event_dict["id"] = f"evt_{int(time.time() * 1000)}"
+    if not event_dict["starts_at"]:
+        event_dict["starts_at"] = datetime.now(timezone.utc).isoformat()
+
+    message_id = notifications.send_event_notification(event_dict, config.TEST_TOPIC)
+    return {"event": event_dict, "message_id": message_id}

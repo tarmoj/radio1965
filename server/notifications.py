@@ -7,6 +7,7 @@ tokens to APNs automatically when apns config is included in the message.
 Adapted from fcm_notify_example.py.
 """
 
+import json
 import logging
 
 import firebase_admin
@@ -121,3 +122,23 @@ def subscribe_to_topic(tokens: list[str], topic: str):
     by anything the server generates itself.
     """
     return messaging.subscribe_to_topic(tokens, topic)
+
+
+def send_event_notification(event: dict, topic: str) -> str:
+    """
+    Send a notification derived from a full Event JSON object (see the
+    schema in project-description.md) to a topic. The full event dict is
+    embedded as a JSON string under data["event"] - FCM data payload
+    values must all be strings, so nested objects can't be sent as-is -
+    letting the client render/deep-link into it without a DB round-trip.
+    """
+    message = messaging.Message(
+        topic=topic,
+        notification=messaging.Notification(title=event["title"], body=event["summary"]),
+        data={
+            "event_id": event["id"],
+            "type": event["type"],
+            "event": json.dumps(event),
+        },
+    )
+    return messaging.send(message)

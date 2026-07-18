@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Radio 1965 - Editor</title>
+</head>
+<body>
+  <h1>Radio 1965 - New Event</h1>
+  <p>
+    Notification server URL:
+    <input id="serverUrl" size="30" value="https://live.uuu.ee/radio1965/api" />
+  </p>
+
+  <form id="eventForm">
+    <p>
+      <label>Title<br />
+        <input id="title" size="60" required />
+      </label>
+    </p>
+    <p>
+      <label>Summary<br />
+        <textarea id="summary" rows="2" cols="60" required></textarea>
+      </label>
+    </p>
+    <p>
+      <label>Text (article body - sent as payload.text)<br />
+        <textarea id="text" rows="10" cols="60"></textarea>
+      </label>
+    </p>
+    <button type="submit">Publish event &amp; send notification</button>
+  </form>
+
+  <p>
+    <em>
+      Storage is not implemented yet - this only builds the Event JSON
+      (see project-description.md schema) and sends a push notification for
+      it. All other fields (id, type, status, starts_at, source, tags, ...)
+      are filled in automatically by the server.
+    </em>
+  </p>
+
+  <h2>Result</h2>
+  <pre id="log"></pre>
+
+  <script>
+    const logEl = document.getElementById("log");
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+      console.log(msg);
+    }
+
+    document.getElementById("eventForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const serverUrl = document
+        .getElementById("serverUrl")
+        .value.replace(/\/$/, "");
+
+      const body = {
+        title: document.getElementById("title").value,
+        summary: document.getElementById("summary").value,
+        payload: { text: document.getElementById("text").value },
+      };
+
+      try {
+        const res = await fetch(`${serverUrl}/events/publish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          log("Error " + res.status + ":\n" + JSON.stringify(data, null, 2));
+          return;
+        }
+        log("Published:\n" + JSON.stringify(data, null, 2));
+      } catch (err) {
+        log("Error: " + err);
+      }
+    });
+  </script>
+</body>
+</html>
