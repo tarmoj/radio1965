@@ -8,6 +8,7 @@ Run from the repo root with:
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from server import config, notifications
@@ -16,6 +17,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Radio 1965 Notification Service")
+
+# Dev-only: allows the test client (client/index.html), served from a
+# different origin/port, to call this API. Restrict this before production.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def testNotification() -> None:
@@ -55,6 +65,11 @@ class MulticastNotificationRequest(BaseModel):
     event_id: str
 
 
+class SubscribeRequest(BaseModel):
+    token: str
+    topic: str
+
+
 @app.post("/notify/topic")
 def notify_topic(req: TopicNotificationRequest):
     message_id = notifications.send_to_topic(req.topic, req.title, req.body, req.event_id)
@@ -70,3 +85,9 @@ def notify_multicast(req: MulticastNotificationRequest):
 def notify_test():
     testNotification()
     return {"status": "sent"}
+
+
+@app.post("/devices/subscribe")
+def subscribe_device(req: SubscribeRequest):
+    response = notifications.subscribe_to_topic([req.token], req.topic)
+    return {"success_count": response.success_count, "failure_count": response.failure_count}

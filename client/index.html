@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Radio 1965 - FCM Test Client</title>
+</head>
+<body>
+  <h1>Radio 1965 - Push Notification Test Client</h1>
+
+  <p>
+    Notification server URL:
+    <input id="serverUrl" size="30" value="http://127.0.0.1:8000" />
+  </p>
+  <p>
+    Topic:
+    <input id="topic" value="radio65_event" />
+  </p>
+  <button id="startBtn">Enable notifications &amp; subscribe to topic</button>
+
+  <h2>Log</h2>
+  <pre id="log"></pre>
+
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+    import {
+      getMessaging,
+      getToken,
+      onMessage,
+    } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-messaging.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAB9eOcQ0Anbn7TP83rFf0v36BBIQYgWRw",
+      authDomain: "radio1965-fbffd.firebaseapp.com",
+      projectId: "radio1965-fbffd",
+      storageBucket: "radio1965-fbffd.firebasestorage.app",
+      messagingSenderId: "43305541336",
+      appId: "1:43305541336:web:abc18ff93537d6d81781ad",
+    };
+
+    // Generate this in Firebase Console -> Project settings -> Cloud Messaging
+    // -> Web configuration -> "Web Push certificates" -> Generate key pair.
+    // Required by getToken() below.
+    const VAPID_KEY = "BGrlMS1dXYfVDE15ARtE_u1gCvz8pXxy3rhvOy9LfoXHPPW2BcZ0CcvrC34ADeb2HeTO4rKJfMXMNLkHQLfLZwk";
+
+    const logEl = document.getElementById("log");
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+      console.log(msg);
+    }
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    // Fires when a message arrives while this tab has focus
+    onMessage(messaging, (payload) => {
+      log("Foreground message received: " + JSON.stringify(payload));
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+        });
+      }
+    });
+
+    document.getElementById("startBtn").addEventListener("click", async () => {
+      try {
+         if (!VAPID_KEY || VAPID_KEY.trim().length < 40) {
+          log("Set VAPID_KEY in index.html first (Firebase Console -> Project settings -> Cloud Messaging -> Web Push certificates).");
+          return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          log("Notification permission denied.");
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.register(
+          "firebase-messaging-sw.js"
+        );
+
+        const token = await getToken(messaging, {
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: registration,
+        });
+
+        if (!token) {
+          log("No registration token available.");
+          return;
+        }
+        log("FCM token: " + token);
+
+        const serverUrl = document
+          .getElementById("serverUrl")
+          .value.replace(/\/$/, "");
+        const topic = document.getElementById("topic").value;
+
+        const res = await fetch(`${serverUrl}/devices/subscribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, topic }),
+        });
+        const data = await res.json();
+        log("Subscribe response: " + JSON.stringify(data));
+        log(`Subscribed. Now trigger a send from the server (POST /notify/test or /notify/topic with topic="${topic}") and watch for a notification.`);
+      } catch (err) {
+        log("Error: " + err);
+      }
+    });
+  </script>
+</body>
+</html>

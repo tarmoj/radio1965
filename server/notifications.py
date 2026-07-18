@@ -111,3 +111,13 @@ def send_to_topic(topic: str, title: str, body: str, event_id: str) -> str:
         data={"event_id": event_id, "type": "new_event"},
     )
     return messaging.send(message)
+
+
+def subscribe_to_topic(tokens: list[str], topic: str):
+    """
+    Subscribe device tokens to a topic so send_to_topic() reaches them.
+    Called from the client once it has obtained its own FCM token (see
+    client/index.html), since topic subscription is keyed by token, not
+    by anything the server generates itself.
+    """
+    return messaging.subscribe_to_topic(tokens, topic)

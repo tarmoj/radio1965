@@ -9,7 +9,7 @@ import os
 
 # Path to the Firebase service account key (JSON). Not committed to git -
 # see .gitignore. Place your real key file at this location.
-FIREBASE_CRED_PATH = "/home/tarmo/tarmo/programm/radio1965/server/radio1965-fbffd-firebase-adminsdk-fbsvc-1b82003658.json"
+FIREBASE_CRED_PATH = "server/config/serviceAccountKey.json"
 
 # When set to "1", a test push notification is sent to TEST_TOPIC on
 # server startup. Defaults to off so restarts don't spam subscribers.
