@@ -10,6 +10,10 @@ find_package(Qt6 REQUIRED COMPONENTS Quick)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
+if(ANDROID)
+    set(QT_ANDROID_MIN_SDK_VERSION 28)
+endif()
+
 qt_add_executable(appradio65
     main.cpp
 )
@@ -42,6 +46,11 @@ set_target_properties(appradio65 PROPERTIES
 target_link_libraries(appradio65
     PRIVATE Qt6::Quick
 )
+
+if(ANDROID)
+    set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_NAME org.eccm.radio65)
+    set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS appradio65
