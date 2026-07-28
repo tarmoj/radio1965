@@ -16,7 +16,13 @@ endif()
 
 qt_add_executable(appradio65
     main.cpp
+    notificationmanager.h
+    notificationmanager.cpp
 )
+
+if(ANDROID)
+    target_sources(appradio65 PRIVATE androidpush.cpp)
+endif()
 
 
 qt_add_qml_module(appradio65

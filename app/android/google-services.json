@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "43305541336",
+    "project_id": "radio1965-fbffd",
+    "storage_bucket": "radio1965-fbffd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:43305541336:android:aea9f6a789178ce21781ad",
+        "android_client_info": {
+          "package_name": "org.eccm.radio65"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWkCPewlXMMe6gKhpfl56_jE2uTFLHELc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.1.0"
+    property string version: "0.2.0"
     title: qsTr("Radio 1965") + " v" + version
     color: Material.background
 
@@ -173,6 +173,58 @@ ApplicationWindow {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
+
+            ScrollView {
+                anchors.fill: parent
+                anchors.margins: 5
+                clip: true
+
+                ListView {
+                    id: messageListView
+                    width: parent.width
+                    spacing: 8
+                    model: notificationManager
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    delegate: Rectangle {
+                        width: messageListView.width
+                        height: messageColumn.implicitHeight + 20
+                        radius: 5
+                        color: Material.backgroundColor.lighter()
+                        border.width: 1
+                        border.color: Material.primaryColor.lighter()
+
+                        ColumnLayout {
+                            id: messageColumn
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 4
+
+                            Label {
+                                text: title
+                                font.bold: true
+                                font.pointSize: 13
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+
+                            Label {
+                                text: summary
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+
+                            Label {
+                                text: payload
+                                font.pointSize: 10
+                                font.italic: true
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+            }
 
         }
 
