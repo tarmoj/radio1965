@@ -1,15 +1,25 @@
 package org.eccm.radio65;
-
+import android.util.Log;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import org.json.JSONObject;
 
 public class PushMessagingService extends FirebaseMessagingService {
 
+    // Called once from C++ (main.cpp) at startup so this device's FCM
+    // registration receives messages sent to the server's topic
+    // (see server/config.py TEST_TOPIC = "radio65_event").
+    public static void subscribeToTopic(String topic) {
+        FirebaseMessaging.getInstance().subscribeToTopic(topic);
+    }
+
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         String title = "";
         String body = "";
+
+        
 
         if (remoteMessage.getNotification() != null) {
             String notifTitle = remoteMessage.getNotification().getTitle();
@@ -20,6 +30,8 @@ public class PushMessagingService extends FirebaseMessagingService {
 
         String dataJson = new JSONObject(remoteMessage.getData()).toString();
 
+        Log.d("PushMessagingService", "Message JSON: " + dataJson + "  From: " + remoteMessage.getFrom());
+
         // NOTE: this only works while the app's native library is already
         // loaded in this process (app previously started, e.g. in foreground
         // or background). If Android starts this service in a fresh process
@@ -28,6 +40,7 @@ public class PushMessagingService extends FirebaseMessagingService {
         try {
             nativeOnMessageReceived(title, body, dataJson);
         } catch (UnsatisfiedLinkError e) {
+            Log.d("PushMessagingService", "Native library not loaded yet, ignoring message: " + e.getMessage());
             // App process/native lib not loaded (cold start) - ignored for now.
         }
     }
