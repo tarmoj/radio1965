@@ -35,7 +35,11 @@ public class MainActivity extends QtActivity {
             return;
         }
         Bundle extras = intent.getExtras();
-        if (extras == null || extras.isEmpty()) {
+        // FCM tap-launched intents always carry this extra (see
+        // RemoteMessage.getMessageId()); anything else - including the
+        // PendingIntent used by our own foreground notification, or Qt's
+        // own launcher/source-info extras - is not an FCM payload.
+        if (extras == null || !extras.containsKey("google.message_id")) {
             return;
         }
 

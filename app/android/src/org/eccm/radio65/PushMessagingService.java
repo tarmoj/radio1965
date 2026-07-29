@@ -1,5 +1,9 @@
 package org.eccm.radio65;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.util.Log;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -44,6 +48,35 @@ public class PushMessagingService extends FirebaseMessagingService {
         } catch (UnsatisfiedLinkError e) {
             Log.d("PushMessagingService", "Native library not loaded yet, ignoring message: " + e.getMessage());
             // App process/native lib not loaded (cold start) - ignored for now.
+        }
+
+        // The system only auto-displays a notification for background/killed
+        // apps. When the app is in the foreground, FCM leaves display up to
+        // us, so build/post one ourselves for messages that carry a title.
+        if (!title.isEmpty() || !body.isEmpty()) {
+            showSystemNotification(title, body);
+        }
+    }
+
+    private void showSystemNotification(String title, String body) {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent contentIntent = PendingIntent.getActivity(
+                this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, RadioApplication.CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setAutoCancel(true)
+                .setContentIntent(contentIntent)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        try {
+            NotificationManagerCompat.from(this).notify((int) System.currentTimeMillis(), builder.build());
+        } catch (SecurityException e) {
+            // POST_NOTIFICATIONS permission not granted - nothing we can do here.
+            Log.d("PushMessagingService", "Notification permission not granted: " + e.getMessage());
         }
     }
 

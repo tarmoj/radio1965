@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.2.2"
+    property string version: "0.2.3"
     title: qsTr("Radio 1965") + " v" + version
     color: Material.background
 

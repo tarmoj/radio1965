@@ -8,7 +8,7 @@ import org.qtproject.qt.android.bindings.QtApplication;
 
 public class RadioApplication extends QtApplication {
 
-    private static final String CHANNEL_ID = "radio65_default_channel";
+    public static final String CHANNEL_ID = "radio65_default_channel";
 
     @Override
     public void onCreate() {
