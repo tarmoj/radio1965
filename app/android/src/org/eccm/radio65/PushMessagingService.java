@@ -7,6 +7,15 @@ import org.json.JSONObject;
 
 public class PushMessagingService extends FirebaseMessagingService {
 
+    static {
+        // Forces the C++ library to load as soon as this class is touched by Android
+        try {
+            System.loadLibrary("appradio65_arm64-v8a.so");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e("PushMessagingService", "Failed to load native library: " + e.getMessage());
+        }
+    }
+
     // Called once from C++ (main.cpp) at startup so this device's FCM
     // registration receives messages sent to the server's topic
     // (see server/config.py TEST_TOPIC = "radio65_event").
