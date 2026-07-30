@@ -2,7 +2,9 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
+#ifdef RADIO65_ENABLE_NOTIFICATIONS
 #include "notificationmanager.h"
+#endif
 
 #ifdef Q_OS_ANDROID
 #include <QJniObject>
@@ -12,7 +14,9 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+#ifdef RADIO65_ENABLE_NOTIFICATIONS
     NotificationManager notificationManager;
+#endif
 
 #ifdef Q_OS_ANDROID
     QJniObject::callStaticMethod<void>(
@@ -22,7 +26,9 @@ int main(int argc, char *argv[])
 #endif
 
     QQmlApplicationEngine engine;
+#ifdef RADIO65_ENABLE_NOTIFICATIONS
     engine.rootContext()->setContextProperty("notificationManager", &notificationManager);
+#endif
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,
