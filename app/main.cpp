@@ -10,6 +10,10 @@
 #include <QJniObject>
 #endif
 
+#ifdef Q_OS_IOS
+#include "iospush.h"
+#endif
+
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
@@ -23,6 +27,11 @@ int main(int argc, char *argv[])
         "org/eccm/radio65/PushMessagingService", "subscribeToTopic",
         "(Ljava/lang/String;)V",
         QJniObject::fromString("radio65_event").object<jstring>());
+#endif
+
+#ifdef Q_OS_IOS
+    iosPushInit();
+    iosPushSubscribeToTopic("radio65_event");
 #endif
 
     QQmlApplicationEngine engine;

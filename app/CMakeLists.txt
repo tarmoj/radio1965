@@ -14,12 +14,12 @@ if(ANDROID)
     set(QT_ANDROID_MIN_SDK_VERSION 28)
 endif()
 
-# Bring the iOS build up incrementally: start with the QML UI only, add the
-# notification manager back once APNs integration is ready.
-option(RADIO65_ENABLE_NOTIFICATIONS "Build the in-app notification manager" ON)
 if(IOS)
-    set(RADIO65_ENABLE_NOTIFICATIONS OFF CACHE BOOL "" FORCE)
+    enable_language(OBJCXX)
+    enable_language(Swift)
 endif()
+
+option(RADIO65_ENABLE_NOTIFICATIONS "Build the in-app notification manager" ON)
 
 qt_add_executable(appradio65
     main.cpp
@@ -32,6 +32,10 @@ endif()
 
 if(ANDROID)
     target_sources(appradio65 PRIVATE androidpush.cpp)
+endif()
+
+if(IOS)
+    target_sources(appradio65 PRIVATE iospush.mm "${CMAKE_CURRENT_SOURCE_DIR}/ios/Radio65SwiftSupport.swift")
 endif()
 
 
@@ -74,6 +78,14 @@ if(IOS)
         MACOSX_PACKAGE_LOCATION Resources
     )
 
+    # GoogleService-Info.plist must land at the bundle root (not a subfolder) for
+    # [FIRApp configure] to find it via [NSBundle mainBundle]. "Resources" maps to
+    # the iOS bundle root (no Contents/Resources nesting like on macOS).
+    target_sources(appradio65 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ios/GoogleService-Info.plist")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ios/GoogleService-Info.plist" PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources
+    )
+
     set_target_properties(appradio65 PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER org.eccm.radio65
@@ -81,6 +93,23 @@ if(IOS)
         XCODE_ATTRIBUTE_MARKETING_VERSION ${PROJECT_VERSION}
         XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${PROJECT_VERSION}
         QT_IOS_LAUNCH_SCREEN ${CMAKE_CURRENT_SOURCE_DIR}/ios/LaunchScreen.storyboard
+        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/ios/radio65.entitlements
+        XCODE_ATTRIBUTE_SWIFT_VERSION "5.0"
+        XCODE_ATTRIBUTE_ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES "YES"
+    )
+
+    # Firebase iOS SDK is vendored manually (no CocoaPods/SPM) - run
+    # ios/scripts/fetch_firebase_sdk.sh first to populate ios/Firebase.
+    file(GLOB RADIO65_FIREBASE_FRAMEWORKS "${CMAKE_CURRENT_SOURCE_DIR}/ios/Firebase/*.xcframework")
+    if(NOT RADIO65_FIREBASE_FRAMEWORKS)
+        message(FATAL_ERROR "No Firebase XCFrameworks found in ios/Firebase - run ios/scripts/fetch_firebase_sdk.sh first.")
+    endif()
+    target_link_libraries(appradio65 PRIVATE
+        ${RADIO65_FIREBASE_FRAMEWORKS}
+        "-framework SystemConfiguration"
+        "-framework Security"
+        "-framework CFNetwork"
+        "-framework UserNotifications"
     )
 
     # Not needed yet for the first UI-only build; enable once HLS/RTMP stream

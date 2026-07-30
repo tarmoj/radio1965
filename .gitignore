@@ -1,3 +1,5 @@
 app/build/*
 radio65/build/*
 *.user
+.DS_Store
+app/ios/Firebase/
