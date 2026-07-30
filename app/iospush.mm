@@ -25,7 +25,9 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfo options:0 error:nil];
     NSString *payload = jsonData ? [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] : @"";
-
+    
+    NSLog(@"[iospush] Message title: %@ body: %@", title, body);
+    
     if (NotificationManager *manager = NotificationManager::instance()) {
         QMetaObject::invokeMethod(manager, "addMessage", Qt::QueuedConnection,
                                    Q_ARG(QString, QString::fromNSString(title)),
@@ -36,22 +38,7 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 
 } // namespace
 
-// Configures Firebase via +load, which runs at binary load time - before Qt's
-// qtmain shim calls UIApplicationMain and QIOSApplicationDelegate's
-// didFinishLaunchingWithOptions:. This ensures FIRApp is configured before
-// Firebase's own app-delegate proxy (swizzled into that callback) runs.
-@interface Radio65FirebaseBootstrap : NSObject
-@end
 
-@implementation Radio65FirebaseBootstrap
-
-+ (void)load
-{
-    if (![FIRApp defaultApp])
-        [FIRApp configure];
-}
-
-@end
 
 // Handles FCM token/topic subscription and foreground/tap notification delivery.
 @interface Radio65PushDelegate : NSObject <FIRMessagingDelegate, UNUserNotificationCenterDelegate>
@@ -63,18 +50,24 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 - (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken
 {
     Q_UNUSED(messaging)
-    NSLog(@"[iospush] FCM registration token received: %@", fcmToken ?: @"<nil>");
-    if (self.pendingTopic) {
-        NSString *topic = self.pendingTopic;
-        self.pendingTopic = nil;
-        [[FIRMessaging messaging] subscribeToTopic:topic completion:^(NSError *error) {
-            if (error)
-                NSLog(@"[iospush] Topic subscribe failed: %@", error);
-            else
-                NSLog(@"[iospush] Topic subscribed: %@", topic);
-        }];
-    }
-}
+        NSLog(@"[iospush] FCM registration token received: %@", fcmToken ?: @"<nil>");
+        
+        if (self.pendingTopic) {
+            // 1. Create a locally retained copy to safely pass into the block scope
+            NSString *topicToSubscribe = [self.pendingTopic copy];
+            self.pendingTopic = nil;
+            
+            // 2. Dispatch to the main thread to prevent cross-thread background crashes
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [[FIRMessaging messaging] subscribeToTopic:topicToSubscribe completion:^(NSError *error) {
+                    if (error) {
+                        NSLog(@"[iospush] Topic subscribe failed: %@", error.localizedDescription);
+                    } else {
+                        NSLog(@"[iospush] Topic subscribed successfully: %@", topicToSubscribe);
+                    }
+                }];
+            });
+        }}
 
 // Foreground delivery: forward to NotificationManager and still let the banner show.
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
@@ -104,13 +97,23 @@ Radio65PushDelegate *pushDelegate = nil;
 
 void iosPushInit()
 {
+    
     if (pushDelegate)
-        return;
+            return;
 
-    // FIRApp is already configured by Radio65FirebaseBootstrap's +load.
-    pushDelegate = [[Radio65PushDelegate alloc] init];
-    [FIRMessaging messaging].delegate = pushDelegate;
-    [UNUserNotificationCenter currentNotificationCenter].delegate = pushDelegate;
+        // 1. Configure Firebase here, where QIOSApplicationDelegate is officially alive
+        if (![FIRApp defaultApp]) {
+            [FIRApp configure];
+            NSLog(@"[iospush] Firebase configured successfully inside iosPushInit.");
+        } else {
+            NSLog(@"[iospush] Firebase configured failed in  iosPushInit.");
+        }
+
+        // 2. Now set the delegates safely
+        pushDelegate = [[Radio65PushDelegate alloc] init];
+        [FIRMessaging messaging].delegate = pushDelegate;
+        [UNUserNotificationCenter currentNotificationCenter].delegate = pushDelegate;
+    
 
     UNAuthorizationOptions options = UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
     [[UNUserNotificationCenter currentNotificationCenter]
