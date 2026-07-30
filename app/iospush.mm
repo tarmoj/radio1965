@@ -36,6 +36,23 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 
 } // namespace
 
+// Configures Firebase via +load, which runs at binary load time - before Qt's
+// qtmain shim calls UIApplicationMain and QIOSApplicationDelegate's
+// didFinishLaunchingWithOptions:. This ensures FIRApp is configured before
+// Firebase's own app-delegate proxy (swizzled into that callback) runs.
+@interface Radio65FirebaseBootstrap : NSObject
+@end
+
+@implementation Radio65FirebaseBootstrap
+
++ (void)load
+{
+    if (![FIRApp defaultApp])
+        [FIRApp configure];
+}
+
+@end
+
 // Handles FCM token/topic subscription and foreground/tap notification delivery.
 @interface Radio65PushDelegate : NSObject <FIRMessagingDelegate, UNUserNotificationCenterDelegate>
 @property(nonatomic, copy) NSString *pendingTopic;
@@ -46,10 +63,16 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 - (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken
 {
     Q_UNUSED(messaging)
-    Q_UNUSED(fcmToken)
+    NSLog(@"[iospush] FCM registration token received: %@", fcmToken ?: @"<nil>");
     if (self.pendingTopic) {
-        [[FIRMessaging messaging] subscribeToTopic:self.pendingTopic];
+        NSString *topic = self.pendingTopic;
         self.pendingTopic = nil;
+        [[FIRMessaging messaging] subscribeToTopic:topic completion:^(NSError *error) {
+            if (error)
+                NSLog(@"[iospush] Topic subscribe failed: %@", error);
+            else
+                NSLog(@"[iospush] Topic subscribed: %@", topic);
+        }];
     }
 }
 
@@ -84,9 +107,7 @@ void iosPushInit()
     if (pushDelegate)
         return;
 
-    if (![FIRApp defaultApp])
-        [FIRApp configure];
-
+    // FIRApp is already configured by Radio65FirebaseBootstrap's +load.
     pushDelegate = [[Radio65PushDelegate alloc] init];
     [FIRMessaging messaging].delegate = pushDelegate;
     [UNUserNotificationCenter currentNotificationCenter].delegate = pushDelegate;
@@ -113,9 +134,17 @@ void iosPushInit()
 void iosPushSubscribeToTopic(const QString &topic)
 {
     NSString *nsTopic = topic.toNSString();
-    [[FIRMessaging messaging] subscribeToTopic:nsTopic];
-    if (pushDelegate)
+    if ([FIRMessaging messaging].APNSToken) {
+        [[FIRMessaging messaging] subscribeToTopic:nsTopic completion:^(NSError *error) {
+            if (error)
+                NSLog(@"[iospush] Topic subscribe failed: %@", error);
+            else
+                NSLog(@"[iospush] Topic subscribed: %@", nsTopic);
+        }];
+    } else if (pushDelegate) {
+        // APNs token not available yet; retry once didReceiveRegistrationToken: fires.
         pushDelegate.pendingTopic = nsTopic;
+    }
 }
 
 // Adds a silent/content-available push handler to Qt's internal iOS app
