@@ -1,3 +1,4 @@
+#include "qglobal.h"
 #include "iospush.h"
 
 #ifdef Q_OS_IOS
@@ -41,11 +42,11 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 
 
 // Handles FCM token/topic subscription and foreground/tap notification delivery.
-@interface Radio65PushDelegate : NSObject <FIRMessagingDelegate, UNUserNotificationCenterDelegate>
+@interface Radio65strongPushDelegate : NSObject <FIRMessagingDelegate, UNUserNotificationCenterDelegate>
 @property(nonatomic, copy) NSString *pendingTopic;
 @end
 
-@implementation Radio65PushDelegate
+@implementation Radio65strongPushDelegate
 
 - (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken
 {
@@ -91,14 +92,16 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 
 @end
 
-namespace {
-Radio65PushDelegate *pushDelegate = nil;
-}
+//namespace {
+//Radio65strongPushDelegate *strongPushDelegate = nil;
+//}
+
+static Radio65strongPushDelegate *strongPushDelegate = nil;
 
 void iosPushInit()
 {
     
-    if (pushDelegate)
+    if (strongPushDelegate)
             return;
 
         // 1. Configure Firebase here, where QIOSApplicationDelegate is officially alive
@@ -110,9 +113,9 @@ void iosPushInit()
         }
 
         // 2. Now set the delegates safely
-        pushDelegate = [[Radio65PushDelegate alloc] init];
-        [FIRMessaging messaging].delegate = pushDelegate;
-        [UNUserNotificationCenter currentNotificationCenter].delegate = pushDelegate;
+        strongPushDelegate = [[Radio65strongPushDelegate alloc] init];
+        [FIRMessaging messaging].delegate = strongPushDelegate;
+        [UNUserNotificationCenter currentNotificationCenter].delegate = strongPushDelegate;
     
 
     UNAuthorizationOptions options = UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
@@ -144,9 +147,9 @@ void iosPushSubscribeToTopic(const QString &topic)
             else
                 NSLog(@"[iospush] Topic subscribed: %@", nsTopic);
         }];
-    } else if (pushDelegate) {
+    } else if (strongPushDelegate) {
         // APNs token not available yet; retry once didReceiveRegistrationToken: fires.
-        pushDelegate.pendingTopic = nsTopic;
+        strongPushDelegate.pendingTopic = nsTopic;
     }
 }
 
