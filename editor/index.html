@@ -3,39 +3,91 @@
 <head>
   <meta charset="utf-8" />
   <title>Radio 1965 - Editor</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 2em auto; }
+    label { display: block; margin-top: 1em; font-weight: bold; }
+    input, textarea, select { width: 100%; box-sizing: border-box; font-size: 1em; padding: 0.3em; }
+    input[type="checkbox"] { width: auto; }
+    .row { display: flex; gap: 1em; align-items: center; }
+    .row > * { flex: 1; }
+    button { margin-top: 1.5em; padding: 0.6em 1.2em; }
+    pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; }
+  </style>
 </head>
 <body>
   <h1>Radio 1965 - New Event</h1>
   <p>
     Notification server URL:
-    <input id="serverUrl" size="30" value="https://live.uuu.ee/radio1965/api" />
+    <input id="serverUrl" value="https://live.uuu.ee/radio1965/api" />
   </p>
 
   <form id="eventForm">
-    <p>
-      <label>Title<br />
-        <input id="title" size="60" required />
+    <label>Title
+      <input id="title" required />
+    </label>
+
+    <label>Summary (used in notification text)
+      <textarea id="summary" rows="2" required></textarea>
+    </label>
+
+    <label>Type
+      <select id="type">
+        <option value="text">text</option>
+        <option value="audio">audio</option>
+        <option value="video">video</option>
+        <option value="audiostream">audiostream</option>
+        <option value="videostream">videostream</option>
+        <option value="article" selected>article</option>
+        <option value="webcontent">webcontent</option>
+      </select>
+    </label>
+
+    <!-- type="text" only -->
+    <label id="textFieldLabel">Text
+      <textarea id="text" rows="8"></textarea>
+    </label>
+
+    <!-- all types except "text" -->
+    <label id="urlFieldLabel">Content URL
+      <input id="url" type="url" />
+    </label>
+
+    <!-- audiostream | videostream only -->
+    <div id="streamFields">
+      <label>Live at
+        <input id="liveAt" type="datetime-local" />
       </label>
-    </p>
-    <p>
-      <label>Summary<br />
-        <textarea id="summary" rows="2" cols="60" required></textarea>
+      <label>Server address
+        <input id="serverAddress" value="https://live.uuu.ee/stream" />
       </label>
-    </p>
-    <p>
-      <label>Text (article body - sent as payload.text)<br />
-        <textarea id="text" rows="10" cols="60"></textarea>
-      </label>
-    </p>
-    <button type="submit">Publish event &amp; send notification</button>
+    </div>
+
+    <label>
+      <span class="row">
+        <span>Announce at</span>
+        <span><input id="publishNow" type="checkbox" checked /> Now</span>
+      </span>
+      <input id="publishAt" type="datetime-local" disabled />
+    </label>
+
+    <label>Put to shelf at <em>(optional - defaults to one week after publish)</em>
+      <input id="shelfAt" type="datetime-local" />
+    </label>
+
+    <label>Tags (comma separated)
+      <input id="tags" list="tagSuggestions" placeholder="news, interview, ..." />
+      <datalist id="tagSuggestions"></datalist>
+    </label>
+
+    <button type="submit">Publish event</button>
   </form>
 
   <p>
     <em>
-      Storage is not implemented yet - this only builds the Event JSON
-      (see project-description.md schema) and sends a push notification for
-      it. All other fields (id, type, status, starts_at, source, tags, ...)
-      are filled in automatically by the server.
+      Fields with no dedicated DB column (Live at / Server address for
+      streams) are sent inside payload. "status" is set automatically by
+      the server: 'current' if published now, otherwise 'unpublished' until
+      server/cron_publish.py sends the notification at publish_at.
     </em>
   </p>
 
@@ -49,21 +101,101 @@
       console.log(msg);
     }
 
+    function serverUrl() {
+      return document.getElementById("serverUrl").value.replace(/\/$/, "");
+    }
+
+    // --- Type-dependent field visibility -------------------------------
+    const typeEl = document.getElementById("type");
+    const textFieldLabel = document.getElementById("textFieldLabel");
+    const urlFieldLabel = document.getElementById("urlFieldLabel");
+    const streamFields = document.getElementById("streamFields");
+
+    function updateFieldsForType() {
+      const type = typeEl.value;
+      const isText = type === "text";
+      const isStream = type === "audiostream" || type === "videostream";
+      textFieldLabel.style.display = isText ? "" : "none";
+      urlFieldLabel.style.display = isText ? "none" : "";
+      streamFields.style.display = isStream ? "" : "none";
+    }
+    typeEl.addEventListener("change", updateFieldsForType);
+    updateFieldsForType();
+
+    // --- Announce at: "Now" checkbox toggles the date/time picker -------
+    const publishNowEl = document.getElementById("publishNow");
+    const publishAtEl = document.getElementById("publishAt");
+    publishNowEl.addEventListener("change", () => {
+      publishAtEl.disabled = publishNowEl.checked;
+      if (!publishNowEl.checked && !publishAtEl.value) {
+        publishAtEl.value = new Date().toISOString().slice(0, 16);
+      }
+    });
+
+    // --- Tags: smart search / autocomplete against GET /tags ------------
+    const tagsEl = document.getElementById("tags");
+    const tagSuggestions = document.getElementById("tagSuggestions");
+    let tagsFetchController = null;
+
+    async function refreshTagSuggestions() {
+      const value = tagsEl.value;
+      const current = value.split(",").pop().trim();
+      if (!current) {
+        tagSuggestions.innerHTML = "";
+        return;
+      }
+      if (tagsFetchController) tagsFetchController.abort();
+      tagsFetchController = new AbortController();
+      try {
+        const res = await fetch(
+          `${serverUrl()}/tags?q=${encodeURIComponent(current)}`,
+          { signal: tagsFetchController.signal }
+        );
+        const data = await res.json();
+        tagSuggestions.innerHTML = (data.tags || [])
+          .map((t) => `<option value="${value.replace(/[^,]*$/, "")}${t}">`)
+          .join("");
+      } catch (err) {
+        // ignore aborted/failed lookups - autocomplete is best-effort
+      }
+    }
+    tagsEl.addEventListener("input", refreshTagSuggestions);
+
+    // --- Submit -----------------------------------------------------------
     document.getElementById("eventForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const serverUrl = document
-        .getElementById("serverUrl")
-        .value.replace(/\/$/, "");
+      const type = typeEl.value;
+      const payload = {};
+
+      if (type === "audiostream" || type === "videostream") {
+        payload.live_at = document.getElementById("liveAt").value || null;
+        payload.server_address = document.getElementById("serverAddress").value;
+      }
+      if (type === "text") {
+        payload.text = document.getElementById("text").value;
+      }
+
+      const tags = document
+        .getElementById("tags")
+        .value.split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
       const body = {
         title: document.getElementById("title").value,
         summary: document.getElementById("summary").value,
-        payload: { text: document.getElementById("text").value },
+        type,
+        url: type === "text" ? "" : document.getElementById("url").value,
+        publish_now: publishNowEl.checked,
+        publish_at: publishNowEl.checked ? null : publishAtEl.value || null,
+        shelf_at: document.getElementById("shelfAt").value || null,
+        tags,
+        payload,
       };
 
       try {
-        const res = await fetch(`${serverUrl}/events/publish`, {
+        const res = await fetch(`${serverUrl()}/events/publish`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),

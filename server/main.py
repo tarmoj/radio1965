@@ -7,7 +7,7 @@ Run from the repo root with:
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +16,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from server import config, db, notifications
+
+# Events default to being moved to the shelf a week after publish_at if the
+# editor doesn't set an explicit shelf_at (see project-description.md #7).
+DEFAULT_SHELF_DELAY = timedelta(days=7)
+
+
+def _parse_datetime(value: str) -> datetime:
+    """Parse an ISO 8601 datetime string (accepting a trailing 'Z')."""
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -75,12 +84,12 @@ class SubscribeRequest(BaseModel):
     topic: str
 
 
-# Mirrors the Event JSON schema (v2) in project-description.md. All fields
-# other than title/summary have sensible defaults so the editor page only
-# needs to send title, summary and the article text (as payload.text) - the
-# rest is filled in automatically here. Fields not in the v2 draft (e.g.
-# source/source_ref for the future Joomla importer) should be nested inside
-# payload instead of added here.
+# Mirrors the Event JSON schema (v2) + editor spec (project-description.md
+# #4, #7). `status` is not client-settable - the server derives it from
+# publish_now/publish_at (see publish_event()). Fields not in the v2 draft
+# (e.g. source/source_ref for the future Joomla importer, or per-type extras
+# like stream server address) should be nested inside payload instead of
+# added here.
 class EventIn(BaseModel):
     id: str | None = None
     type: str = "article"
@@ -88,9 +97,8 @@ class EventIn(BaseModel):
     summary: str
     url: str = ""
     publish_at: str | None = None
+    publish_now: bool = False
     shelf_at: str | None = None
-    status: str = "unpublished"
-    show: bool = True
     tags: list[str] = Field(default_factory=list)
     payload: dict = Field(default_factory=dict)
     comments_enabled: bool = False
@@ -123,35 +131,65 @@ def subscribe_device(req: SubscribeRequest):
 def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
     """
     Build a full Event JSON object (schema in project-description.md),
-    persist it (+ its tags) to the Events DB, and push a notification for
-    it to TEST_TOPIC.
+    persist it (+ its tags) to the Events DB.
+
+    If publish_now is set (or no publish_at was given), the event is
+    published immediately: status is set to 'new' and the FCM
+    notification is sent right away. Otherwise the event is stored as
+    'unpublished' and server/cron_publish.py (run every minute) sends the
+    notification and flips it to 'new' once publish_at has passed, and
+    later to 'shelfed' once shelf_at has passed - see project-description.md
+    #5 and #7.
     """
-    event_dict = event.model_dump()
-    if not event_dict["id"]:
-        event_dict["id"] = f"evt_{int(time.time() * 1000)}"
-    if not event_dict["publish_at"]:
-        event_dict["publish_at"] = datetime.now(timezone.utc).isoformat()
+    event_id = event.id or f"evt_{int(time.time() * 1000)}"
+
+    now = datetime.now(timezone.utc)
+    if event.publish_now or not event.publish_at:
+        publish_at = now
+        status = "new"
+    else:
+        publish_at = _parse_datetime(event.publish_at)
+        status = "unpublished"
+
+    shelf_at = _parse_datetime(event.shelf_at) if event.shelf_at else publish_at + DEFAULT_SHELF_DELAY
 
     row = db.Event(
-        id=event_dict["id"],
-        type=event_dict["type"],
-        title=event_dict["title"],
-        summary=event_dict["summary"],
-        url=event_dict["url"],
-        publish_at=event_dict["publish_at"],
-        shelf_at=event_dict["shelf_at"],
-        status=event_dict["status"],
-        show=event_dict["show"],
-        comments_enabled=event_dict["comments_enabled"],
-        payload=event_dict["payload"],
-        tags=[db.Tag(tag=tag) for tag in event_dict["tags"]],
+        id=event_id,
+        type=event.type,
+        title=event.title,
+        summary=event.summary,
+        url=event.url,
+        publish_at=publish_at,
+        shelf_at=shelf_at,
+        status=status,
+        comments_enabled=event.comments_enabled,
+        payload=event.payload,
+        tags=[db.Tag(tag=tag) for tag in event.tags],
     )
     session.add(row)
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
-        raise HTTPException(status_code=409, detail=f"Event '{event_dict['id']}' already exists")
+        raise HTTPException(status_code=409, detail=f"Event '{event_id}' already exists")
+    session.refresh(row)
 
-    message_id = notifications.send_event_notification(event_dict, config.TEST_TOPIC)
-    return {"event": event_dict, "message_id": message_id}
+    event_dict = row.to_dict()
+    message_id = None
+    if status == "new":
+        message_id = notifications.send_event_notification(event_dict, config.TEST_TOPIC)
+
+    return {"event": event_dict, "message_id": message_id, "sent_immediately": status == "new"}
+
+
+@app.get("/tags")
+def list_tags(q: str = "", limit: int = 20, session: Session = Depends(db.get_db)):
+    """
+    Distinct tags for the editor's tag autocomplete (project-description.md
+    #7: "suggest existing tags" as the user types).
+    """
+    query = session.query(db.Tag.tag).distinct()
+    if q:
+        query = query.filter(db.Tag.tag.ilike(f"{q}%"))
+    rows = query.order_by(db.Tag.tag).limit(limit).all()
+    return {"tags": [r[0] for r in rows]}
