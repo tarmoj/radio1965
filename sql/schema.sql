@@ -1,6 +1,9 @@
 -- Radio 1965 Events DB
 -- Run against a MySQL/MariaDB server, e.g.:
---   mysql -u root -p < sql/schema.sql
+--  sudo mysql -u root -p < sql/schema.sql
+
+
+-- NB! Replace __DB_PASSWORD__ with the actual password in the SQL commands below before running this script.
 
 CREATE DATABASE IF NOT EXISTS radio65 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -19,7 +22,6 @@ CREATE TABLE IF NOT EXISTS events (
   publish_at       DATETIME NOT NULL,
   shelf_at         DATETIME NULL,
   status           ENUM('unpublished','current','shelfed','archived') NOT NULL DEFAULT 'unpublished',
-  show             TINYINT(1) NOT NULL DEFAULT 1,
   comments_enabled TINYINT(1) NOT NULL DEFAULT 0,
   payload          JSON NULL,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -27,10 +29,9 @@ CREATE TABLE IF NOT EXISTS events (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS tags (
-  id       INT AUTO_INCREMENT PRIMARY KEY,
   event_id VARCHAR(64) NOT NULL,
-  tag      VARCHAR(100) NOT NULL,
+  tag      VARCHAR(64) NOT NULL,
+  PRIMARY KEY (event_id, tag),
   FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-  UNIQUE KEY uq_event_tag (event_id, tag),
   INDEX idx_tag (tag)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
