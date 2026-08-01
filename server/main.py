@@ -2,12 +2,13 @@
 Minimal FastAPI server exposing FCM push notification endpoints.
 
 Run from the repo root with:
+    source server/set_env.sh
     SEND_TEST_NOTIFICATION=1 uvicorn server.main:app --reload
 """
 
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,8 +24,12 @@ DEFAULT_SHELF_DELAY = timedelta(days=7)
 
 
 def _parse_datetime(value: str) -> datetime:
-    """Parse an ISO 8601 datetime string (accepting a trailing 'Z')."""
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    """
+    Parse a datetime string from the editor's <input type="datetime-local">
+    (e.g. '2026-08-01T14:24') as naive local time - matching the server's
+    own local clock, so it can be compared directly with datetime.now().
+    """
+    return datetime.fromisoformat(value)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -143,7 +148,7 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
     """
     event_id = event.id or f"evt_{int(time.time() * 1000)}"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     if event.publish_now or not event.publish_at:
         publish_at = now
         status = "new"

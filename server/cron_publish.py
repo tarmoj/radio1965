@@ -10,7 +10,7 @@ Install via crontab (adjust paths for your deployment):
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 from server import config, db, notifications
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def publish_due_events(session) -> None:
     """unpublished -> new: send the FCM notification, then flip status."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     due = (
         session.query(db.Event)
         .filter(db.Event.status == "unpublished", db.Event.publish_at <= now)
@@ -39,7 +39,7 @@ def publish_due_events(session) -> None:
 
 def shelf_due_events(session) -> None:
     """new -> shelfed: no notification, just a status change."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     due = (
         session.query(db.Event)
         .filter(db.Event.status == "new", db.Event.shelf_at.isnot(None), db.Event.shelf_at <= now)
