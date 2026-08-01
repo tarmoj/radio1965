@@ -4,3 +4,4 @@ radio65/build/*
 .DS_Store
 app/ios/Firebase/
 app/Apple Push key info:
+server/set_env.sh

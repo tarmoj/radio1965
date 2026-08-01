@@ -9,11 +9,13 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from server import config, notifications
+from server import config, db, notifications
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +49,7 @@ def testNotification() -> None:
 @app.on_event("startup")
 def on_startup() -> None:
     notifications.init_firebase()
+    db.Base.metadata.create_all(bind=db.engine)
     if config.SEND_TEST_NOTIFICATION:
         testNotification()
     else:
@@ -72,25 +75,25 @@ class SubscribeRequest(BaseModel):
     topic: str
 
 
-# Mirrors the Event JSON schema in project-description.md. All fields other
-# than title/summary have sensible defaults so the editor page only needs
-# to send title, summary and the article text (as payload.text) - the rest
-# is filled in automatically here.
+# Mirrors the Event JSON schema (v2) in project-description.md. All fields
+# other than title/summary have sensible defaults so the editor page only
+# needs to send title, summary and the article text (as payload.text) - the
+# rest is filled in automatically here. Fields not in the v2 draft (e.g.
+# source/source_ref for the future Joomla importer) should be nested inside
+# payload instead of added here.
 class EventIn(BaseModel):
     id: str | None = None
     type: str = "article"
     title: str
     summary: str
     url: str = ""
-    thumbnail_url: str = ""
-    status: str = "live"
-    starts_at: str | None = None
-    ends_at: str = ""
-    source: str = "native"
-    source_ref: str = ""
+    publish_at: str | None = None
+    shelf_at: str | None = None
+    status: str = "unpublished"
+    show: bool = True
     tags: list[str] = Field(default_factory=list)
     payload: dict = Field(default_factory=dict)
-    comments_enabled: bool = True
+    comments_enabled: bool = False
 
 
 @app.post("/notify/topic")
@@ -117,18 +120,38 @@ def subscribe_device(req: SubscribeRequest):
 
 
 @app.post("/events/publish")
-def publish_event(event: EventIn):
+def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
     """
-    Build a full Event JSON object (schema in project-description.md) from
-    the editor's input and immediately push a notification for it to
-    TEST_TOPIC. Storage in an Events DB is not implemented yet - this is
-    notification-only, per the current scope.
+    Build a full Event JSON object (schema in project-description.md),
+    persist it (+ its tags) to the Events DB, and push a notification for
+    it to TEST_TOPIC.
     """
     event_dict = event.model_dump()
     if not event_dict["id"]:
         event_dict["id"] = f"evt_{int(time.time() * 1000)}"
-    if not event_dict["starts_at"]:
-        event_dict["starts_at"] = datetime.now(timezone.utc).isoformat()
+    if not event_dict["publish_at"]:
+        event_dict["publish_at"] = datetime.now(timezone.utc).isoformat()
+
+    row = db.Event(
+        id=event_dict["id"],
+        type=event_dict["type"],
+        title=event_dict["title"],
+        summary=event_dict["summary"],
+        url=event_dict["url"],
+        publish_at=event_dict["publish_at"],
+        shelf_at=event_dict["shelf_at"],
+        status=event_dict["status"],
+        show=event_dict["show"],
+        comments_enabled=event_dict["comments_enabled"],
+        payload=event_dict["payload"],
+        tags=[db.Tag(tag=tag) for tag in event_dict["tags"]],
+    )
+    session.add(row)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=f"Event '{event_dict['id']}' already exists")
 
     message_id = notifications.send_event_notification(event_dict, config.TEST_TOPIC)
     return {"event": event_dict, "message_id": message_id}
