@@ -6,7 +6,7 @@ shelf_at has passed to 'shelfed' (project-description.md #5 and #7).
 Run directly against the DB/FCM (no dependency on the API server being up).
 
 Install via crontab (adjust paths for your deployment):
-    * * * * * cd /path/to/radio1965 && /path/to/venv/bin/python -m server.cron_publish >> /var/log/radio65_cron.log 2>&1
+    * * * * * cd /home/pierre/src/radio1965 && . server/set_env.sh && /home/pierre/src/radio1965/server/.venv/bin/python -m server.cron_publish >> /var/log/radio65_cron.log 2>&1
 """
 
 import logging
