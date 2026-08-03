@@ -10,7 +10,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
@@ -185,6 +185,20 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
         message_id = notifications.send_event_notification(event_dict, config.TEST_TOPIC)
 
     return {"event": event_dict, "message_id": message_id, "sent_immediately": status == "new"}
+
+
+@app.get("/events")
+def list_events(status: list[str] | None = Query(None), session: Session = Depends(db.get_db)):
+    """
+    Feed for the client app (project-description.md #2.1): "New Arrivals"
+    (status=new) and "Collection" (status=shelved) by default, since
+    unpublished events aren't due yet and archived ones are dropped from
+    both. Pass ?status=... (repeatable) to override.
+    """
+    query = session.query(db.Event)
+    query = query.filter(db.Event.status.in_(status or ["new", "shelved"]))
+    rows = query.order_by(db.Event.publish_at.desc()).limit(200).all()
+    return {"events": [r.to_dict() for r in rows]}
 
 
 @app.get("/tags")

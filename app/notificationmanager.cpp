@@ -1,6 +1,35 @@
 #include "notificationmanager.h"
 
+#include <QDateTime>
+#include <QJsonArray>
+#include <QJsonDocument>
+
 NotificationManager *NotificationManager::s_instance = nullptr;
+
+namespace {
+
+EventItem eventItemFromJson(const QJsonObject &event)
+{
+    EventItem item;
+    item.id = event.value("id").toString();
+    item.type = event.value("type").toString();
+    item.title = event.value("title").toString();
+    item.summary = event.value("summary").toString();
+    item.url = event.value("url").toString();
+    item.publishAt = event.value("publish_at").toString();
+    item.shelfAt = event.value("shelf_at").toString();
+    item.status = event.value("status").toString();
+    item.commentsEnabled = event.value("comments_enabled").toBool();
+
+    for (const QJsonValue &tag : event.value("tags").toArray())
+        item.tags.append(tag.toString());
+
+    item.payload = event.value("payload").toObject().toVariantMap();
+
+    return item;
+}
+
+} // namespace
 
 NotificationManager::NotificationManager(QObject *parent)
     : QAbstractListModel(parent)
@@ -17,22 +46,38 @@ int NotificationManager::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
-    return m_messages.size();
+    return m_events.size();
 }
 
 QVariant NotificationManager::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() < 0 || index.row() >= m_messages.size())
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_events.size())
         return {};
 
-    const PushMessage &msg = m_messages.at(index.row());
+    const EventItem &event = m_events.at(index.row());
     switch (role) {
+    case IdRole:
+        return event.id;
+    case TypeRole:
+        return event.type;
     case TitleRole:
-        return msg.title;
+        return event.title;
     case SummaryRole:
-        return msg.summary;
+        return event.summary;
+    case UrlRole:
+        return event.url;
+    case PublishAtRole:
+        return event.publishAt;
+    case ShelfAtRole:
+        return event.shelfAt;
+    case StatusRole:
+        return event.status;
+    case TagsRole:
+        return event.tags;
     case PayloadRole:
-        return msg.payload;
+        return event.payload;
+    case CommentsEnabledRole:
+        return event.commentsEnabled;
     default:
         return {};
     }
@@ -41,15 +86,69 @@ QVariant NotificationManager::data(const QModelIndex &index, int role) const
 QHash<int, QByteArray> NotificationManager::roleNames() const
 {
     return {
+        { IdRole, "id" },
+        { TypeRole, "type" },
         { TitleRole, "title" },
         { SummaryRole, "summary" },
-        { PayloadRole, "payload" }
+        { UrlRole, "url" },
+        { PublishAtRole, "publishAt" },
+        { ShelfAtRole, "shelfAt" },
+        { StatusRole, "status" },
+        { TagsRole, "tags" },
+        { PayloadRole, "payload" },
+        { CommentsEnabledRole, "commentsEnabled" }
     };
 }
 
-void NotificationManager::addMessage(const QString &title, const QString &summary, const QString &payload)
+int NotificationManager::indexOfId(const QString &id) const
 {
+    for (int i = 0; i < m_events.size(); ++i) {
+        if (m_events.at(i).id == id)
+            return i;
+    }
+    return -1;
+}
+
+void NotificationManager::upsertEvent(const QJsonObject &event)
+{
+    const EventItem item = eventItemFromJson(event);
+    if (item.id.isEmpty())
+        return;
+
+    const int existingRow = indexOfId(item.id);
+    if (existingRow >= 0) {
+        m_events[existingRow] = item;
+        const QModelIndex changed = index(existingRow);
+        emit dataChanged(changed, changed);
+        return;
+    }
+
     beginInsertRows(QModelIndex(), 0, 0);
-    m_messages.prepend({ title, summary, payload });
+    m_events.prepend(item);
     endInsertRows();
+}
+
+void NotificationManager::addMessage(const QString &title, const QString &summary, const QString &data)
+{
+    const QJsonObject fcmData = QJsonDocument::fromJson(data.toUtf8()).object();
+    const QString eventJson = fcmData.value("event").toString();
+
+    if (!eventJson.isEmpty()) {
+        const QJsonObject event = QJsonDocument::fromJson(eventJson.toUtf8()).object();
+        if (!event.isEmpty()) {
+            upsertEvent(event);
+            return;
+        }
+    }
+
+    // Fallback: malformed/unexpected push payload - still surface something
+    // rather than silently dropping the notification.
+    QJsonObject fallback;
+    fallback["id"] = fcmData.value("event_id").toString(
+        QStringLiteral("push_%1").arg(QDateTime::currentMSecsSinceEpoch()));
+    fallback["type"] = fcmData.value("type").toString("text");
+    fallback["title"] = title;
+    fallback["summary"] = summary;
+    fallback["status"] = "new";
+    upsertEvent(fallback);
 }

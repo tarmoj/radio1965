@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTORCC ON) #NB! without this resources are not included
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Multimedia WebView)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -23,6 +23,7 @@ option(RADIO65_ENABLE_NOTIFICATIONS "Build the in-app notification manager" ON)
 
 qt_add_executable(appradio65
     main.cpp
+    eventsapiclient.h eventsapiclient.cpp
 )
 
 if(RADIO65_ENABLE_NOTIFICATIONS)
@@ -44,6 +45,10 @@ qt_add_qml_module(appradio65
     VERSION 1.0
     QML_FILES
         Main.qml
+        EventListView.qml
+        EventDelegate.qml
+        WebViewPage.qml
+        PlayerPage.qml
         RESOURCES resources.qrc
 )
 
@@ -64,7 +69,7 @@ set_target_properties(appradio65 PROPERTIES
 )
 
 target_link_libraries(appradio65
-    PRIVATE Qt6::Quick
+    PRIVATE Qt6::Quick Qt6::Network Qt6::Multimedia Qt6::WebView
 )
 
 if(ANDROID)

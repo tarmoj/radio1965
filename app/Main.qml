@@ -20,10 +20,11 @@ ApplicationWindow {
 
     Settings {
         id: appSettings
+        property string serverUrl: "https://live.uuu.ee/radio1965/api"
     }
 
     Component.onCompleted: {
-
+        eventsApiClient.fetchEvents(appSettings.serverUrl);
     }
 
     background: Rectangle {
@@ -70,6 +71,16 @@ ApplicationWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 icon.source: "qrc:/images/menu.svg"
                 onClicked: drawer.opened ? drawer.close() : drawer.open()
+            }
+
+            ToolButton {
+                id: refreshButton
+
+                anchors.right: parent.right
+                anchors.rightMargin: 5
+                anchors.verticalCenter: parent.verticalCenter
+                text: "⟳"
+                onClicked: eventsApiClient.fetchEvents(appSettings.serverUrl)
             }
         }
     }
@@ -152,84 +163,37 @@ ApplicationWindow {
         }
     }
 
-    ColumnLayout {
-        id: mainLayout
+    StackView {
+        id: stackView
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 10
-
-        Label {
-            text: qsTr("Content Area")
-            font.pointSize: 14
-            font.bold: true
-        }
-
-        Rectangle {
-            id: contentRect
-            color: "transparent"
-            border.width: 1
-            radius: 5
-            border.color: Material.primaryColor.lighter()
-
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            ScrollView {
-                anchors.fill: parent
-                anchors.margins: 5
-                clip: true
-
-                ListView {
-                    id: messageListView
-                    width: parent.width
-                    spacing: 8
-                    model: notificationManager
-                    boundsBehavior: Flickable.StopAtBounds
-
-                    delegate: Rectangle {
-                        width: messageListView.width
-                        height: messageColumn.implicitHeight + 20
-                        radius: 5
-                        color: Material.backgroundColor.lighter()
-                        border.width: 1
-                        border.color: Material.primaryColor.lighter()
-
-                        ColumnLayout {
-                            id: messageColumn
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 4
-
-                            Label {
-                                text: title
-                                font.bold: true
-                                font.pointSize: 13
-                                wrapMode: Text.Wrap
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                text: summary
-                                wrapMode: Text.Wrap
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                text: payload
-                                font.pointSize: 10
-                                font.italic: true
-                                wrapMode: Text.Wrap
-                                Layout.fillWidth: true
-                            }
-                        }
-                    }
-                }
-            }
-
-        }
-
-
+        initialItem: feedComponent
     }
 
+    Component {
+        id: feedComponent
+
+        ColumnLayout {
+            spacing: 0
+
+            TabBar {
+                id: tabBar
+                Layout.fillWidth: true
+
+                TabButton { text: qsTr("New Arrivals") }
+                TabButton { text: qsTr("Collection") }
+            }
+
+            SwipeView {
+                id: swipeView
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentIndex: tabBar.currentIndex
+                onCurrentIndexChanged: tabBar.currentIndex = currentIndex
+
+                EventListView { eventsModel: newEventsModel }
+                EventListView { eventsModel: shelfEventsModel }
+            }
+        }
+    }
 
 }
