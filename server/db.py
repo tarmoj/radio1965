@@ -31,7 +31,7 @@ class Base(DeclarativeBase):
 
 
 EVENT_TYPES = ("text", "audio", "video", "audiostream", "videostream", "article", "webcontent")
-EVENT_STATUSES = ("unpublished", "new", "shelfed", "archived")
+EVENT_STATUSES = ("unpublished", "new", "shelved", "archived")
 
 
 class Event(Base):

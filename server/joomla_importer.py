@@ -1,30 +1,52 @@
 """
-Joomla -> Events DB importer example script from claude.io.
+Joomla -> Events DB importer (project-description.md #6).
 
-Run on a schedule (cron, or apscheduler inside the FastAPI app) to poll
-Joomla's Web Services API for published/updated articles and upsert them
-into the Events table as type="article", source="joomla_import".
+Polls Joomla's Web Services API for published articles in
+JOOMLA_CATEGORY_ID and upserts them into the events table as
+type="article", id=f"joomla_{article_id}":
+  - new articles are inserted with status="unpublished" so the normal
+    server/cron_publish.py sweep sends the FCM notification and flips
+    them to "new" (and later "shelved") exactly like editor-created events.
+  - articles already imported are only updated (title/summary/url) if
+    edited in Joomla afterwards; status/publish_at/shelf_at are left
+    alone and no notification is re-sent.
 
-pip install requests sqlalchemy
+Run on its own schedule via server/cron_joomla_import.py (see that file
+for the crontab line) - separate from cron_publish.py since it hits an
+external API rather than just the local DB.
 
 don't forget 'source server/set_env.sh'
 """
 
-import json
+import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
+from pathlib import Path
 
 import requests
 
+from server import db
+
+logger = logging.getLogger(__name__)
+
 JOOMLA_BASE_URL = "https://eccm.ee/api/index.php/v1"
 JOOMLA_API_TOKEN = os.getenv("JOOMLA_API_TOKEN")
-JOOMLA_CATEGORY_ID = 47  # set to restrict import to one category, or leave None for all
+JOOMLA_CATEGORY_ID = 47  # set to restrict import to one category, or None for all
 
 HEADERS = {
     "Authorization": f"Bearer {JOOMLA_API_TOKEN}",
     "Accept": "application/vnd.api+json",
 }
+
+# Events default to being moved to the shelf a week after publish_at if
+# Joomla's publish_down is unset - matches DEFAULT_SHELF_DELAY in main.py.
+DEFAULT_SHELF_DELAY = timedelta(days=7)
+
+# Small local state file tracking the last successful import run, so we
+# only ask Joomla for articles modified since then. Not a secret, just
+# runtime state - gitignored like the other local config in this dir.
+LAST_SYNC_FILE = Path(__file__).parent / "config" / "joomla_last_sync.txt"
 
 
 def strip_html(html: str, max_len: int = 400) -> str:
@@ -32,6 +54,33 @@ def strip_html(html: str, max_len: int = 400) -> str:
     text = re.sub(r"<[^>]+>", "", html or "")
     text = re.sub(r"\s+", " ", text).strip()
     return text[:max_len]
+
+
+def parse_joomla_datetime(value: str | None) -> datetime | None:
+    """
+    Parse a Joomla datetime string ('YYYY-MM-DD HH:MM:SS') as naive local
+    time, matching the rest of the app (see cron_publish.py / main.py,
+    which compare against datetime.now()). Joomla represents "unset" dates
+    as the zero-date string.
+    """
+    if not value:
+        return None
+    value = value.strip()
+    if not value or value.startswith("0000-00-00"):
+        return None
+    return datetime.fromisoformat(value)
+
+
+def load_last_sync() -> datetime | None:
+    if not LAST_SYNC_FILE.exists():
+        return None
+    text = LAST_SYNC_FILE.read_text().strip()
+    return datetime.fromisoformat(text) if text else None
+
+
+def save_last_sync(when: datetime) -> None:
+    LAST_SYNC_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LAST_SYNC_FILE.write_text(when.isoformat())
 
 
 def fetch_articles(modified_since: datetime | None = None) -> list[dict]:
@@ -55,13 +104,13 @@ def fetch_articles(modified_since: datetime | None = None) -> list[dict]:
         # Don't trust the server-side filter alone - Joomla's API has had
         # bugs where combined filter[] params silently drop one another.
         cat_id = item.get("relationships", {}).get("category", {}).get("data", {}).get("id")
-        if str(cat_id) != str(JOOMLA_CATEGORY_ID):
+        if JOOMLA_CATEGORY_ID and str(cat_id) != str(JOOMLA_CATEGORY_ID):
             continue
         if attrs.get("state") != 1:
             continue
 
-        modified = datetime.fromisoformat(attrs["modified"]).replace(tzinfo=timezone.utc)
-        if modified_since and modified <= modified_since:
+        modified = parse_joomla_datetime(attrs.get("modified"))
+        if modified_since and modified and modified <= modified_since:
             continue
 
         articles.append(item)
@@ -70,66 +119,58 @@ def fetch_articles(modified_since: datetime | None = None) -> list[dict]:
 
 
 def joomla_article_to_event(item: dict) -> dict:
-    """Map a Joomla article's JSON:API record to our Events schema."""
+    """Map a Joomla article's JSON:API record to Events DB fields (server/db.py)."""
     attrs = item["attributes"]
     article_id = item["id"]
 
-    # images comes back as a JSON-encoded string, not a nested object
-    images = {}
-    if attrs.get("images"):
-        try:
-            images = json.loads(attrs["images"])
-        except (json.JSONDecodeError, TypeError):
-            images = {}
+    now = datetime.now()
+    publish_at = parse_joomla_datetime(attrs.get("publish_up")) or now
+    if publish_at < now:
+        publish_at = now
+
+    shelf_at = parse_joomla_datetime(attrs.get("publish_down"))
+    if shelf_at is None:
+        shelf_at = publish_at + DEFAULT_SHELF_DELAY
 
     return {
         "id": f"joomla_{article_id}",
         "type": "article",
         "title": attrs["title"],
         "summary": strip_html(attrs.get("introtext", "")),
-        "url": attrs.get("link") or f"https://yourjoomlasite.com/index.php?option=com_content&id={article_id}",
-        "thumbnail_url": images.get("image_intro") or None,
-        "status": "past",  # articles aren't "upcoming" the way scheduled streams are
-        "starts_at": attrs["created"],
-        "ends_at": None,
-        "source": "joomla_import",
-        "source_ref": str(article_id),
+        "url": attrs.get("link") or f"https://eccm.ee/index.php?option=com_content&id={article_id}",
+        "publish_at": publish_at,
+        "shelf_at": shelf_at,
+        "comments_enabled": False,
         "payload": {},
-        "comments_enabled": True,
     }
 
 
-def run_import(db_session, last_sync: datetime | None):
+def run_import(session, last_sync: datetime | None) -> datetime:
     """
-    db_session: your SQLAlchemy session (or swap for raw DB calls).
-    last_sync: timestamp of the previous successful run, stored wherever
-               you keep small app state (a settings table, a file, etc).
+    Fetch new/updated Joomla articles and upsert them into the events
+    table. Returns the new last_sync value to persist.
+
+    New articles are inserted with status="unpublished" - cron_publish.py
+    (run every minute) takes care of sending the notification and moving
+    them through new -> shelved. Articles already imported are only
+    updated in place (title/summary/url); their status/publish_at/shelf_at
+    are left untouched and no notification is re-sent.
     """
     articles = fetch_articles(modified_since=last_sync)
-    new_or_updated_events = []
 
     for item in articles:
         event = joomla_article_to_event(item)
-        # Upsert by (source, source_ref) - pseudocode, adapt to your ORM:
-        #
-        # existing = db_session.query(Event).filter_by(
-        #     source="joomla_import", source_ref=event["source_ref"]
-        # ).first()
-        # if existing:
-        #     for k, v in event.items():
-        #         setattr(existing, k, v)
-        # else:
-        #     db_session.add(Event(**event))
-        #     new_or_updated_events.append(event)  # only notify for genuinely new ones
+        existing = session.get(db.Event, event["id"])
 
-    db_session.commit()
+        if existing is None:
+            row = db.Event(status="unpublished", **event)
+            session.add(row)
+            logger.info("Imported new Joomla article as event '%s'", event["id"])
+        else:
+            existing.title = event["title"]
+            existing.summary = event["summary"]
+            existing.url = event["url"]
+            logger.info("Updated existing Joomla-imported event '%s' (no re-notify)", event["id"])
 
-    # Trigger push notifications for newly-imported articles only
-    # (reuse send_to_many() from the earlier FCM example)
-    # for event in new_or_updated_events:
-    #     send_to_many(subscribed_tokens, event["title"], event["summary"], event["id"])
-
-    return datetime.now(timezone.utc)  # new last_sync value to persist
-
-#test
-print(fetch_articles())
+    session.commit()
+    return datetime.now()

@@ -21,6 +21,10 @@ The server runs on Ubuntu 18.04, streaming service is already set up.
     
 - Use `QtMultimedia` (with a capable backend, e.g. `libmpv` or GStreamer) to   play HLS/DASH/RTMP directly. 
 
+### 2.1 Client app UI setup
+
+
+
 
 
 ## 3. Main architecture
@@ -92,6 +96,15 @@ Skip thumbnail (url) for now, later perhaps automatic on  UI.
 ## 6. Joomla import
 
 - Needs work to clarify: maybe Joomla import is poll-based (cron) or event-based (a small  Joomla plugin fires a webhook on article publish/update).
+
+Process:
+- user creates the article with joomla content creator in given category (47 at the moment); 
+- remote server (that runs also notification server and database) checks via a crontab job if there are new articles 
+-- Joomla API address:  https://eccm.ee/api/index.php/v1
+-- get JOOMLA_API_KEY from enviroment
+-- initial filters: content/articles?filter[state]=1&filter[category]=47 
+- if there are new articles, adds them to notification database, using the publish_up for notification publish time (use 'now', if the time is in past) and publish_down ad "move to shelf" time in the database. If is unset, take 7 days from publish time,  
+
 
 
 ## 7. Editor

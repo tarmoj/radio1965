@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS events (
   url              VARCHAR(1024),
   publish_at       DATETIME NOT NULL,
   shelf_at         DATETIME NULL,
-  status           ENUM('unpublished','new','shelfed','archived') NOT NULL DEFAULT 'unpublished',
+  status           ENUM('unpublished','new','shelved','archived') NOT NULL DEFAULT 'unpublished',
   comments_enabled TINYINT(1) NOT NULL DEFAULT 0,
   payload          JSON NULL,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

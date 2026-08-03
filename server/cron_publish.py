@@ -1,7 +1,7 @@
 """
 Every-minute cron job: sends notifications for events whose publish_at has
 passed and are still 'unpublished', and moves 'new' events whose
-shelf_at has passed to 'shelfed' (project-description.md #5 and #7).
+shelf_at has passed to 'shelved' (project-description.md #5 and #7).
 
 Run directly against the DB/FCM (no dependency on the API server being up).
 
@@ -38,7 +38,7 @@ def publish_due_events(session) -> None:
 
 
 def shelf_due_events(session) -> None:
-    """new -> shelfed: no notification, just a status change."""
+    """new -> shelved: no notification, just a status change."""
     now = datetime.now()
     due = (
         session.query(db.Event)
@@ -47,9 +47,9 @@ def shelf_due_events(session) -> None:
     )
     for event in due:
         try:
-            event.status = "shelfed"
+            event.status = "shelved"
             session.commit()
-            logger.info("Shelved event '%s' (status -> shelfed)", event.id)
+            logger.info("Shelved event '%s' (status -> shelved)", event.id)
         except Exception:
             session.rollback()
             logger.exception("Failed to shelve event '%s'", event.id)

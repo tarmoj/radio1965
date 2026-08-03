@@ -143,7 +143,7 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
     notification is sent right away. Otherwise the event is stored as
     'unpublished' and server/cron_publish.py (run every minute) sends the
     notification and flips it to 'new' once publish_at has passed, and
-    later to 'shelfed' once shelf_at has passed - see project-description.md
+    later to 'shelved' once shelf_at has passed - see project-description.md
     #5 and #7.
     """
     event_id = event.id or f"evt_{int(time.time() * 1000)}"
