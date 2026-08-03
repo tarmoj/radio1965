@@ -118,7 +118,30 @@ def fetch_articles(modified_since: datetime | None = None) -> list[dict]:
     return articles
 
 
-def joomla_article_to_event(item: dict) -> dict:
+def resolve_tag_name(raw_tag, cache: dict) -> str:
+    """
+    Joomla's articles endpoint lists each tag either as an already-resolved
+    name (string) or as a bare numeric tag id, depending on the API/plugin
+    version - resolve the latter via GET /tags/{id}, once per id per run.
+    """
+    if isinstance(raw_tag, dict):
+        return raw_tag.get("title") or raw_tag.get("name") or str(raw_tag.get("id"))
+
+    text = str(raw_tag)
+    if not text.isdigit():
+        return text
+
+    if text in cache:
+        return cache[text]
+
+    resp = requests.get(f"{JOOMLA_BASE_URL}/tags/{text}", headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    name = resp.json()["data"]["attributes"]["title"]
+    cache[text] = name
+    return name
+
+
+def joomla_article_to_event(item: dict, tag_cache: dict) -> dict:
     """Map a Joomla article's JSON:API record to Events DB fields (server/db.py)."""
     attrs = item["attributes"]
     article_id = item["id"]
@@ -132,16 +155,24 @@ def joomla_article_to_event(item: dict) -> dict:
     if shelf_at is None:
         shelf_at = publish_at + DEFAULT_SHELF_DELAY
 
+    # The list endpoint returns the full article body under "text" (not
+    # "introtext"/"fulltext" as older Joomla versions used) - fall back to
+    # those in case a different endpoint/version is ever used instead.
+    body_html = attrs.get("text") or attrs.get("introtext") or attrs.get("fulltext") or ""
+
+    tags = [resolve_tag_name(t, tag_cache) for t in attrs.get("tags") or []]
+
     return {
         "id": f"joomla_{article_id}",
         "type": "article",
         "title": attrs["title"],
-        "summary": strip_html(attrs.get("introtext", "")),
+        "summary": strip_html(body_html),
         "url": attrs.get("link") or f"https://eccm.ee/index.php?option=com_content&id={article_id}",
         "publish_at": publish_at,
         "shelf_at": shelf_at,
         "comments_enabled": False,
-        "payload": {},
+        "payload": {"article_id": int(article_id)},
+        "tags": tags,
     }
 
 
@@ -153,23 +184,28 @@ def run_import(session, last_sync: datetime | None) -> datetime:
     New articles are inserted with status="unpublished" - cron_publish.py
     (run every minute) takes care of sending the notification and moving
     them through new -> shelved. Articles already imported are only
-    updated in place (title/summary/url); their status/publish_at/shelf_at
-    are left untouched and no notification is re-sent.
+    updated in place (title/summary/url/tags/payload); their
+    status/publish_at/shelf_at are left untouched and no notification is
+    re-sent.
     """
     articles = fetch_articles(modified_since=last_sync)
+    tag_cache: dict = {}
 
     for item in articles:
-        event = joomla_article_to_event(item)
+        event = joomla_article_to_event(item, tag_cache)
+        tags = [db.Tag(tag=t) for t in event.pop("tags")]
         existing = session.get(db.Event, event["id"])
 
         if existing is None:
-            row = db.Event(status="unpublished", **event)
+            row = db.Event(status="unpublished", tags=tags, **event)
             session.add(row)
             logger.info("Imported new Joomla article as event '%s'", event["id"])
         else:
             existing.title = event["title"]
             existing.summary = event["summary"]
             existing.url = event["url"]
+            existing.payload = event["payload"]
+            existing.tags = tags
             logger.info("Updated existing Joomla-imported event '%s' (no re-notify)", event["id"])
 
     session.commit()
