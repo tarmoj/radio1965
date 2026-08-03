@@ -21,11 +21,95 @@ The server runs on Ubuntu 18.04, streaming service is already set up.
     
 - Use `QtMultimedia` (with a capable backend, e.g. `libmpv` or GStreamer) to   play HLS/DASH/RTMP directly. 
 
-### 2.1 Client app UI setup
+### 2.1 Client app UI and functinality
+
+The overall logic is similar to a library (of books) - there is counter of new itmes (New Arrivals), shelves (Collection) and Archive where materials to be out of site can be still be accessible.
+An entry is called an "item" instead of "event"  now.
+
+On startup or a push notification arriving, the app pulls data via notification server API, updates its internal data and shows the content.
+The main internal data is a model that refers to  events table in the database, where status is "new" or "shelved". If status is "archived", the items are shown only when searched for, "unpublished" are never shown.
+On exit the app stores the models state in app settings.
+
+// note for myaself: Kartoteek (Estonian) = Card Catalog; Kaart = Entry or Card.
+
+Visually the main element is a Card with  a title, summary, type, maybe later also category, (later also thumbnail) on it. 
+Use separate QML component Card.qml for it. Set necessary proeprties. 
+For now use something like the listviews delegate for it:
+
+Rectangle {
+                        width: messageListView.width
+                        height: messageColumn.implicitHeight + 20
+                        radius: 5
+                        color: Material.backgroundColor.lighter()
+                        border.width: 1
+                        border.color: // Card.color
+
+                        ColumnLayout {
+                            id: messageColumn
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 4
+
+                            Label {
+                                text: title
+                                font.bold: true
+                                font.pointSize: 13
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+
+                            Label {
+                                text: summary
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+
+                            // other necessary fields
+
+                            Mousearea { ... }
+                        }
+
+Use different border colors for different types.
+
+When user clicks on the card, the contents are retrieved and shown in a content component (probably via WebView). Always show also the title on the component. Add Close, Next, Previous button.
+
+Behaviour by types:
+- text -  just show the plain text
+- article -  pull content from joomla API (see joomla_importer.py) and show it as html.
+- audio, video, streams -  to be implemented
+- web content -  use iframe and show given content.
+
+The app has three main pages/views:
+- New Arrivals 
+- Collection (Shelves)
+-- for now organized by type (text, article, audio etc), later by categories
+- Archive
+-- Search form, do not implent now.
+
+Use TabBar + SwipeView for it:
+Something like:
+```
+ApplicationWindow {
+    footer: TabBar {
+        id: tabBar
+        TabButton { text: "New Arrivals" }
+        TabButton { text: "Collection" }
+        TabButton { text: "Archive" }
+    }
+
+    SwipeView {
+        anchors.fill: parent
+        currentIndex: tabBar.currentIndex
+        NewArrivalsPage {}
+        CollectionPage {}
+        ArchivePage {}
+    }
+}
+```
+For Content use StackView, that covers the main content area (between header and above footer)
 
 
-
-
+Later use a slim, persistent mini-player bar that survives across tab switches and stack pushes/pops (sitting between the SwipeView and the TabBar, or docked just above it
 
 ## 3. Main architecture
 
