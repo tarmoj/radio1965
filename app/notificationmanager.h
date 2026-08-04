@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QVariantMap>
 #include <QVector>
@@ -54,9 +55,18 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    // Insert-or-update by id. Used for both GET /events results and
-    // push-delivered events.
+    // Insert-or-update by id. Used for push-delivered events (one at a time).
     Q_INVOKABLE void upsertEvent(const QJsonObject &event);
+
+    // Same as upsertEvent(), but applies a whole batch under a single
+    // beginInsertRows/endInsertRows pair. EventsApiClient::fetchEvents()
+    // re-hydration otherwise calls upsertEvent() once per event, and firing
+    // several synchronous begin/endInsertRows(parent, 0, 0) in a row (all at
+    // row 0) confuses ListView's delegate incubation - the proxy models end
+    // up with the right rows/data (confirmed via direct data() calls and via
+    // Repeater, which isn't affected) but ListView delegates for those rows
+    // get created with no `model` context at all.
+    Q_INVOKABLE void upsertEvents(const QJsonArray &events);
 
     // Called from QML/C++ and from the Android JNI / iOS bridges when a
     // push message arrives. `data` is the raw FCM data payload as a JSON

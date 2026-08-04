@@ -85,9 +85,16 @@ QVariant NotificationManager::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> NotificationManager::roleNames() const
 {
+    // Role names match EventDelegate's required property names exactly
+    // (eventId/eventType, not id/type - "id" is a reserved QML property
+    // name) so QQmlDelegateModel auto-populates the delegate's required
+    // properties directly from role data at construction time, instead of
+    // going through an explicit `model.xxx` binding. That binding style is
+    // what caused ListView delegates to intermittently see `model` as
+    // undefined when several rows were inserted in one batch.
     return {
-        { IdRole, "id" },
-        { TypeRole, "type" },
+        { IdRole, "eventId" },
+        { TypeRole, "eventType" },
         { TitleRole, "title" },
         { SummaryRole, "summary" },
         { UrlRole, "url" },
@@ -125,6 +132,34 @@ void NotificationManager::upsertEvent(const QJsonObject &event)
 
     beginInsertRows(QModelIndex(), 0, 0);
     m_events.prepend(item);
+    endInsertRows();
+}
+
+void NotificationManager::upsertEvents(const QJsonArray &events)
+{
+    QVector<EventItem> newItems;
+
+    for (const QJsonValue &value : events) {
+        const EventItem item = eventItemFromJson(value.toObject());
+        if (item.id.isEmpty())
+            continue;
+
+        const int existingRow = indexOfId(item.id);
+        if (existingRow >= 0) {
+            m_events[existingRow] = item;
+            const QModelIndex changed = index(existingRow);
+            emit dataChanged(changed, changed);
+        } else {
+            newItems.append(item);
+        }
+    }
+
+    if (newItems.isEmpty())
+        return;
+
+    beginInsertRows(QModelIndex(), 0, newItems.size() - 1);
+    for (const EventItem &item : newItems)
+        m_events.prepend(item);
     endInsertRows();
 }
 

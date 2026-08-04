@@ -94,10 +94,10 @@ ItemDelegate {
         Flow {
             Layout.fillWidth: true
             spacing: 4
-            visible: root.tags.length > 0
+            visible: (root.tags ? root.tags.length : 0) > 0
 
             Repeater {
-                model: root.tags
+                model: root.tags || []
                 delegate: Rectangle {
                     radius: 8
                     color: Material.accentColor

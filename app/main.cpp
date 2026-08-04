@@ -21,6 +21,10 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+    app.setOrganizationName("Tarmo Johannes Events and Software");
+    app.setOrganizationDomain("eccm.org");
+    app.setApplicationName("Radio 1965");
+
     EventsApiClient eventsApiClient;
 
 #ifdef RADIO65_ENABLE_NOTIFICATIONS
@@ -28,8 +32,7 @@ int main(int argc, char *argv[])
 
     QObject::connect(&eventsApiClient, &EventsApiClient::eventsReceived,
                       &notificationManager, [&notificationManager](const QJsonArray &events) {
-                          for (const QJsonValue &event : events)
-                              notificationManager.upsertEvent(event.toObject());
+                          notificationManager.upsertEvents(events);
                       });
 
     // "New Arrivals" (status=new) and "Collection" (status=shelved) -

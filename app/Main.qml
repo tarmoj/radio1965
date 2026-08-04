@@ -17,7 +17,6 @@ ApplicationWindow {
 
     property color backgroundEndColor: "darkgreen"
 
-
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
@@ -167,7 +166,9 @@ ApplicationWindow {
         id: stackView
         anchors.fill: parent
         initialItem: feedComponent
+
     }
+
 
     Component {
         id: feedComponent
@@ -190,8 +191,8 @@ ApplicationWindow {
                 currentIndex: tabBar.currentIndex
                 onCurrentIndexChanged: tabBar.currentIndex = currentIndex
 
-                EventListView { eventsModel: newEventsModel }
-                EventListView { eventsModel: shelfEventsModel }
+                EventListView { eventsModel: newEventsModel; navigationStack: stackView }
+                EventListView { eventsModel: shelfEventsModel; navigationStack: stackView }
             }
         }
     }
