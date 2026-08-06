@@ -7,8 +7,18 @@ import QtWebView
 // "article" events (Joomla-sourced) fetch rendered HTML live from the
 // server's GET /articles/{id} proxy (server/main.py, which itself fetches
 // live from Joomla - nothing is stored server-side either way) and render
-// it via WebView.loadHtml(). "webcontent" events have no Joomla article id
-// and keep loading `pageUrl` directly, as before.
+// it as a data: URI. "webcontent" events have no Joomla article id and keep
+// loading `pageUrl` directly, as before.
+//
+// Not using WebView.loadHtml(html, baseUrl): Qt's Android WebView backend
+// has a bug where content loaded that way renders as literal
+// percent-encoded text instead of being decoded (desktop is unaffected).
+// Loading a "data:text/html;...,<encoded html>" URL via the normal `url`
+// property goes through WebView's regular navigation path instead of that
+// broken loadData()/loadDataWithBaseURL() JNI bridge, and works on both.
+// baseUrl is no longer needed either way: the server already rewrites the
+// article's image/link URLs to be absolute (see _absolutize_urls() in
+// server/main.py), so there's nothing left for a baseUrl to resolve.
 Page {
     id: root
 
@@ -59,11 +69,11 @@ Page {
         text: root.errorMessage
     }
 
-    function _onArticleReceived(articleId, title, html, baseUrl) {
+    function _onArticleReceived(articleId, title, html) {
         if (articleId !== root.articleId)
             return;
         root.loading = false;
-        webView.loadHtml(html, baseUrl);
+        webView.url = "data:text/html;charset=utf-8," + encodeURIComponent(html);
     }
 
     function _onArticleFailed(articleId, errorString) {

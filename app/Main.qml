@@ -194,6 +194,7 @@ ApplicationWindow {
 
                 TabButton { text: qsTr("New Arrivals") }
                 TabButton { text: qsTr("Collection") }
+                TabButton { text: qsTr("Archive") }
             }
 
             SwipeView {
@@ -205,6 +206,12 @@ ApplicationWindow {
 
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
                 EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
+                Page {
+                    Label {
+                        anchors.centerIn: parent
+                        text: qsTr("Archive is not implemented yet.")
+                    }
+                }
             }
         }
     }
