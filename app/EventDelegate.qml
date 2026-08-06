@@ -102,7 +102,7 @@ ItemDelegate {
         Flow {
             Layout.fillWidth: true
             spacing: 4
-            visible: (root.tags ? root.tags.length : 0) > 0
+            visible:  false //  (root.tags ? root.tags.length : 0) > 0
 
             Repeater {
                 model: root.tags || []
