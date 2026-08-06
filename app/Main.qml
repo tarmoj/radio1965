@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.3.1"
+    property string version: "0.3.2"
     title: qsTr("Radio 1965") + " v" + version
     color: Material.background
 
@@ -24,6 +24,18 @@ ApplicationWindow {
 
     Component.onCompleted: {
         eventsApiClient.fetchEvents(appSettings.serverUrl);
+    }
+
+    // Push is FYI-only (project-description.md #5): NotificationManager
+    // never mutates the event list from a push payload itself - any push
+    // arrival (foreground, background, or a notification tap while the app
+    // was already running) just re-fetches the real list from the server,
+    // same as the manual refresh button.
+    Connections {
+        target: notificationManager
+        function onRefreshRequested() {
+            eventsApiClient.fetchEvents(appSettings.serverUrl);
+        }
     }
 
     background: Rectangle {

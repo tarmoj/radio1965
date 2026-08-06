@@ -1,8 +1,6 @@
 #include "notificationmanager.h"
 
-#include <QDateTime>
 #include <QJsonArray>
-#include <QJsonDocument>
 
 NotificationManager *NotificationManager::s_instance = nullptr;
 
@@ -116,25 +114,6 @@ int NotificationManager::indexOfId(const QString &id) const
     return -1;
 }
 
-void NotificationManager::upsertEvent(const QJsonObject &event)
-{
-    const EventItem item = eventItemFromJson(event);
-    if (item.id.isEmpty())
-        return;
-
-    const int existingRow = indexOfId(item.id);
-    if (existingRow >= 0) {
-        m_events[existingRow] = item;
-        const QModelIndex changed = index(existingRow);
-        emit dataChanged(changed, changed);
-        return;
-    }
-
-    beginInsertRows(QModelIndex(), 0, 0);
-    m_events.prepend(item);
-    endInsertRows();
-}
-
 void NotificationManager::upsertEvents(const QJsonArray &events)
 {
     QVector<EventItem> newItems;
@@ -163,27 +142,7 @@ void NotificationManager::upsertEvents(const QJsonArray &events)
     endInsertRows();
 }
 
-void NotificationManager::addMessage(const QString &title, const QString &summary, const QString &data)
+void NotificationManager::addMessage(const QString &, const QString &, const QString &)
 {
-    const QJsonObject fcmData = QJsonDocument::fromJson(data.toUtf8()).object();
-    const QString eventJson = fcmData.value("event").toString();
-
-    if (!eventJson.isEmpty()) {
-        const QJsonObject event = QJsonDocument::fromJson(eventJson.toUtf8()).object();
-        if (!event.isEmpty()) {
-            upsertEvent(event);
-            return;
-        }
-    }
-
-    // Fallback: malformed/unexpected push payload - still surface something
-    // rather than silently dropping the notification.
-    QJsonObject fallback;
-    fallback["id"] = fcmData.value("event_id").toString(
-        QStringLiteral("push_%1").arg(QDateTime::currentMSecsSinceEpoch()));
-    fallback["type"] = fcmData.value("type").toString("text");
-    fallback["title"] = title;
-    fallback["summary"] = summary;
-    fallback["status"] = "new";
-    upsertEvent(fallback);
+    emit refreshRequested();
 }

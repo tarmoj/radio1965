@@ -12,6 +12,16 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 if(ANDROID)
     set(QT_ANDROID_MIN_SDK_VERSION 28)
+
+    # Android blocks apps from loading the *system* libcrypto.so/libssl.so
+    # (linker namespace isolation, see the "not accessible for the
+    # namespace" dlopen error) - Qt::Network's TLS backend (needed for every
+    # HTTPS call EventsApiClient makes) needs its own bundled copies, or it
+    # fails at runtime with "No functional TLS backend was found". Point
+    # this at a checkout of https://github.com/KDAB/android_openssl;
+    # defaults to this machine's existing copy under the Android SDK.
+    set(RADIO65_ANDROID_OPENSSL_DIR "/home/tarmo/Android/Sdk/android_openssl" CACHE PATH
+        "Path to a github.com/KDAB/android_openssl checkout (provides libcrypto/libssl for Android)")
 endif()
 
 if(IOS)
@@ -75,6 +85,16 @@ target_link_libraries(appradio65
 if(ANDROID)
     set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_NAME org.eccm.radio65)
     set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android)
+
+    if(EXISTS "${RADIO65_ANDROID_OPENSSL_DIR}/android_openssl.cmake")
+        include("${RADIO65_ANDROID_OPENSSL_DIR}/android_openssl.cmake")
+        add_android_openssl_libraries(appradio65)
+    else()
+        message(WARNING "RADIO65_ANDROID_OPENSSL_DIR (${RADIO65_ANDROID_OPENSSL_DIR}) not found - "
+            "HTTPS requests will fail at runtime with \"No functional TLS backend was found\". "
+            "Set -DRADIO65_ANDROID_OPENSSL_DIR=/path/to/android_openssl (see "
+            "https://github.com/KDAB/android_openssl).")
+    endif()
 endif()
 
 if(IOS)
