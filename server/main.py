@@ -7,8 +7,10 @@ Run from the repo root with:
 """
 
 import logging
+import re
 import time
 from datetime import datetime, timedelta
+from urllib.parse import urljoin
 
 import requests
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -25,6 +27,23 @@ ARTICLE_HTML_TEMPLATE = """<!doctype html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>body{{font-family:sans-serif;padding:8px}}img,video,iframe{{max-width:100%;height:auto}}</style>
 </head><body>{body}</body></html>"""
+
+# Matches src="..."/href="..." (single or double quotes) whose value isn't
+# already absolute (http(s)://, data:, or a #fragment).
+_RELATIVE_URL_ATTR = re.compile(r"""(src|href)=(["'])(?!https?://|data:|#)([^"']+)\2""", re.IGNORECASE)
+
+
+def _absolutize_urls(html: str, base: str) -> str:
+    """
+    Rewrite relative src/href attributes (e.g. Joomla's "images/foo.jpg") to
+    absolute URLs against `base`. WebView.loadHtml(html, baseUrl)'s own
+    relative-URL resolution is what this replaces - it's unreliable on the
+    Android WebView backend, which has shown percent-encoded content instead
+    of rendering it when a baseUrl is passed (desktop is unaffected, so this
+    is worked around at the content level instead of relying on the
+    platform's loadHtml() implementation).
+    """
+    return _RELATIVE_URL_ATTR.sub(lambda m: f'{m.group(1)}={m.group(2)}{urljoin(base, m.group(3))}{m.group(2)}', html)
 
 # Events default to being moved to the shelf a week after publish_at if the
 # editor doesn't set an explicit shelf_at (see project-description.md #7).
@@ -242,15 +261,17 @@ def get_article(article_id: int):
     attrs = data["attributes"]
     # Same fallback chain as joomla_importer.joomla_article_to_event().
     body_html = attrs.get("text") or attrs.get("introtext") or attrs.get("fulltext") or ""
+    # Site root, not attrs["link"]: Joomla's relative asset paths (e.g.
+    # "images/foo.jpg") resolve against the site root, not the article's own
+    # permalink path.
+    base_url = joomla_importer.JOOMLA_SITE_URL
+    body_html = _absolutize_urls(body_html, base_url)
 
     return {
         "article_id": article_id,
         "title": attrs.get("title", ""),
         "html": ARTICLE_HTML_TEMPLATE.format(body=body_html),
-        # Site root, not attrs["link"]: Joomla's relative asset paths (e.g.
-        # "images/foo.jpg") resolve against the site root, not the article's
-        # own permalink path.
-        "base_url": joomla_importer.JOOMLA_SITE_URL,
+        "base_url": base_url,
     }
 
 
