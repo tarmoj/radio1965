@@ -10,13 +10,21 @@ import logging
 import time
 from datetime import datetime, timedelta
 
+import requests
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from server import config, db, notifications
+from server import config, db, joomla_importer, notifications
+
+# Minimal responsive wrapper for Joomla's article "text" field (a bare HTML
+# fragment with no viewport meta/CSS of its own) - see GET /articles/{id}.
+ARTICLE_HTML_TEMPLATE = """<!doctype html><html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{{font-family:sans-serif;padding:8px}}img,video,iframe{{max-width:100%;height:auto}}</style>
+</head><body>{body}</body></html>"""
 
 # Events default to being moved to the shelf a week after publish_at if the
 # editor doesn't set an explicit shelf_at (see project-description.md #7).
@@ -199,6 +207,51 @@ def list_events(status: list[str] | None = Query(None), session: Session = Depen
     query = query.filter(db.Event.status.in_(status or ["new", "shelved"]))
     rows = query.order_by(db.Event.publish_at.desc()).limit(200).all()
     return {"events": [r.to_dict() for r in rows]}
+
+
+@app.get("/articles/{article_id}")
+def get_article(article_id: int):
+    """
+    Proxy for a single Joomla article's HTML content (project-description.md
+    #2). The app never holds JOOMLA_API_TOKEN - it calls this instead of
+    Joomla directly, same auth/base URL as server/joomla_importer.py.
+    Content is fetched live on every call, never stored server-side.
+    """
+    try:
+        resp = requests.get(
+            f"{joomla_importer.JOOMLA_BASE_URL}/content/articles/{article_id}",
+            headers=joomla_importer.HEADERS,
+            timeout=30,
+        )
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="Failed to reach Joomla")
+
+    if resp.status_code == 404:
+        raise HTTPException(status_code=404, detail=f"Article {article_id} not found")
+    try:
+        resp.raise_for_status()
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="Failed to fetch article from Joomla")
+
+    data = resp.json().get("data")
+    if isinstance(data, list):
+        data = data[0] if data else None
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Article {article_id} not found")
+
+    attrs = data["attributes"]
+    # Same fallback chain as joomla_importer.joomla_article_to_event().
+    body_html = attrs.get("text") or attrs.get("introtext") or attrs.get("fulltext") or ""
+
+    return {
+        "article_id": article_id,
+        "title": attrs.get("title", ""),
+        "html": ARTICLE_HTML_TEMPLATE.format(body=body_html),
+        # Site root, not attrs["link"]: Joomla's relative asset paths (e.g.
+        # "images/foo.jpg") resolve against the site root, not the article's
+        # own permalink path.
+        "base_url": joomla_importer.JOOMLA_SITE_URL,
+    }
 
 
 @app.get("/tags")

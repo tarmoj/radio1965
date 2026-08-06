@@ -19,6 +19,11 @@ Item {
     // first (local scope wins over outer ids), causing a self-referencing
     // binding loop instead of picking up the outer StackView.
     required property StackView navigationStack
+    // Server base URL (e.g. "https://live.uuu.ee/radio1965/api"), needed so
+    // WebViewPage can call eventsApiClient.fetchArticle() for Joomla
+    // "article" events. Passed in explicitly for the same reason as
+    // navigationStack above.
+    required property string serverBaseUrl
 
     ListView {
         id: listView
@@ -34,9 +39,13 @@ Item {
             // automatically: their names match NotificationManager's role
             // names exactly (see notificationmanager.cpp roleNames()).
 
-            onArticleRequested: (url, title) =>
-                root.navigationStack.push(Qt.resolvedUrl("WebViewPage.qml"),
-                                     { pageUrl: url, pageTitle: title })
+            onArticleRequested: (url, title, articleId, isJoomlaArticle) =>
+                root.navigationStack.push(Qt.resolvedUrl("WebViewPage.qml"), {
+                    pageUrl: url,
+                    pageTitle: title,
+                    articleId: isJoomlaArticle ? articleId : 0,
+                    serverBaseUrl: root.serverBaseUrl
+                })
 
             onPlayerRequested: (url, title, isLive) =>
                 root.navigationStack.push(Qt.resolvedUrl("PlayerPage.qml"),

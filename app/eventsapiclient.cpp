@@ -42,3 +42,32 @@ void EventsApiClient::fetchEvents(const QString &baseUrl)
         emit eventsReceived(events);
     });
 }
+
+void EventsApiClient::fetchArticle(const QString &baseUrl, int articleId)
+{
+    QNetworkRequest request(QUrl(baseUrl + "/articles/" + QString::number(articleId)));
+
+    QNetworkReply *reply = m_networkManager.get(request);
+
+    connect(reply, &QNetworkReply::errorOccurred, this, [](QNetworkReply::NetworkError err) {
+        qDebug() << "EventsApiClient: fetchArticle errorOccurred" << err;
+    });
+    connect(reply, &QNetworkReply::sslErrors, this, [](const QList<QSslError> &errors) {
+        qDebug() << "EventsApiClient: fetchArticle sslErrors" << errors;
+    });
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, articleId]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            emit articleFetchFailed(articleId, reply->errorString());
+            return;
+        }
+
+        const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        emit articleReceived(articleId,
+                              obj.value("title").toString(),
+                              obj.value("html").toString(),
+                              obj.value("base_url").toString());
+    });
+}

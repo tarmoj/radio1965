@@ -16,8 +16,14 @@ ItemDelegate {
     required property string url
     required property var tags
     required property string status
+    required property var payload
 
-    signal articleRequested(string url, string title)
+    // Joomla-sourced "article" events carry the numeric Joomla article id
+    // in payload.article_id (see server/joomla_importer.py); "webcontent"
+    // events have no such id and keep loading `url` directly.
+    readonly property int articleId: (payload && payload.article_id !== undefined) ? payload.article_id : 0
+
+    signal articleRequested(string url, string title, int articleId, bool isJoomlaArticle)
     signal playerRequested(string url, string title, bool isLive)
 
     property bool expanded: false
@@ -37,8 +43,10 @@ ItemDelegate {
     onClicked: {
         switch (eventType) {
         case "article":
+            articleRequested(url, title, root.articleId, true);
+            break;
         case "webcontent":
-            articleRequested(url, title);
+            articleRequested(url, title, 0, false);
             break;
         case "audio":
         case "video":

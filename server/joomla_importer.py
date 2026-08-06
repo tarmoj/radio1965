@@ -23,6 +23,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
@@ -33,6 +34,12 @@ logger = logging.getLogger(__name__)
 JOOMLA_BASE_URL = "https://eccm.ee/api/index.php/v1"
 JOOMLA_API_TOKEN = os.getenv("JOOMLA_API_TOKEN")
 JOOMLA_CATEGORY_ID = 47  # set to restrict import to one category, or None for all
+
+# Site root (not the API base), derived rather than hardcoded a second time.
+# Used as the baseUrl for relative asset paths (e.g. "images/foo.jpg") found
+# in article HTML - see server/main.py's GET /articles/{id}.
+_parsed_base = urlparse(JOOMLA_BASE_URL)
+JOOMLA_SITE_URL = f"{_parsed_base.scheme}://{_parsed_base.netloc}/"
 
 HEADERS = {
     "Authorization": f"Bearer {JOOMLA_API_TOKEN}",

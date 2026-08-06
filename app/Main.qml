@@ -191,8 +191,8 @@ ApplicationWindow {
                 currentIndex: tabBar.currentIndex
                 onCurrentIndexChanged: tabBar.currentIndex = currentIndex
 
-                EventListView { eventsModel: newEventsModel; navigationStack: stackView }
-                EventListView { eventsModel: shelfEventsModel; navigationStack: stackView }
+                EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
+                EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
             }
         }
     }
