@@ -6,3 +6,5 @@ app/ios/Firebase/
 app/Apple Push key info:
 server/set_env.sh
 server/config/joomla_api_key.txt
+.ninja*
+start.sh
