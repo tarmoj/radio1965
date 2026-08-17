@@ -35,6 +35,10 @@ Page {
     property var liveInfo: null
     property bool loading: true
     property string errorMessage: ""
+    // Specifically "the live HLS manifest 404s" (MediaPlayer.ResourceError
+    // while isLive), as opposed to some other playback error - drives the
+    // auto-retry Timer below without spamming retries for unrelated errors.
+    property bool liveStreamOffline: false
 
     readonly property string displayTitle: liveInfo ? liveInfo.title
                                                       : (root.mediaTitle || (root.isLive ? qsTr("Live Stream") : ""))
@@ -57,6 +61,7 @@ Page {
     header: ToolBar {
         RowLayout {
             anchors.fill: parent
+            anchors.margins: 5
 
             ToolButton {
                 text: "←"
@@ -71,6 +76,11 @@ Page {
                 text: root.displayTitle
                 elide: Text.ElideRight
                 Layout.fillWidth: true
+            }
+
+            ToolButton {
+                text: qsTr("Reload")
+                onClicked: root.startPlayback()
             }
 
             Label {
@@ -94,11 +104,27 @@ Page {
 
         onErrorOccurred: (error, errorString) => {
             root.loading = false;
-            if (root.isLive && error === MediaPlayer.ResourceError)
+            if (root.isLive && error === MediaPlayer.ResourceError) {
+                root.liveStreamOffline = true;
                 root.errorMessage = qsTr("No live stream");
-            else
+            } else {
+                root.liveStreamOffline = false;
                 root.errorMessage = errorString || qsTr("Playback failed");
+            }
         }
+    }
+
+    // Drives auto-retry: the stream can go from offline to on-air while the
+    // user is sitting on the Live tab, and MediaPlayer never retries a
+    // failed source on its own. Scoped tightly (live + currently known
+    // offline + this page actually visible) so it doesn't spam retries for
+    // an unrelated playback error or while the tab is swiped away.
+    Timer {
+        interval: 8000
+        repeat: true
+        running: root.isLive && root.liveStreamOffline
+                 && (root.SwipeView.view === null || root.SwipeView.isCurrentItem)
+        onTriggered: root.startPlayback()
     }
 
     ColumnLayout {
@@ -158,17 +184,35 @@ Page {
         visible: running
     }
 
-    Label {
+    Column {
         anchors.centerIn: parent
         anchors.margins: 16
         width: parent.width - 32
-        wrapMode: Text.Wrap
-        horizontalAlignment: Text.AlignHCenter
+        spacing: 12
         visible: root.errorMessage !== ""
-        text: root.errorMessage
+
+        Label {
+            width: parent.width
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
+            text: root.errorMessage
+        }
+
+        // Reload button was here
     }
 
     function startPlayback() {
+        root.loading = true;
+        root.errorMessage = "";
+        root.liveStreamOffline = false;
+
+        // Reassigning `source` to the same URL it already holds is a no-op
+        // in QML (the write is skipped when the new value equals the
+        // cached one) - clearing it first forces MediaPlayer to genuinely
+        // reload instead of silently doing nothing, which is what made both
+        // "stream starts while the tab stays open" and "revisit the tab"
+        // fail to ever retry.
+        player.source = "";
         if (root.isLive) {
             refreshLiveInfo();
             player.source = root.liveStreamUrl;
