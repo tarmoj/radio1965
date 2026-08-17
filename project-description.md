@@ -224,18 +224,33 @@ All others:
 TODO: proper support of audio streams, needs a separate streaming service.
 
 
-## 8. Streaming
+## 8. Streaming (receivng)
 
 Use U:'s streaming service for testing.
 
-Video & audio (based on nginx):
+Video (based on nginx):
 
 sending (OBS Studio, IRL Pro from mobile)
 rtmp://live.uuu.ee/live/stream
+the last part, "stream" can be various keys. 
+rtmp://live.uuu.ee/live/<key>
 
 Watching 
-https://live.uuu.ee:4443/hls/stream.m3u8
+https://live.uuu.ee:4443/hls/<key>.m3u8
 Web wrapper (audio muted at the moment): https://live.uuu.ee/live
+
+
+
+Audio:
+
+Sending: rtmp://live.uuu.ee/audio/stream 
+
+Listening:
+https://live.uuu.ee:4443/hls_audio/stream.m3u8
+
+(use any key instead of "stream" )
+
+
 
 nginx.conf streaming section:
 ```
@@ -343,6 +358,14 @@ application audio {
     record_suffix -%Y%m%d-%H%M%S.flv;
 }
 ```
+
+
+
+
+## 9. Broadcasting audio from app
+
+TBS
+
 
 ## 99. Ideas.
 
