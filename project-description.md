@@ -359,12 +359,50 @@ application audio {
 }
 ```
 
+### 8.1 Audio streaming via Icecast
+
+Icecast server running on remote sever (port 8001 for now)
+
+Test send:
+ffmpeg -re -f lavfi -i "sine=frequency=440:duration=60"   -c:a libmp3lame -b:a 128k   -content_type audio/mpeg   -f mp3 icecast://source:<Password>@live.uuu.ee:8001/radio1965
+
+or as a looping file:
+ffmpeg -re -stream_loop -1 -i raba.mp3 -c:a copy -content_type audio/mpeg   -f mp3 icecast://source:Tesla100@185.169.69.8:8001/radio1965
+
+
+Listen:
+http://185.169.69.8:8001/radio1965
+
+
+Hooks on starting/stopping streams (in icecast.xml)
+
+<mount>
+    <mount-name>/user1</mount-name>
+    <on-connect>/usr/local/bin/stream-started.sh</on-connect>
+    <on-disconnect>/usr/local/bin/stream-stopped.sh</on-disconnect>
+</mount>
+
+Predifine this way say 4 channels (user1, user2 etc)
+
+To get info about a stream in the script:
+curl -s "http://localhost:8001/status-json.xsl"
+Returns JSON with active sources, including things like:
+listenurl
+server_name / server_description (if the source client sent them)
+bitrate
+content-type (e.g. audio/mpeg)
+listeners (current count)
 
 
 
 ## 9. Broadcasting audio from app
 
-TBS
+FFmpeg (libavformat/libavcodec)
+This is the most common approach. FFmpeg's libavformat can open an rtmp:// URL as an output and handles the whole RTMP handshake/FLV muxing for you — you just feed it encoded audio (and video) packets. You'd:
+
+Capture PCM via QAudioSource
+Encode to AAC via libavcodec (or Android's native MediaCodec AAC encoder if you want to skip FFmpeg's audio encoder)
+Mux + push via libavformat to 
 
 
 ## 99. Ideas.
