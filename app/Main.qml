@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.3.2"
+    property string version: "0.4.0"
     title: qsTr("Radio 1965") + " v" + version
     color: Material.background
 
@@ -194,6 +194,7 @@ ApplicationWindow {
 
                 TabButton { text: qsTr("New Arrivals") }
                 TabButton { text: qsTr("Collection") }
+                TabButton { text: qsTr("Live") }
                 TabButton { text: qsTr("Archive") }
             }
 
@@ -206,12 +207,14 @@ ApplicationWindow {
 
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
                 EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
+                PlayerPage { isLive: true }
                 Page {
                     Label {
                         anchors.centerIn: parent
                         text: qsTr("Archive is not implemented yet.")
                     }
                 }
+
             }
         }
     }

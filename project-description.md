@@ -224,6 +224,126 @@ All others:
 TODO: proper support of audio streams, needs a separate streaming service.
 
 
+## 8. Streaming
+
+Use U:'s streaming service for testing.
+
+Video & audio (based on nginx):
+
+sending (OBS Studio, IRL Pro from mobile)
+rtmp://live.uuu.ee/live/stream
+
+Watching 
+https://live.uuu.ee:4443/hls/stream.m3u8
+Web wrapper (audio muted at the moment): https://live.uuu.ee/live
+
+nginx.conf streaming section:
+```
+server {
+        listen 8080;
+        location /hls {
+            types {
+                application/vnd.apple.mpegurl m3u8;
+                video/mp2t ts;
+            }
+            root /var/www/html;
+            add_header Cache-Control no-cache;
+            add_header Access-Control-Allow-Origin *;
+        }
+    }
+
+    # --- HTTPS server (nt 4443) ---
+    server {
+        listen 4443 ssl;
+        server_name _;
+
+        ssl_certificate     /etc/ssl/private/live.uuu.ee.pem;
+        ssl_certificate_key /etc/ssl/private/private.key;
+
+        location /hls {
+            types {
+                application/vnd.apple.mpegurl m3u8;
+                video/mp2t ts;
+            }
+            root /var/www/html;
+            add_header Cache-Control no-cache;
+            add_header Access-Control-Allow-Origin *;
+        }
+
+        location / {
+            root /var/www/html;
+            index index.html player.html;
+        }
+    }
+}
+
+
+rtmp {
+    server {
+        listen 1935; # RTMP port
+        chunk_size 4096;
+
+        application live {
+            live on;
+            record on;
+            record all;
+            record_path /var/recordings;
+            record_unique on;
+            record_suffix -%Y%m%d-%H%M%S.flv;
+
+            # HLS väljund
+            hls on;
+            hls_path /var/www/html/hls;
+            hls_fragment 2s;
+            hls_playlist_length 10s;
+        }
+    }
+}
+```
+
+TODO: make a script that converts  the recorded .flv and moves it to another server. Use in config:
+    exec_record_done /usr/local/bin/process-recording.sh $path;;
+
+possibly:
+```
+#!/bin/bash
+# /usr/local/bin/process-recording.sh
+FILE="$1"
+BASENAME="${FILE%.*}"
+
+HAS_VIDEO=$(ffprobe -v error -select_streams v -show_entries stream=codec_type \
+  -of csv=p=0 "$FILE")
+
+if [ -z "$HAS_VIDEO" ]; then
+  # Audio-only stream → extract to MP3
+  ffmpeg -i "$FILE" -vn -c:a libmp3lame -b:a 192k "${BASENAME}.mp3"
+  rm "$FILE"
+else
+  # Has video → remux to MP4 (fast, no re-encode)
+  ffmpeg -i "$FILE" -c copy "${BASENAME}.mp4"
+  rm "$FILE"
+fi
+```
+
+TODO: later use dfferent application name, ie address for broadcasing audio: rtmp://live.uuu.ee/audio/<stream-name>
+
+In that case nginx.conf:
+```
+application live {
+    live on;
+    record all;
+    record_path /var/recordings/video;
+    record_suffix -%Y%m%d-%H%M%S.flv;
+}
+
+application audio {
+    live on;
+    record all;
+    record_path /var/recordings/audio;
+    record_suffix -%Y%m%d-%H%M%S.flv;
+}
+```
+
 ## 99. Ideas.
 
 Think of the app/project as **library** -  new items, catlogues, shelves, items lost, order/wish lists, meeting with authors, *vorlesungen* etc I

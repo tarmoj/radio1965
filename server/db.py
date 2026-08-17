@@ -30,7 +30,7 @@ class Base(DeclarativeBase):
     pass
 
 
-EVENT_TYPES = ("text", "audio", "video", "audiostream", "videostream", "article", "webcontent")
+EVENT_TYPES = ("text", "audio", "video", "audiostream", "videostream", "article", "webcontent", "livestream")
 EVENT_STATUSES = ("unpublished", "new", "shelved", "archived")
 
 

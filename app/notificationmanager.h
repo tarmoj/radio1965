@@ -72,6 +72,14 @@ public:
     // server, same as the manual refresh button - see refreshRequested().
     Q_INVOKABLE void addMessage(const QString &title, const QString &summary, const QString &data);
 
+    // Title/summary of the current type=="livestream" && status=="new"
+    // event, or an empty map if none - metadata only (project-description.md
+    // #8). PlayerPage.qml uses this purely to label the stream; it does NOT
+    // decide whether playback is attempted - that's up to whether the HLS
+    // URL itself actually loads (see PlayerPage.qml's MediaPlayer error
+    // handling).
+    Q_INVOKABLE QVariantMap findLiveStream() const;
+
     // Singleton-style accessor so the Android JNI callback (which runs outside
     // of any QML context) can reach the instance created in main.cpp.
     static NotificationManager *instance();

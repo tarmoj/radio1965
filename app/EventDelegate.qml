@@ -5,7 +5,7 @@ import QtQuick.Layouts
 // One row in the "New Arrivals"/"Collection" lists (project-description.md
 // #2.1). Tap behavior depends on `type`: "text" expands the summary
 // in place, "article"/"webcontent" open WebViewPage, and
-// "audio"/"video"/"audiostream"/"videostream" open PlayerPage.
+// "audio"/"video"/"livestream" open PlayerPage.
 ItemDelegate {
     id: root
 
@@ -24,15 +24,15 @@ ItemDelegate {
     readonly property int articleId: (payload && payload.article_id !== undefined) ? payload.article_id : 0
 
     signal articleRequested(string url, string title, int articleId, bool isJoomlaArticle)
-    signal playerRequested(string url, string title, bool isLive)
+    signal playerRequested(string url, string title, string summary, bool isLive)
 
     property bool expanded: false
 
-    readonly property bool isLive: eventType === "audiostream" || eventType === "videostream"
+    readonly property bool isLive: eventType === "livestream"
     readonly property string typeIcon: {
-        if (eventType === "audio" || eventType === "audiostream")
+        if (eventType === "audio")
             return "qrc:/images/sound.svg";
-        if (eventType === "video" || eventType === "videostream")
+        if (eventType === "video" || eventType === "livestream")
             return "qrc:/images/play.svg";
         return "";
     }
@@ -50,9 +50,8 @@ ItemDelegate {
             break;
         case "audio":
         case "video":
-        case "audiostream":
-        case "videostream":
-            playerRequested(url, title, isLive);
+        case "livestream":
+            playerRequested(url, title, summary, isLive);
             break;
         default:
             expanded = !expanded;

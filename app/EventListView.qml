@@ -47,9 +47,9 @@ Item {
                     serverBaseUrl: root.serverBaseUrl
                 })
 
-            onPlayerRequested: (url, title, isLive) =>
+            onPlayerRequested: (url, title, summary, isLive) =>
                 root.navigationStack.push(Qt.resolvedUrl("PlayerPage.qml"),
-                                     { mediaUrl: url, mediaTitle: title, isLive: isLive })
+                                     { mediaUrl: url, mediaTitle: title, mediaSummary: summary, isLive: isLive })
         }
     }
 }

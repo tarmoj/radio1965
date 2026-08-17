@@ -35,8 +35,7 @@
         <option value="text">text</option>
         <option value="audio">audio</option>
         <option value="video">video</option>
-        <option value="audiostream">audiostream</option>
-        <option value="videostream">videostream</option>
+        <option value="livestream">livestream</option>
         <option value="article" selected>article</option>
         <option value="webcontent">webcontent</option>
       </select>
@@ -51,16 +50,6 @@
     <label id="urlFieldLabel">Content URL
       <input id="url" type="url" />
     </label>
-
-    <!-- audiostream | videostream only -->
-    <div id="streamFields">
-      <label>Live at
-        <input id="liveAt" type="datetime-local" />
-      </label>
-      <label>Server address
-        <input id="serverAddress" value="https://live.uuu.ee/stream" />
-      </label>
-    </div>
 
     <label>
       <span class="row">
@@ -84,10 +73,10 @@
 
   <p>
     <em>
-      Fields with no dedicated DB column (Live at / Server address for
-      streams) are sent inside payload. "status" is set automatically by
-      the server: 'current' if published now, otherwise 'unpublished' until
-      server/cron_publish.py sends the notification at publish_at.
+      Fields with no dedicated DB column are sent inside payload. "status" is
+      set automatically by the server: 'current' if published now, otherwise
+      'unpublished' until server/cron_publish.py sends the notification at
+      publish_at.
     </em>
   </p>
 
@@ -109,15 +98,21 @@
     const typeEl = document.getElementById("type");
     const textFieldLabel = document.getElementById("textFieldLabel");
     const urlFieldLabel = document.getElementById("urlFieldLabel");
-    const streamFields = document.getElementById("streamFields");
+    const urlEl = document.getElementById("url");
+
+    // The only live HLS endpoint that exists today (project-description.md
+    // #8) - prefilled so publishing a livestream event doesn't require
+    // knowing/typing it.
+    const DEFAULT_LIVESTREAM_URL = "https://live.uuu.ee:4443/hls/stream.m3u8";
 
     function updateFieldsForType() {
       const type = typeEl.value;
       const isText = type === "text";
-      const isStream = type === "audiostream" || type === "videostream";
       textFieldLabel.style.display = isText ? "" : "none";
       urlFieldLabel.style.display = isText ? "none" : "";
-      streamFields.style.display = isStream ? "" : "none";
+      if (type === "livestream" && !urlEl.value) {
+        urlEl.value = DEFAULT_LIVESTREAM_URL;
+      }
     }
     typeEl.addEventListener("change", updateFieldsForType);
     updateFieldsForType();
@@ -168,10 +163,6 @@
       const type = typeEl.value;
       const payload = {};
 
-      if (type === "audiostream" || type === "videostream") {
-        payload.live_at = document.getElementById("liveAt").value || null;
-        payload.server_address = document.getElementById("serverAddress").value;
-      }
       if (type === "text") {
         payload.text = document.getElementById("text").value;
       }
