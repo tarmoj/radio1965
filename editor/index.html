@@ -51,6 +51,13 @@
       <input id="url" type="url" />
     </label>
 
+    <!-- livestream only: when the broadcast itself is scheduled to start,
+         distinct from "Announce at" below (when the notification/card
+         appears - can be well before the stream actually starts) -->
+    <label id="startsAtFieldLabel">Starts at
+      <input id="startsAt" type="datetime-local" />
+    </label>
+
     <label>
       <span class="row">
         <span>Announce at</span>
@@ -99,6 +106,7 @@
     const textFieldLabel = document.getElementById("textFieldLabel");
     const urlFieldLabel = document.getElementById("urlFieldLabel");
     const urlEl = document.getElementById("url");
+    const startsAtFieldLabel = document.getElementById("startsAtFieldLabel");
 
     // The only live HLS endpoint that exists today (project-description.md
     // #8) - prefilled so publishing a livestream event doesn't require
@@ -108,9 +116,11 @@
     function updateFieldsForType() {
       const type = typeEl.value;
       const isText = type === "text";
+      const isLivestream = type === "livestream";
       textFieldLabel.style.display = isText ? "" : "none";
       urlFieldLabel.style.display = isText ? "none" : "";
-      if (type === "livestream" && !urlEl.value) {
+      startsAtFieldLabel.style.display = isLivestream ? "" : "none";
+      if (isLivestream && !urlEl.value) {
         urlEl.value = DEFAULT_LIVESTREAM_URL;
       }
     }
@@ -165,6 +175,9 @@
 
       if (type === "text") {
         payload.text = document.getElementById("text").value;
+      }
+      if (type === "livestream") {
+        payload.startsAt = document.getElementById("startsAt").value || null;
       }
 
       const tags = document

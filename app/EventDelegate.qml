@@ -29,6 +29,17 @@ ItemDelegate {
     property bool expanded: false
 
     readonly property bool isLive: eventType === "livestream"
+
+    // Distinct from publish_at (when the card/notification appears):
+    // payload.startsAt is when the broadcast itself is scheduled to start,
+    // entered in the editor's livestream-only "Starts at" field.
+    readonly property string startsAt: (payload && payload.startsAt) ? payload.startsAt : ""
+    readonly property string startsAtDisplay: {
+        if (!startsAt)
+            return "";
+        const parsed = new Date(startsAt);
+        return isNaN(parsed.getTime()) ? "" : Qt.formatDateTime(parsed, "d MMM yyyy, HH:mm");
+    }
     readonly property string typeIcon: {
         if (eventType === "audio")
             return "qrc:/images/sound.svg";
@@ -89,6 +100,14 @@ ItemDelegate {
                 font.bold: true
                 font.pointSize: 10
             }
+        }
+
+        Label {
+            text: qsTr("Starts: ") + root.startsAtDisplay
+            visible: root.isLive && root.startsAtDisplay !== ""
+            font.pointSize: 11
+            color: Material.accentColor
+            Layout.fillWidth: true
         }
 
         Label {
