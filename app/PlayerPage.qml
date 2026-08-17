@@ -94,7 +94,7 @@ Page {
 
     MediaPlayer {
         id: player
-        audioOutput: AudioOutput {}
+        audioOutput: AudioOutput { id: audioOutput }
         videoOutput: videoOutput
 
         onMediaStatusChanged: {
@@ -142,6 +142,16 @@ Page {
 
         Label {
             Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: !player.hasVideo
+            text: qsTr("Audio only")
+            font.pointSize: 16
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        Label {
+            Layout.fillWidth: true
             visible: root.displaySummary.length > 0
             text: root.displaySummary
             wrapMode: Text.Wrap
@@ -176,6 +186,25 @@ Page {
                 onClicked: player.stop()
             }
         }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Image {
+                source: "qrc:/images/sound.svg"
+                sourceSize.width: 16
+                sourceSize.height: 16
+            }
+
+            Slider {
+                Layout.fillWidth: true
+                from: 0
+                to: 1
+                value: audioOutput.volume
+                onMoved: audioOutput.volume = value
+            }
+        }
     }
 
     BusyIndicator {
@@ -197,8 +226,6 @@ Page {
             horizontalAlignment: Text.AlignHCenter
             text: root.errorMessage
         }
-
-        // Reload button was here
     }
 
     function startPlayback() {
