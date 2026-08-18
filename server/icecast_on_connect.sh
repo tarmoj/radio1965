@@ -1,9 +1,11 @@
 #!/bin/bash
 # Icecast <on-connect> hook (icecast.xml), run ON THE STREAMING SERVER
 # itself by Icecast when a source starts broadcasting on a mountpoint
-# (project-description.md #8.1/#9). Icecast passes the mountpoint as $1 -
-# VERIFY this against the actual icecast.xml on live.uuu.ee, this repo has
-# no copy of it.
+# (project-description.md #8.1/#9). Icecast passes the mountpoint as $1,
+# as the literal <mount-name> string (e.g. "/user1", WITH the leading
+# slash) - confirmed by testing against a live status-json.xsl capture,
+# where matching without stripping it caused server_name/server_description
+# to come back empty ("Unknown"/"").
 #
 # Publishes a type="livestream" event via the existing notification
 # server API (same POST /events/publish the editor/app already use), and
@@ -14,7 +16,7 @@
 
 set -euo pipefail
 
-CHANNEL="$1"
+CHANNEL="${1#/}"   # normalize away a leading slash, e.g. "/user1" -> "user1"
 API_BASE="https://live.uuu.ee/radio1965/api"   # matches Main.qml appSettings.serverUrl default
 
 STATUS=$(curl -s "http://localhost:8001/status-json.xsl")
