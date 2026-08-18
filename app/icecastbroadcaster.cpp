@@ -24,7 +24,6 @@ const quint16 ICECAST_PORT = 8001;
 // #8.1's test commands show this value in one example and a <Password>
 // placeholder in another, so it isn't certain to still be current.
 const char *const ICECAST_PASSWORD = "Tesla100";
-const char *const ICE_URL = "eccm.ee";
 const char *const ICE_GENRE = "avant-garde";
 
 constexpr int SAMPLE_RATE = 44100;
@@ -129,7 +128,10 @@ void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QStr
     request += "ice-name: " + name.toUtf8() + "\r\n";
     request += "ice-description: " + description.toUtf8() + "\r\n";
     request += QByteArray("ice-genre: ") + ICE_GENRE + "\r\n";
-    request += QByteArray("ice-url: ") + ICE_URL + "\r\n";
+    // ice-url is formed by the server as host:port/<this value> - pass just
+    // the mountpoint (channel), not a separate homepage URL, so listeners
+    // land on the stream itself (e.g. http://185.169.69.8:8001/user1).
+    request += "ice-url: " + channel.toUtf8() + "\r\n";
     request += "ice-public: 0\r\n";
     request += "\r\n";
     m_socket->write(request);
