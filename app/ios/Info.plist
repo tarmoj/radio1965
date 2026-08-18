@@ -41,7 +41,23 @@
     <key>UIBackgroundModes</key>
     <array>
         <string>remote-notification</string>
+        <string>audio</string>
     </array>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Radio 1965 needs microphone access to broadcast your voice live.</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>live.uuu.ee</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <false/>
+            </dict>
+        </dict>
+    </dict>
 
 </dict>
 </plist>
