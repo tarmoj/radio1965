@@ -214,6 +214,23 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
     return {"event": event_dict, "message_id": message_id, "sent_immediately": status == "new"}
 
 
+@app.post("/events/{event_id}/shelve")
+def shelve_event(event_id: str, session: Session = Depends(db.get_db)):
+    """
+    Immediately moves an event to 'shelved', bypassing cron_publish.py's
+    time-based shelf_at sweep. Used by server/icecast_on_disconnect.sh
+    (project-description.md #8.1/#9) so a livestream event stops looking
+    live the moment the broadcaster actually disconnects, rather than
+    whenever its guessed shelf_at eventually elapses.
+    """
+    row = session.get(db.Event, event_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
+    row.status = "shelved"
+    session.commit()
+    return {"event": row.to_dict()}
+
+
 @app.get("/events")
 def list_events(status: list[str] | None = Query(None), session: Session = Depends(db.get_db)):
     """

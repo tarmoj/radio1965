@@ -28,8 +28,10 @@ Page {
     property string mediaSummary: ""
     property bool isLive: false
 
-    // TODO: use mediaUrl once per-event stream URLs are supported - today
-    // there's only ever one real stream, so this is hardcoded.
+    // Fallback for isLive when no per-event url is set (the always-embedded
+    // "Live" SwipeView tab in Main.qml, which passes no mediaUrl) - a
+    // tapped livestream card with a real url (e.g. an Icecast channel, see
+    // app/icecastbroadcaster.cpp) plays that instead, per startPlayback().
     readonly property string liveStreamUrl: "https://live.uuu.ee:4443/hls/stream.m3u8"
 
     property var liveInfo: null
@@ -242,7 +244,7 @@ Page {
         player.source = "";
         if (root.isLive) {
             refreshLiveInfo();
-            player.source = root.liveStreamUrl;
+            player.source = root.mediaUrl || root.liveStreamUrl;
         } else {
             player.source = root.mediaUrl;
         }

@@ -9,6 +9,10 @@
 #include "notificationmanager.h"
 #endif
 
+#ifdef RADIO65_ENABLE_BROADCAST
+#include "icecastbroadcaster.h"
+#endif
+
 #ifdef Q_OS_ANDROID
 #include <QJniObject>
 #endif
@@ -50,6 +54,10 @@ int main(int argc, char *argv[])
     shelfEventsModel.setFilterFixedString("shelved");
 #endif
 
+#ifdef RADIO65_ENABLE_BROADCAST
+    IcecastBroadcaster icecastBroadcaster;
+#endif
+
 #ifdef Q_OS_ANDROID
     QJniObject::callStaticMethod<void>(
         "org/eccm/radio65/PushMessagingService", "subscribeToTopic",
@@ -68,6 +76,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("notificationManager", &notificationManager);
     engine.rootContext()->setContextProperty("newEventsModel", &newEventsModel);
     engine.rootContext()->setContextProperty("shelfEventsModel", &shelfEventsModel);
+#endif
+#ifdef RADIO65_ENABLE_BROADCAST
+    engine.rootContext()->setContextProperty("icecastBroadcaster", &icecastBroadcaster);
 #endif
     QObject::connect(
         &engine,

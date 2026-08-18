@@ -29,6 +29,17 @@ if(IOS)
     enable_language(Swift)
 endif()
 
+if(NOT ANDROID AND NOT IOS)
+    # Icecast broadcasting (project-description.md #8.1/#9) is desktop-only
+    # for now - mobile mic capture/encoding is a separate future effort.
+    # libmp3lame is used instead of linking Qt's bundled FFmpeg directly:
+    # that FFmpeg build ships no public C headers and has no Android/Desktop
+    # linking helper (qt_add_ios_ffmpeg_libraries below is iOS-only).
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(MP3LAME REQUIRED IMPORTED_TARGET libmp3lame)
+    set(RADIO65_ENABLE_BROADCAST TRUE)
+endif()
+
 option(RADIO65_ENABLE_NOTIFICATIONS "Build the in-app notification manager" ON)
 
 qt_add_executable(appradio65
@@ -39,6 +50,11 @@ qt_add_executable(appradio65
 if(RADIO65_ENABLE_NOTIFICATIONS)
     target_sources(appradio65 PRIVATE notificationmanager.h notificationmanager.cpp)
     target_compile_definitions(appradio65 PRIVATE RADIO65_ENABLE_NOTIFICATIONS)
+endif()
+
+if(RADIO65_ENABLE_BROADCAST)
+    target_sources(appradio65 PRIVATE icecastbroadcaster.h icecastbroadcaster.cpp)
+    target_compile_definitions(appradio65 PRIVATE RADIO65_ENABLE_BROADCAST)
 endif()
 
 if(ANDROID)
@@ -59,6 +75,7 @@ qt_add_qml_module(appradio65
         EventDelegate.qml
         WebViewPage.qml
         PlayerPage.qml
+        BroadcastPage.qml
         RESOURCES resources.qrc
 )
 
@@ -81,6 +98,10 @@ set_target_properties(appradio65 PROPERTIES
 target_link_libraries(appradio65
     PRIVATE Qt6::Quick Qt6::Network Qt6::Multimedia Qt6::WebView
 )
+
+if(RADIO65_ENABLE_BROADCAST)
+    target_link_libraries(appradio65 PRIVATE PkgConfig::MP3LAME)
+endif()
 
 if(ANDROID)
     set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_NAME org.eccm.radio65)

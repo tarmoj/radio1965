@@ -195,6 +195,7 @@ ApplicationWindow {
                 TabButton { text: qsTr("New Arrivals") }
                 TabButton { text: qsTr("Collection") }
                 TabButton { text: qsTr("Live") }
+                TabButton { text: qsTr("Broadcast") }
                 TabButton { text: qsTr("Archive") }
             }
 
@@ -208,6 +209,7 @@ ApplicationWindow {
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
                 EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
                 PlayerPage { isLive: true }
+                BroadcastPage {}
                 Page {
                     Label {
                         anchors.centerIn: parent
