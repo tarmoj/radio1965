@@ -1,6 +1,7 @@
 #include "notificationmanager.h"
 
 #include <QJsonArray>
+#include <QSet>
 
 NotificationManager *NotificationManager::s_instance = nullptr;
 
@@ -116,12 +117,14 @@ int NotificationManager::indexOfId(const QString &id) const
 
 void NotificationManager::upsertEvents(const QJsonArray &events)
 {
+    QSet<QString> seenIds;
     QVector<EventItem> newItems;
 
     for (const QJsonValue &value : events) {
         const EventItem item = eventItemFromJson(value.toObject());
         if (item.id.isEmpty())
             continue;
+        seenIds.insert(item.id);
 
         const int existingRow = indexOfId(item.id);
         if (existingRow >= 0) {
@@ -133,13 +136,27 @@ void NotificationManager::upsertEvents(const QJsonArray &events)
         }
     }
 
-    if (newItems.isEmpty())
-        return;
+    if (!newItems.isEmpty()) {
+        beginInsertRows(QModelIndex(), 0, newItems.size() - 1);
+        for (const EventItem &item : newItems)
+            m_events.prepend(item);
+        endInsertRows();
+    }
 
-    beginInsertRows(QModelIndex(), 0, newItems.size() - 1);
-    for (const EventItem &item : newItems)
-        m_events.prepend(item);
-    endInsertRows();
+    // Prune rows that no longer come back from the server (e.g. deleted
+    // from the DB) - GET /events is the source of truth on every fetch
+    // (launch, manual refresh, push-triggered refresh), so anything absent
+    // from a fresh response shouldn't linger locally. Doing this as part of
+    // a successful fetch response, rather than clearing the model up front
+    // before the request, means a failed/offline fetch leaves the existing
+    // list alone instead of blanking it.
+    for (int i = m_events.size() - 1; i >= 0; --i) {
+        if (!seenIds.contains(m_events.at(i).id)) {
+            beginRemoveRows(QModelIndex(), i, i);
+            m_events.removeAt(i);
+            endRemoveRows();
+        }
+    }
 }
 
 void NotificationManager::addMessage(const QString &, const QString &, const QString &)

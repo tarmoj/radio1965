@@ -19,14 +19,26 @@ set -euo pipefail
 CHANNEL="${1#/}"   # normalize away a leading slash, e.g. "/user1" -> "user1"
 API_BASE="https://live.uuu.ee/radio1965/api"   # matches Main.qml appSettings.serverUrl default
 
-STATUS=$(curl -s "http://localhost:8001/status-json.xsl")
-
-# icestats.source is a single object with exactly one active source, or an
-# array with several - same defensive single-vs-list normalization as
-# server/main.py's GET /articles/{id} (Joomla's JSON:API "data" field).
-SOURCE=$(echo "$STATUS" | jq -c --arg ch "$CHANNEL" '
-  (.icestats.source // empty | if type=="array" then . else [.] end)
-  | map(select(.listenurl // "" | endswith("/" + $ch))) | .[0] // {}')
+# Icecast fires on-connect right as it accepts the connection - possibly
+# before it has finished registering the source's ice-name/ice-description
+# metadata (or even the source itself) into the live registry that
+# status-json.xsl reflects. Running this script manually a few seconds
+# after the stream was already up never hits that race; retry briefly
+# instead of querying exactly once.
+SOURCE="{}"
+for attempt in 1 2 3 4 5; do
+  STATUS=$(curl -s "http://localhost:8001/status-json.xsl")
+  # icestats.source is a single object with exactly one active source, or
+  # an array with several - same defensive single-vs-list normalization as
+  # server/main.py's GET /articles/{id} (Joomla's JSON:API "data" field).
+  SOURCE=$(echo "$STATUS" | jq -c --arg ch "$CHANNEL" '
+    (.icestats.source // empty | if type=="array" then . else [.] end)
+    | map(select(.listenurl // "" | endswith("/" + $ch))) | .[0] // {}')
+  if [ "$(echo "$SOURCE" | jq -r '.server_name // empty')" != "" ]; then
+    break
+  fi
+  sleep 1
+done
 
 NAME=$(echo "$SOURCE" | jq -r '.server_name // "Unknown"')
 DESCRIPTION=$(echo "$SOURCE" | jq -r '.server_description // ""')
