@@ -1,6 +1,7 @@
 #include "icecastbroadcaster.h"
 
 #include <QAudioSource>
+#include <QCoreApplication>
 #include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -11,6 +12,7 @@
 #include <QNetworkRequest>
 #include <QTcpSocket>
 #include <QUrl>
+#include <qpermissions.h>
 
 #include <lame/lame.h>
 
@@ -53,6 +55,26 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
 {
     if (m_broadcasting)
         return;
+
+    // No-op on platforms without a permission backend (e.g. desktop) -
+    // checkPermission() returns Granted immediately there. On Android this
+    // is required before QAudioSource::start() will produce real audio.
+    QMicrophonePermission micPermission;
+    switch (qApp->checkPermission(micPermission)) {
+    case Qt::PermissionStatus::Granted:
+        break;
+    case Qt::PermissionStatus::Undetermined:
+        qApp->requestPermission(micPermission, this, [this, channel, name, description](const QPermission &permission) {
+            if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted)
+                startBroadcast(channel, name, description);
+            else
+                emit broadcastError(tr("Microphone permission was denied."));
+        });
+        return;
+    case Qt::PermissionStatus::Denied:
+        emit broadcastError(tr("Microphone permission was denied. Enable it in system settings."));
+        return;
+    }
 
     QAudioFormat format;
     format.setSampleRate(SAMPLE_RATE);

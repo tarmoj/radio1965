@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.eccm.radio65" android:versionName="1.0" android:versionCode="1" android:installLocation="auto">
-    <application android:name="org.eccm.radio65.RadioApplication" android:hardwareAccelerated="true" android:label="radio65" android:requestLegacyExternalStorage="true" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:fullBackupOnly="false">
+    <application android:name="org.eccm.radio65.RadioApplication" android:hardwareAccelerated="true" android:label="radio65" android:requestLegacyExternalStorage="true" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:fullBackupOnly="false" android:networkSecurityConfig="@xml/network_security_config">
         <activity android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density" android:name="org.eccm.radio65.MainActivity" android:label="radio65" android:launchMode="singleTask" android:screenOrientation="unspecified" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -23,4 +23,5 @@
 
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 </manifest>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Permits plain-HTTP (cleartext) traffic to the Icecast streaming server
+    only. Needed because the Icecast source-upload protocol (PUT to port
+    8001, IcecastBroadcaster) and the status-json.xsl occupancy check are
+    both plain HTTP, which Android blocks by default for targetSdk 28+.
+    Also lets PlayerPage.qml play a livestream event's http:// URL.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">live.uuu.ee</domain>
+    </domain-config>
+</network-security-config>

@@ -17,8 +17,9 @@ class QTcpSocket;
 
 // Captures microphone audio and streams it to an Icecast2 mountpoint
 // (project-description.md #8.1/#9): QAudioSource -> libmp3lame -> a
-// hand-rolled Icecast HTTP-source client over QTcpSocket. Desktop-only
-// (see app/CMakeLists.txt's RADIO65_ENABLE_BROADCAST gate) - registered as
+// hand-rolled Icecast HTTP-source client over QTcpSocket. Built on Desktop
+// and Android (see app/CMakeLists.txt's RADIO65_ENABLE_BROADCAST gate,
+// which cross-compiles libmp3lame via the NDK on Android) - registered as
 // QML context property "icecastBroadcaster" only when that macro is
 // defined, so BroadcastPage.qml checks `typeof icecastBroadcaster !==
 // "undefined"` rather than relying on a separate platform flag.

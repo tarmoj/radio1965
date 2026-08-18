@@ -29,12 +29,44 @@ if(IOS)
     enable_language(Swift)
 endif()
 
-if(NOT ANDROID AND NOT IOS)
-    # Icecast broadcasting (project-description.md #8.1/#9) is desktop-only
-    # for now - mobile mic capture/encoding is a separate future effort.
-    # libmp3lame is used instead of linking Qt's bundled FFmpeg directly:
-    # that FFmpeg build ships no public C headers and has no Android/Desktop
-    # linking helper (qt_add_ios_ffmpeg_libraries below is iOS-only).
+if(ANDROID)
+    # Icecast broadcasting (project-description.md #8.1/#9). Android has no
+    # system pkg-config/libmp3lame, and no built-in MP3 *encoder* at all
+    # (MediaCodec only ships MP3 decode) - so libmp3lame is cross-compiled
+    # from source for the target ABI via the NDK's standalone clang, using
+    # the same LAME encoding calls as desktop (icecastbroadcaster.cpp is
+    # unchanged; only linkage differs here). arm64-v8a only for now.
+    include(ExternalProject)
+    if(NOT CMAKE_ANDROID_NDK)
+        message(FATAL_ERROR "CMAKE_ANDROID_NDK is not set - required to cross-compile libmp3lame for Android")
+    endif()
+    set(LAME_TOOLCHAIN_BIN "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin")
+    set(LAME_ANDROID_API 28) # matches QT_ANDROID_MIN_SDK_VERSION below
+    ExternalProject_Add(lame_android
+        URL https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
+        URL_HASH SHA256=ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e
+        CONFIGURE_COMMAND <SOURCE_DIR>/configure
+            --host=aarch64-linux-android
+            --disable-shared --enable-static --disable-frontend
+            CC=${LAME_TOOLCHAIN_BIN}/aarch64-linux-android${LAME_ANDROID_API}-clang
+            AR=${LAME_TOOLCHAIN_BIN}/llvm-ar
+            RANLIB=${LAME_TOOLCHAIN_BIN}/llvm-ranlib
+            CFLAGS=-fPIC
+        BUILD_COMMAND make -j
+        INSTALL_COMMAND make install DESTDIR=<INSTALL_DIR>
+        BUILD_IN_SOURCE TRUE
+        BUILD_BYPRODUCTS <INSTALL_DIR>/usr/local/lib64/libmp3lame.a
+    )
+    ExternalProject_Get_Property(lame_android install_dir)
+    add_library(mp3lame_android STATIC IMPORTED)
+    set_target_properties(mp3lame_android PROPERTIES
+        IMPORTED_LOCATION "${install_dir}/usr/local/lib64/libmp3lame.a")
+    add_dependencies(mp3lame_android lame_android)
+    file(MAKE_DIRECTORY "${install_dir}/usr/local/include")
+    target_include_directories(mp3lame_android INTERFACE "${install_dir}/usr/local/include")
+    set(RADIO65_ENABLE_BROADCAST TRUE)
+elseif(NOT IOS)
+    # Desktop: libmp3lame comes from the system via pkg-config.
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(MP3LAME REQUIRED IMPORTED_TARGET libmp3lame)
     set(RADIO65_ENABLE_BROADCAST TRUE)
@@ -100,7 +132,11 @@ target_link_libraries(appradio65
 )
 
 if(RADIO65_ENABLE_BROADCAST)
-    target_link_libraries(appradio65 PRIVATE PkgConfig::MP3LAME)
+    if(ANDROID)
+        target_link_libraries(appradio65 PRIVATE mp3lame_android)
+    else()
+        target_link_libraries(appradio65 PRIVATE PkgConfig::MP3LAME)
+    endif()
 endif()
 
 if(ANDROID)
