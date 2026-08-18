@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -75,6 +76,18 @@ Page {
         sourceComponent: ColumnLayout {
             spacing: 12
 
+            // Persisted across app restarts, same QtCore Settings pattern as
+            // Main.qml's appSettings - remembers the last-used name,
+            // description and channel so the user doesn't retype them every
+            // broadcast.
+            Settings {
+                id: broadcastSettings
+                category: "Broadcast"
+                property string name: ""
+                property string description: ""
+                property string lastChannel: "radio1965"
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -84,6 +97,8 @@ Page {
                     Layout.fillWidth: true
                     enabled: !icecastBroadcaster.broadcasting
                     model: root.channelNames
+                    currentIndex: Math.max(0, root.channelNames.indexOf(broadcastSettings.lastChannel))
+                    onActivated: broadcastSettings.lastChannel = channelCombo.currentText
                     delegate: ItemDelegate {
                         width: channelCombo.width
                         text: modelData
@@ -102,6 +117,8 @@ Page {
                 Layout.fillWidth: true
                 placeholderText: qsTr("Name")
                 enabled: !icecastBroadcaster.broadcasting
+                text: broadcastSettings.name
+                onTextChanged: broadcastSettings.name = text
             }
 
             TextField {
@@ -109,6 +126,8 @@ Page {
                 Layout.fillWidth: true
                 placeholderText: qsTr("Description")
                 enabled: !icecastBroadcaster.broadcasting
+                text: broadcastSettings.description
+                onTextChanged: broadcastSettings.description = text
             }
 
             Button {

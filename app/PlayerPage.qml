@@ -34,6 +34,18 @@ Page {
     // app/icecastbroadcaster.cpp) plays that instead, per startPlayback().
     readonly property string liveStreamUrl: "https://live.uuu.ee:4443/hls/stream.m3u8"
 
+    // Channel picker for the embedded "Live" tab only - same fixed mount
+    // list as BroadcastPage.qml's channelNames, plus "video" for the main
+    // HLS stream (liveStreamUrl). Not shown when opened from an event card
+    // (root.mediaUrl set): that case always plays the event's own url.
+    readonly property var channelOptions: ["radio1965", "user1", "user2", "user3", "user4", "video"]
+    property string selectedChannel: "radio1965"
+    readonly property bool showChannelSelector: root.isLive && root.mediaUrl === ""
+
+    function channelUrl(channel) {
+        return channel === "video" ? root.liveStreamUrl : ("http://live.uuu.ee:8001/" + channel);
+    }
+
     property var liveInfo: null
     property bool loading: true
     property string errorMessage: ""
@@ -129,8 +141,33 @@ Page {
         onTriggered: root.startPlayback()
     }
 
+    RowLayout {
+        id: channelSelectorRow
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: 12
+        spacing: 8
+        visible: root.showChannelSelector
+
+        Label { text: qsTr("Channel:") }
+
+        ComboBox {
+            Layout.fillWidth: true
+            model: root.channelOptions
+            currentIndex: root.channelOptions.indexOf(root.selectedChannel)
+            onActivated: {
+                root.selectedChannel = root.channelOptions[currentIndex];
+                root.startPlayback();
+            }
+        }
+    }
+
     ColumnLayout {
-        anchors.fill: parent
+        anchors.top: channelSelectorRow.visible ? channelSelectorRow.bottom : parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
         anchors.margins: 12
         spacing: 12
         visible: !root.loading && root.errorMessage === ""
@@ -244,7 +281,7 @@ Page {
         player.source = "";
         if (root.isLive) {
             refreshLiveInfo();
-            player.source = root.mediaUrl || root.liveStreamUrl;
+            player.source = root.mediaUrl || root.channelUrl(root.selectedChannel);
         } else {
             player.source = root.mediaUrl;
         }
