@@ -16,19 +16,34 @@ Page {
     readonly property bool broadcastAvailable: typeof icecastBroadcaster !== "undefined"
     readonly property var channelNames: ["radio1965", "user1", "user2", "user3", "user4"]
     property var occupiedChannels: []
+    property string errorMessage: ""
 
     function isChannelOccupied(channel) {
         return root.occupiedChannels.indexOf(channel) !== -1;
     }
 
     function formatElapsed(seconds) {
-        return Qt.formatTime(new Date(seconds * 1000), "hh:mm:ss");
+        // Not Qt.formatTime(new Date(seconds*1000), ...): that Date is
+        // epoch-relative (UTC), and formatTime renders it in local time, so
+        // e.g. Estonia's UTC+3 summer offset would always show "03:00:00"
+        // at seconds=0. Format the duration directly instead.
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        const total = Math.max(0, Math.floor(seconds));
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return pad(h) + ":" + pad(m) + ":" + pad(s);
     }
 
     Connections {
         target: root.broadcastAvailable ? icecastBroadcaster : null
         function onOccupiedChannelsChanged(list) { root.occupiedChannels = list; }
-        function onBroadcastError(message) { errorLabel.text = message; }
+        // root.errorMessage, not a Loader-internal id: ids declared inside
+        // the Loader's inline sourceComponent below live in that Component's
+        // own scope and aren't reachable from this outer Connections (that
+        // was the "errorLabel is not defined" crash - e.g. when Icecast
+        // rejects a connect attempt to an already-occupied channel).
+        function onBroadcastError(message) { root.errorMessage = message; }
     }
 
     Component.onCompleted: {
@@ -100,10 +115,12 @@ Page {
                 Layout.alignment: Qt.AlignHCenter
                 text: icecastBroadcaster.broadcasting ? qsTr("Stop") : qsTr("Start")
                 onClicked: {
-                    if (icecastBroadcaster.broadcasting)
+                    if (icecastBroadcaster.broadcasting) {
                         icecastBroadcaster.stopBroadcast();
-                    else
+                    } else {
+                        root.errorMessage = "";
                         icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text);
+                    }
                 }
             }
 
@@ -122,10 +139,10 @@ Page {
             }
 
             Label {
-                id: errorLabel
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 color: "crimson"
+                text: root.errorMessage
                 visible: text !== ""
             }
 
