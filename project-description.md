@@ -359,7 +359,7 @@ application audio {
 }
 ```
 
-### 8.1 Audio streaming via Icecast
+### 8.1 Audio streaming from Icecast
 
 Icecast server running on remote sever (port 8001 for now)
 
@@ -382,7 +382,7 @@ Hooks on starting/stopping streams (in icecast.xml)
     <on-disconnect>/usr/local/bin/stream-stopped.sh</on-disconnect>
 </mount>
 
-Predifine this way say 4 channels (user1, user2 etc)
+Predefine this way say 4 channels (user1, user2 etc)
 
 To get info about a stream in the script:
 curl -s "http://localhost:8001/status-json.xsl"
@@ -395,14 +395,39 @@ listeners (current count)
 
 
 
-## 9. Broadcasting audio from app
+## 9. Broadcasting audio from app to Icecast
 
 FFmpeg (libavformat/libavcodec)
 This is the most common approach. FFmpeg's libavformat can open an rtmp:// URL as an output and handles the whole RTMP handshake/FLV muxing for you — you just feed it encoded audio (and video) packets. You'd:
 
 Capture PCM via QAudioSource
 Encode to AAC via libavcodec (or Android's native MediaCodec AAC encoder if you want to skip FFmpeg's audio encoder)
-Mux + push via libavformat to 
+Mux + push via libavformat to Icecast.
+
+## 10. Registration
+
+New table: users:
+
+id | name | email | role (null|pending|contributor|manager|banned) | password
+
+In app menu "Become a contributor" 
+    -> onClick:  show dialog with rights and rules, field for name and email + password + repeat password.  If OK pressed,
+        -> mark the name and email into tabel 'users', role 'pending', send confirmation email. If confirmed, mark 'contributor'. 
+        How to let the app know? Notification only to this device? Restart app?
+
+Only people with role "contributor" and "manager" can broadcast and make new events.
+
+TODO: rewrite editor page, that requires e-mail and password but can receive it also from URL 
+? What about joomla?
+
+In app: store name, email, password. On startup, check and set for role and set it in settings.
+
+Show button "Share something valuable" ?or what?  in menu -> opens editor page with email and (encoded) password in the URL. 
+What is better to use -  internal webview or external browser?
+
+If user is marked 'banned' -  do not allow use of the app at all.
+
+In table 'events' add column 'author_id' - user who enetered the event.  
 
 
 ## 99. Ideas.
