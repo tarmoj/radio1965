@@ -35,7 +35,7 @@ Item {
         RowLayout {
             id: controlsRow
             //Layout.alignment: Qt.AlignHCenter
-            spacing: 10
+            spacing: 2
 
             BusyIndicator {
                 implicitWidth: 20
@@ -82,6 +82,7 @@ Item {
 
             Slider {
                 Layout.preferredWidth: 80
+                Layout.fillWidth:  true
                 from: 0
                 to: 1
                 value: root.controller.player.audioOutput.volume
@@ -106,9 +107,12 @@ Item {
         }
 
         RowLayout {
+
             Layout.fillWidth: true
             spacing: 4
             visible: root.controller.expanded
+
+            Item { Layout.preferredWidth: 12} // spacer
 
             Label {
                 Layout.fillWidth: true
