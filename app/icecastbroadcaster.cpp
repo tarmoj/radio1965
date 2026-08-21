@@ -125,8 +125,16 @@ void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QStr
     request += "PUT /" + channel.toUtf8() + " HTTP/1.0\r\n";
     request += "Authorization: Basic " + auth.toBase64() + "\r\n";
     request += "Content-Type: audio/mpeg\r\n";
-    request += "ice-name: " + name.toUtf8() + "\r\n";
-    request += "ice-description: " + description.toUtf8() + "\r\n";
+    // ice-name/ice-description use the legacy ICY/Shoutcast convention of
+    // Latin-1 (ISO-8859-1) bytes on the wire, not UTF-8 - Icecast re-serves
+    // these as UTF-8 (e.g. via status-json.xsl) by converting from Latin-1,
+    // so sending UTF-8 bytes here gets double-encoded into mojibake (e.g.
+    // "ü" turning into "Ã¼"). Estonian diacritics (ä/ö/õ/ü) all fall inside
+    // Latin-1's range so this covers them; characters outside it (e.g.
+    // š/ž) would still come through as '?' - a real limitation of the ICY
+    // header protocol itself, not fixable client-side.
+    request += "ice-name: " + name.toLatin1() + "\r\n";
+    request += "ice-description: " + description.toLatin1() + "\r\n";
     request += QByteArray("ice-genre: ") + ICE_GENRE + "\r\n";
     // ice-url is formed by the server as host:port/<this value> - pass just
     // the mountpoint (channel), not a separate homepage URL, so listeners
