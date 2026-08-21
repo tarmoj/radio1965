@@ -23,6 +23,45 @@ QtObject {
     // "video" for the main HLS stream (liveStreamUrl).
     readonly property var channelOptions: ["radio1965", "user1", "user2", "user3", "user4", "video"]
 
+    // Which channels currently have a source connected - reuses
+    // icecastBroadcaster's existing status-json.xsl fetch/parse
+    // (app/icecastbroadcaster.cpp, already built for BroadcastPage.qml's
+    // occupied-channel disabling) rather than duplicating that network
+    // call here. icecastBroadcaster is only a context property on builds
+    // with RADIO65_ENABLE_BROADCAST, hence the typeof guard - same
+    // defensive pattern BroadcastPage.qml already uses.
+    readonly property bool occupancyAvailable: typeof icecastBroadcaster !== "undefined"
+    property var occupiedChannels: []
+    // "video" (the main HLS stream) isn't an Icecast mountpoint, so its
+    // occupancy can't come from status-json.xsl - checked separately below
+    // via a plain GET against liveStreamUrl itself.
+    property bool videoStreamLive: false
+
+    function refreshChannelAvailability() {
+        if (root.occupancyAvailable)
+            icecastBroadcaster.refreshOccupiedChannels();
+
+        const xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE)
+                root.videoStreamLive = (xhr.status >= 200 && xhr.status < 300);
+        };
+        xhr.open("GET", root.liveStreamUrl);
+        xhr.send();
+    }
+
+    function isChannelStreaming(channel) {
+        return channel === "video" ? root.videoStreamLive
+                                    : root.occupiedChannels.indexOf(channel) !== -1;
+    }
+
+    property Connections _occupancyConnections: Connections {
+        target: root.occupancyAvailable ? icecastBroadcaster : null
+        function onOccupiedChannelsChanged(list) { root.occupiedChannels = list; }
+    }
+
+    Component.onCompleted: root.refreshChannelAvailability()
+
     property string mediaUrl: ""
     property string mediaTitle: ""
     property string mediaSummary: ""

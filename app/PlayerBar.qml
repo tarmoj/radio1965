@@ -70,6 +70,11 @@ Item {
                 model: root.controller.channelOptions
                 currentIndex: root.controller.channelOptions.indexOf(root.controller.selectedChannel)
                 onActivated: root.controller.selectChannel(root.controller.channelOptions[currentIndex])
+                delegate: ItemDelegate {
+                    width: channelCombo.width
+                    text: modelData
+                    enabled: root.controller.isChannelStreaming(modelData)
+                }
                 background: Rectangle {
                     implicitWidth: 110
                     implicitHeight: 32
@@ -77,6 +82,11 @@ Item {
                     color: "transparent"
                     border.width: 0
                     border.color: "transparent"
+                }
+
+                Connections {
+                    target: channelCombo.popup
+                    function onOpened() { root.controller.refreshChannelAvailability(); }
                 }
             }
 
