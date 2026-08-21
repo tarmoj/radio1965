@@ -10,6 +10,13 @@
         <file>images/play.svg</file>
         <file>images/stop.svg</file>
         <file>images/pause.svg</file>
+        <file>images/arrow_drop_down.svg</file>
+        <file>images/arrow_drop_up.svg</file>
+        <file>images/broadcast.svg</file>
+        <file>images/cards_stack.svg</file>
+        <file>images/home.svg</file>
+        <file>images/radio.svg</file>
+        <file>images/shelves.svg</file>
+        <file>images/audio_file.svg</file>
     </qresource>
 </RCC>
-

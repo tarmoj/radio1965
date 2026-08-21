@@ -28,6 +28,7 @@ Item {
         id: contentColumn
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.leftMargin: 12
         anchors.top: parent.top
         anchors.margins: 6
         spacing: 6
@@ -42,6 +43,14 @@ Item {
                 implicitHeight: 20
                 running: root.controller.loading
                 visible: running
+            }
+
+            Image {
+                source: root.controller.isLive ? "qrc:/images/radio.svg" :
+                            "qrc:/images/audio_file.svg"
+                //visible: root.controller.showChannelSelector
+                sourceSize.width: 18
+                sourceSize.height: 18
             }
 
 
@@ -76,12 +85,13 @@ Item {
 
             Image {
                 source: "qrc:/images/sound.svg"
-                sourceSize.width: 16
-                sourceSize.height: 16
+                // sourceSize.width: 18
+                // sourceSize.height: 18
             }
 
             Slider {
                 Layout.preferredWidth: 80
+                Layout.minimumWidth: 30
                 Layout.fillWidth:  true
                 from: 0
                 to: 1
@@ -101,7 +111,9 @@ Item {
             }
 
             ToolButton {
-                text: root.controller.expanded ? "▴" : "▾"
+                icon.source: root.controller.expanded ? "qrc:/images/arrow_drop_up.svg" :
+                                                        "qrc:/images/arrow_drop_down.svg"
+                //text: root.controller.expanded ? "▴" : "▾"
                 onClicked: root.controller.expanded = !root.controller.expanded
             }
         }

@@ -116,7 +116,7 @@ QtObject {
     }
 
     function togglePlayPause() {
-        if (player.source == "" && !root.loading) {
+        if (player.source === "" && !root.loading) {
             root.start();
         } else if (player.playbackState === MediaPlayer.PlayingState) {
             player.pause();
