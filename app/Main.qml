@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.5.1"
+    property string version: "0.5.2"
     title: qsTr("Radio 1965") + " v" + version
     color: Material.background
 
@@ -174,13 +174,55 @@ ApplicationWindow {
         }
     }
 
-    StackView {
-        id: stackView
-        anchors.fill: parent
-        initialItem: feedComponent
-
+    // Instantiated exactly once here and threaded down explicitly to
+    // PlayerBar, VideoPage (as a pushed initial property) and both
+    // EventListView instances - see PlaybackController.qml for why this is
+    // plain explicit passing rather than `pragma Singleton` global access.
+    PlaybackController {
+        id: playbackController
     }
 
+    // PlayerBar sits above the StackView (not inside feedComponent) so it
+    // stays visible across tab switches and over pushed pages (WebViewPage,
+    // VideoPage).
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        PlayerBar {
+            Layout.fillWidth: true
+            controller: playbackController
+        }
+
+        StackView {
+            id: stackView
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            initialItem: feedComponent
+        }
+    }
+
+    // Pushes/pops VideoPage.qml as the currently-playing media's video
+    // track appears/disappears - covers both video files and a
+    // (hypothetical, future) video stream the same way. Tracked with an
+    // explicit bool rather than sniffing stackView.currentItem's type, so
+    // a manual pop by the user (VideoPage's back button) doesn't get
+    // immediately re-pushed - onHasVideoChanged only fires on a genuine
+    // change, not continuously.
+    property bool videoPageOpen: false
+
+    Connections {
+        target: playbackController.player
+        function onHasVideoChanged() {
+            if (playbackController.player.hasVideo && !app.videoPageOpen) {
+                stackView.push(Qt.resolvedUrl("VideoPage.qml"), { controller: playbackController });
+                app.videoPageOpen = true;
+            } else if (!playbackController.player.hasVideo && app.videoPageOpen) {
+                stackView.pop();
+                app.videoPageOpen = false;
+            }
+        }
+    }
 
     Component {
         id: feedComponent
@@ -194,7 +236,6 @@ ApplicationWindow {
 
                 TabButton { text: qsTr("New Arrivals") }
                 TabButton { text: qsTr("Collection") }
-                TabButton { text: qsTr("Live") }
                 TabButton { text: qsTr("Broadcast") }
                 TabButton { text: qsTr("Archive") }
             }
@@ -206,9 +247,8 @@ ApplicationWindow {
                 currentIndex: tabBar.currentIndex
                 onCurrentIndexChanged: tabBar.currentIndex = currentIndex
 
-                EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
-                EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl }
-                PlayerPage { isLive: true }
+                EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
+                EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
                 BroadcastPage {}
                 Page {
                     Label {

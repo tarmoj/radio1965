@@ -24,6 +24,12 @@ Item {
     // "article" events. Passed in explicitly for the same reason as
     // navigationStack above.
     required property string serverBaseUrl
+    // Same explicit-passing reason as navigationStack above - named
+    // "controller" rather than "playbackController" so it doesn't collide
+    // with Main.qml's "playbackController" id (same class of
+    // self-referencing-binding footgun navigationStack's own comment
+    // documents for "stackView").
+    required property PlaybackController controller
 
     ListView {
         id: listView
@@ -48,8 +54,7 @@ Item {
                 })
 
             onPlayerRequested: (url, title, summary, isLive) =>
-                root.navigationStack.push(Qt.resolvedUrl("PlayerPage.qml"),
-                                     { mediaUrl: url, mediaTitle: title, mediaSummary: summary, isLive: isLive })
+                root.controller.playMedia(url, title, summary, isLive)
         }
     }
 }

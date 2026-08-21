@@ -138,7 +138,9 @@ qt_add_qml_module(appradio65
         EventListView.qml
         EventDelegate.qml
         WebViewPage.qml
-        PlayerPage.qml
+        PlaybackController.qml
+        PlayerBar.qml
+        VideoPage.qml
         BroadcastPage.qml
         RESOURCES resources.qrc
 )

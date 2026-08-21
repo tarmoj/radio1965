@@ -5,7 +5,8 @@ import QtQuick.Layouts
 // One row in the "New Arrivals"/"Collection" lists (project-description.md
 // #2.1). Tap behavior depends on `type`: "text" expands the summary
 // in place, "article"/"webcontent" open WebViewPage, and
-// "audio"/"video"/"livestream" open PlayerPage.
+// "audio"/"video"/"livestream" hand off to PlaybackController (the
+// persistent PlayerBar strip, see Main.qml/PlaybackController.qml).
 ItemDelegate {
     id: root
 
