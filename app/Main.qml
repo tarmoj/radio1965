@@ -17,6 +17,13 @@ ApplicationWindow {
 
     property color backgroundEndColor: "darkgreen"
 
+    // icecastBroadcaster is only registered as a context property on
+    // builds with RADIO65_ENABLE_BROADCAST (see app/CMakeLists.txt) -
+    // guarded the same way BroadcastPage.qml already does, so this stays
+    // safe even if a future platform ends up without it.
+    readonly property bool broadcastAvailable: typeof icecastBroadcaster !== "undefined"
+    readonly property bool isBroadcasting: app.broadcastAvailable && icecastBroadcaster.broadcasting
+
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
@@ -234,10 +241,37 @@ ApplicationWindow {
                 id: tabBar
                 Layout.fillWidth: true
 
-                TabButton { text: qsTr("New Arrivals") }
-                TabButton { text: qsTr("Collection") }
-                TabButton { text: qsTr("Broadcast") }
-                TabButton { text: qsTr("Archive") }
+                TabButton { icon.source: "qrc:/images/home.svg"   /*text: qsTr("New Arrivals")*/ }
+                TabButton { icon.source: "qrc:/images/cards_stack.svg" /*text: qsTr("Collection")*/ }
+                TabButton {
+                    id: broadcastTabButton
+                    icon.source: "qrc:/images/broadcast.svg" /*text: qsTr("Broadcast")*/
+                    icon.color: app.isBroadcasting ? "crimson" : broadcastTabButton.palette.windowText
+
+                    // Small blinking "recording" dot overlay, on-air only -
+                    // declared as a plain child of the TabButton control,
+                    // which Qt Quick Controls renders as an overlay on top
+                    // of its own contentItem (the usual way to badge a
+                    // control without touching its template).
+                    Rectangle {
+                        id: broadcastDot
+                        width: 8
+                        height: 8
+                        radius: 4
+                        color: "crimson"
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 6
+                        visible: app.isBroadcasting
+
+                        SequentialAnimation on opacity {
+                            running: broadcastDot.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 1.0; to: 0.2; duration: 500 }
+                            NumberAnimation { from: 0.2; to: 1.0; duration: 500 }
+                        }
+                    }
+                }
             }
 
             SwipeView {
@@ -250,12 +284,7 @@ ApplicationWindow {
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
                 EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
                 BroadcastPage {}
-                Page {
-                    Label {
-                        anchors.centerIn: parent
-                        text: qsTr("Archive is not implemented yet.")
-                    }
-                }
+
 
             }
         }
