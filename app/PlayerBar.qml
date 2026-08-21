@@ -51,6 +51,14 @@ Item {
                 //visible: root.controller.showChannelSelector
                 sourceSize.width: 18
                 sourceSize.height: 18
+
+                // Explicit way back to the channel picker after listening
+                // to a fixed-media item - Stop alone no longer does this
+                // (see PlaybackController.stop() vs backToChannels()).
+                TapHandler {
+                    enabled: !root.controller.showChannelSelector
+                    onTapped: root.controller.backToChannels()
+                }
             }
 
 

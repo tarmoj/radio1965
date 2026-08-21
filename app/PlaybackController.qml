@@ -83,8 +83,16 @@ QtObject {
         root.mediaUrl = "";
         root.mediaTitle = "";
         root.mediaSummary = "";
-        if (root.loading || player.playbackState !== MediaPlayer.StoppedState)
+        if (root.loading || player.playbackState !== MediaPlayer.StoppedState) {
             root.start();
+        } else {
+            // Otherwise player.source still holds whatever channel/file was
+            // loaded before - togglePlayPause()'s "nothing loaded yet"
+            // check (player.source === "") would miss that a *different*
+            // channel was picked, and a subsequent Play press would just
+            // resume the old source instead of loading the new one.
+            player.source = "";
+        }
     }
 
     // Called by EventListView.qml instead of pushing PlayerPage.qml.
@@ -116,7 +124,14 @@ QtObject {
     }
 
     function togglePlayPause() {
-        if (player.source === "" && !root.loading) {
+        // player.source is QUrl-typed, not a plain string - comparing it
+        // to "" with === (or even ==) never matches even when the URL is
+        // genuinely empty (e.g. on fresh launch, before anything has ever
+        // been loaded), because QML exposes it as a "url" value-type
+        // object rather than a JS string. .toString() forces a real
+        // comparison. Without this fix, pressing Play on first launch fell
+        // through to player.play() with nothing loaded - a silent no-op.
+        if (player.source.toString() === "" && !root.loading) {
             root.start();
         } else if (player.playbackState === MediaPlayer.PlayingState) {
             player.pause();
@@ -125,12 +140,25 @@ QtObject {
         }
     }
 
+    // Just stops playback - does NOT touch mediaUrl/isLive/title, so the
+    // strip keeps showing what was loaded (e.g. an audio file's title, with
+    // Play available to resume it) instead of jumping back to the channel
+    // picker on its own. Previously this reset straight to radio mode,
+    // which looked wrong when Stop was pressed on a fixed-media item (the
+    // combobox would appear even though the file was still the loaded
+    // item) - use backToChannels() for an explicit return to radio mode.
     function stop() {
         player.stop();
-        // Otherwise the just-stopped item's title/summary would linger in
-        // the strip with nothing actually playing. Back to the same idle
-        // default as launch (isLive true, channel picker visible, nothing
-        // loaded) rather than leaving stale mediaUrl/mediaTitle around.
+        root.errorMessage = "";
+        root.liveStreamOffline = false;
+    }
+
+    // Explicit "done listening to this file, back to radio" action - called
+    // from PlayerBar when the user taps the media-type icon while on fixed
+    // media (see showChannelSelector).
+    function backToChannels() {
+        player.stop();
+        player.source = "";
         root.mediaUrl = "";
         root.mediaTitle = "";
         root.mediaSummary = "";
