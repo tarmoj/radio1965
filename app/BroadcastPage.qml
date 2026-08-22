@@ -11,7 +11,7 @@ import QtQuick.Layouts
 // page checks for its existence at runtime rather than relying on a
 // separate platform flag - keeps the tab itself always present (needed to
 // keep TabBar/SwipeView index alignment, same convention used for "Live").
-Page {
+Item {
     id: root
 
     readonly property bool broadcastAvailable: typeof icecastBroadcaster !== "undefined"
@@ -86,6 +86,7 @@ Page {
                 property string name: ""
                 property string description: ""
                 property string lastChannel: "radio1965"
+                property bool sendNotification: true
             }
 
             ComboBox {
@@ -127,6 +128,14 @@ Page {
                 onTextChanged: broadcastSettings.description = text
             }
 
+            CheckBox {
+                id: sendNotificationCheck
+                text: qsTr("Send notification")
+                enabled: !icecastBroadcaster.broadcasting
+                checked: broadcastSettings.sendNotification
+                onToggled: broadcastSettings.sendNotification = checked
+            }
+
             Button {
                 Layout.alignment: Qt.AlignHCenter
                 text: icecastBroadcaster.broadcasting ? qsTr("Stop") : qsTr("Start")
@@ -135,7 +144,7 @@ Page {
                         icecastBroadcaster.stopBroadcast();
                     } else {
                         root.errorMessage = "";
-                        icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text);
+                        icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked);
                     }
                 }
             }

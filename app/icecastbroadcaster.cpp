@@ -50,7 +50,7 @@ int IcecastBroadcaster::elapsedSeconds() const
     return m_broadcasting ? static_cast<int>(m_elapsed.elapsed() / 1000) : 0;
 }
 
-void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &name, const QString &description)
+void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &name, const QString &description, bool sendNotification)
 {
     if (m_broadcasting)
         return;
@@ -63,9 +63,9 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
     case Qt::PermissionStatus::Granted:
         break;
     case Qt::PermissionStatus::Undetermined:
-        qApp->requestPermission(micPermission, this, [this, channel, name, description](const QPermission &permission) {
+        qApp->requestPermission(micPermission, this, [this, channel, name, description, sendNotification](const QPermission &permission) {
             if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted)
-                startBroadcast(channel, name, description);
+                startBroadcast(channel, name, description, sendNotification);
             else
                 emit broadcastError(tr("Microphone permission was denied."));
         });
@@ -105,6 +105,7 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
     m_socket->setProperty("channel", channel);
     m_socket->setProperty("name", name);
     m_socket->setProperty("description", description);
+    m_socket->setProperty("sendNotification", sendNotification);
 
     m_socket->connectToHost(QString::fromLatin1(ICECAST_HOST), ICECAST_PORT);
 
@@ -114,7 +115,7 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
     m_elapsedTicker.start();
 }
 
-void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QString &name, const QString &description)
+void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QString &name, const QString &description, bool sendNotification)
 {
     // HTTP/1.0, no Content-Length/Transfer-Encoding: Icecast's source-over-
     // PUT protocol treats the connection as a continuous stream once
@@ -140,7 +141,13 @@ void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QStr
     // the mountpoint (channel), not a separate homepage URL, so listeners
     // land on the stream itself (e.g. http://185.169.69.8:8001/user1).
     request += "ice-url: " + channel.toUtf8() + "\r\n";
-    request += "ice-public: 0\r\n";
+    // ice-public repurposed as a carrier for "should icecast_on_connect.sh
+    // publish a notification for this broadcast" - see the Q_INVOKABLE
+    // startBroadcast() doc comment in icecastbroadcaster.h for why this
+    // header specifically. This app never sets up Icecast's real
+    // public-directory/YP listing (no <directory> block), so there's no
+    // real "public" behavior being overloaded here.
+    request += QByteArray("ice-public: ") + (sendNotification ? "1" : "0") + "\r\n";
     request += "\r\n";
     m_socket->write(request);
 }
@@ -149,7 +156,8 @@ void IcecastBroadcaster::onSocketConnected()
 {
     sendIcecastHandshake(m_socket->property("channel").toString(),
                           m_socket->property("name").toString(),
-                          m_socket->property("description").toString());
+                          m_socket->property("description").toString(),
+                          m_socket->property("sendNotification").toBool());
 }
 
 void IcecastBroadcaster::onSocketReadyRead()

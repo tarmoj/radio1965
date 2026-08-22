@@ -40,7 +40,17 @@ public:
 
     // channel: one of "radio1965"/"user1".."user4" (no leading slash).
     // name/description become the ice-name/ice-description headers.
-    Q_INVOKABLE void startBroadcast(const QString &channel, const QString &name, const QString &description);
+    // sendNotification: forwarded as the ice-public header (1/0) - this app
+    // never uses Icecast's real public-directory/YP listing feature (no
+    // <directory> block is configured), so that header is repurposed as a
+    // cheap, guaranteed-to-round-trip-through-status-json.xsl carrier for
+    // "should icecast_on_connect.sh publish a notification for this
+    // broadcast" (see server/icecast_on_connect.sh, which reads it back via
+    // the source's "public" field). A brand-new custom ice-* header isn't
+    // used here because Icecast only serializes its fixed known field set
+    // into status-json.xsl - an invented header name wouldn't show up there
+    // at all.
+    Q_INVOKABLE void startBroadcast(const QString &channel, const QString &name, const QString &description, bool sendNotification);
     Q_INVOKABLE void stopBroadcast();
 
     // Queries http://live.uuu.ee:8001/status-json.xsl and reports which
@@ -67,7 +77,7 @@ private slots:
     void onStatusJsonReply();
 
 private:
-    void sendIcecastHandshake(const QString &channel, const QString &name, const QString &description);
+    void sendIcecastHandshake(const QString &channel, const QString &name, const QString &description, bool sendNotification);
     void encodeAndSend(const QByteArray &pcm);
     void teardown();
 

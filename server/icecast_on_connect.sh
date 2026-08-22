@@ -10,7 +10,7 @@
 # Publishes a type="livestream" event via the existing notification
 # server API (same POST /events/publish the editor/app already use), and
 # persists the created event id to a temp file keyed by channel so
-# icecast_on_disconnect.sh (a separate later invocation) can shelve it.
+# icecast_on_disconnect.sh (a separate later invocation) can unpublish it.
 
 # link it to /user/local/bin/icecast_on_connect.sh
 
@@ -78,5 +78,5 @@ if [ -n "$EVENT_ID" ]; then
   echo "$EVENT_ID" > "/tmp/icecast_event_${CHANNEL}.id"
   log "wrote id file /tmp/icecast_event_${CHANNEL}.id (event_id='$EVENT_ID')"
 else
-  log "no event id in publish response - id file NOT written, on-disconnect will have nothing to shelve"
+  log "no event id in publish response - id file NOT written, on-disconnect will have nothing to unpublish"
 fi

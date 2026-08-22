@@ -214,19 +214,21 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
     return {"event": event_dict, "message_id": message_id, "sent_immediately": status == "new"}
 
 
-@app.post("/events/{event_id}/shelve")
-def shelve_event(event_id: str, session: Session = Depends(db.get_db)):
+@app.post("/events/{event_id}/unpublish")
+def unpublish_event(event_id: str, session: Session = Depends(db.get_db)):
     """
-    Immediately moves an event to 'shelved', bypassing cron_publish.py's
-    time-based shelf_at sweep. Used by server/icecast_on_disconnect.sh
-    (project-description.md #8.1/#9) so a livestream event stops looking
-    live the moment the broadcaster actually disconnects, rather than
-    whenever its guessed shelf_at eventually elapses.
+    Immediately moves an event to 'unpublished' - used by
+    server/icecast_on_disconnect.sh (project-description.md #8.1/#9) so a
+    livestream event disappears from both "New Arrivals" and "Collection"
+    (list_events() only shows status new/shelved by default) the moment the
+    broadcaster actually disconnects, rather than lingering as a "shelved"
+    (archived-but-visible) entry - an ended broadcast isn't a collectible
+    item like a finished audio/video, it's just over.
     """
     row = session.get(db.Event, event_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
-    row.status = "shelved"
+    row.status = "unpublished"
     session.commit()
     return {"event": row.to_dict()}
 
