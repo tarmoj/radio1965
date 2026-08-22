@@ -14,10 +14,18 @@
 
 # link it to /user/local/bin/icecast_on_connect.sh
 
-set -euo pipefail
+set -uo pipefail
 
 CHANNEL="${1#/}"   # normalize away a leading slash, e.g. "/user1" -> "user1"
 API_BASE="https://live.uuu.ee/radio1965/api"   # matches Main.qml appSettings.serverUrl default
+LOGFILE="/tmp/icecast_hooks.log"
+
+# Same reasoning as icecast_on_disconnect.sh's log() - no logging existed
+# here before, so a failure to publish (or to write the id file the
+# on-disconnect hook depends on) was undiagnosable after the fact.
+log() { echo "$(date -Is) [on-connect] $*" >> "$LOGFILE"; }
+
+log "invoked: mount='$1' channel='$CHANNEL'"
 
 # Icecast fires on-connect right as it accepts the connection - possibly
 # before it has finished registering the source's ice-name/ice-description
@@ -42,6 +50,7 @@ done
 
 NAME=$(echo "$SOURCE" | jq -r '.server_name // "Unknown"')
 DESCRIPTION=$(echo "$SOURCE" | jq -r '.server_description // ""')
+log "resolved name='$NAME' description='$DESCRIPTION' (source='$SOURCE')"
 
 BODY=$(jq -n \
   --arg name "$NAME" \
@@ -57,11 +66,17 @@ BODY=$(jq -n \
     payload: {}
   }')
 
-RESPONSE=$(curl -s -X POST "$API_BASE/events/publish" \
+RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "$API_BASE/events/publish" \
   -H "Content-Type: application/json" \
   -d "$BODY")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY_RESPONSE=$(echo "$RESPONSE" | sed '$d')
+log "publish response: http=$HTTP_CODE body=$BODY_RESPONSE"
 
-EVENT_ID=$(echo "$RESPONSE" | jq -r '.event.id // empty')
+EVENT_ID=$(echo "$BODY_RESPONSE" | jq -r '.event.id // empty')
 if [ -n "$EVENT_ID" ]; then
   echo "$EVENT_ID" > "/tmp/icecast_event_${CHANNEL}.id"
+  log "wrote id file /tmp/icecast_event_${CHANNEL}.id (event_id='$EVENT_ID')"
+else
+  log "no event id in publish response - id file NOT written, on-disconnect will have nothing to shelve"
 fi

@@ -88,27 +88,24 @@ Page {
                 property string lastChannel: "radio1965"
             }
 
-            RowLayout {
+            ComboBox {
+                id: channelCombo
                 Layout.fillWidth: true
-                spacing: 8
-
-                ComboBox {
-                    id: channelCombo
-                    Layout.fillWidth: true
-                    enabled: !icecastBroadcaster.broadcasting
-                    model: root.channelNames
-                    currentIndex: Math.max(0, root.channelNames.indexOf(broadcastSettings.lastChannel))
-                    onActivated: broadcastSettings.lastChannel = channelCombo.currentText
-                    delegate: ItemDelegate {
-                        width: channelCombo.width
-                        text: modelData
-                        enabled: !root.isChannelOccupied(modelData)
-                    }
+                enabled: !icecastBroadcaster.broadcasting
+                model: root.channelNames
+                currentIndex: Math.max(0, root.channelNames.indexOf(broadcastSettings.lastChannel))
+                onActivated: broadcastSettings.lastChannel = channelCombo.currentText
+                delegate: ItemDelegate {
+                    width: channelCombo.width
+                    text: modelData
+                    enabled: !root.isChannelOccupied(modelData)
                 }
 
-                ToolButton {
-                    text: "⟳"
-                    onClicked: icecastBroadcaster.refreshOccupiedChannels()
+                // Refresh on open instead of a separate refresh button -
+                // same pattern as PlayerBar.qml's channel combobox.
+                Connections {
+                    target: channelCombo.popup
+                    function onOpened() { icecastBroadcaster.refreshOccupiedChannels(); }
                 }
             }
 

@@ -97,7 +97,8 @@ ApplicationWindow {
                 anchors.right: parent.right
                 anchors.rightMargin: 5
                 anchors.verticalCenter: parent.verticalCenter
-                text: "⟳"
+                //text: "⟳"
+                icon.source: "qrc:/images/refresh.svg"
                 onClicked: eventsApiClient.fetchEvents(appSettings.serverUrl)
             }
         }
