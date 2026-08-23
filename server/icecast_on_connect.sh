@@ -52,16 +52,34 @@ NAME=$(echo "$SOURCE" | jq -r '.server_name // "Unknown"')
 DESCRIPTION=$(echo "$SOURCE" | jq -r '.server_description // ""')
 log "resolved name='$NAME' description='$DESCRIPTION' (source='$SOURCE')"
 
+# ice-public (see IcecastBroadcaster::sendIcecastHandshake()) is repurposed
+# to carry BroadcastPage.qml's "Send notification" checkbox through to
+# here. Fail open (send the notification) if the field is missing/
+# unparseable, rather than silently swallowing notifications on a
+# status-json.xsl field name/format mismatch - verify the actual field
+# name/type against a live capture (`curl -s
+# http://localhost:8001/status-json.xsl | jq '.icestats.source'` while
+# broadcasting with the checkbox unchecked) if this doesn't behave as
+# expected.
+PUBLIC=$(echo "$SOURCE" | jq -r '.public // empty')
+SEND_NOTIFICATION="true"
+if [ "$PUBLIC" = "0" ]; then
+  SEND_NOTIFICATION="false"
+fi
+log "resolved public='$PUBLIC' -> send_notification=$SEND_NOTIFICATION"
+
 BODY=$(jq -n \
   --arg name "$NAME" \
   --arg ch "$CHANNEL" \
   --arg desc "$DESCRIPTION" \
+  --arg send_notification "$SEND_NOTIFICATION" \
   '{
     type: "livestream",
     title: ($name + " is on air on channel " + $ch + "!"),
     summary: $desc,
     url: ("http://live.uuu.ee:8001/" + $ch),
     publish_now: true,
+    send_notification: ($send_notification == "true"),
     tags: [],
     payload: {}
   }')

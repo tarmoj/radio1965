@@ -134,6 +134,10 @@ class EventIn(BaseModel):
     tags: list[str] = Field(default_factory=list)
     payload: dict = Field(default_factory=dict)
     comments_enabled: bool = False
+    # Opt out of the push while still publishing/listing the event - used by
+    # server/icecast_on_connect.sh, forwarding BroadcastPage.qml's "Send
+    # notification" checkbox (see IcecastBroadcaster::startBroadcast()).
+    send_notification: bool = True
 
 
 @app.post("/notify/topic")
@@ -208,7 +212,7 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
 
     event_dict = row.to_dict()
     message_id = None
-    if status == "new":
+    if status == "new" and event.send_notification:
         message_id = notifications.send_event_notification(event_dict, config.TEST_TOPIC)
 
     return {"event": event_dict, "message_id": message_id, "sent_immediately": status == "new"}
