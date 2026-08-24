@@ -3,6 +3,8 @@
 
 ## TODOs
 
+Header background of pages from grey to almost transparent.
+
 Icon.
 
 Change package name to org.eccm.vain -- does it break Firebase registration?
@@ -11,7 +13,11 @@ Save audio stream -  if required
 
 "Contributor" role. Password to editor page.
 
+Checkbox "Notify -  never"  (editor)
+
 Database managing page
+
+On Video the seek bar should be below the video. How to do it if fullscreen?
 
 ## Konwn problems
 

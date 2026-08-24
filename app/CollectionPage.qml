@@ -149,7 +149,6 @@ Page {
                     model: root.shelfDefs
                     delegate: Shelf {
                         required property var modelData
-                        required property var showEvents
 
                         shelfTitle: modelData.title
                         color: modelData.color

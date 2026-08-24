@@ -73,14 +73,23 @@ Rectangle {
 
         const entries = [];
         for (const key of keys) {
-            entries.push({ isHeader: true, headerText: key });
+            const items = buckets[key].items.slice().sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            entries.push({ isHeader: true, headerText: key, items: items });
             if (!root.showEvents)
                 continue;
-            const items = buckets[key].items.slice().sort((a, b) => (a.title || "").localeCompare(b.title || ""));
             for (const event of items)
                 entries.push({ isHeader: false, event: event });
         }
         return entries;
+    }
+
+    // Opens groupPopup for one bucket's worth of events - reached by
+    // tapping a group header (e.g. "August 2026", "T"), most useful while
+    // showEvents is off and the Boxes themselves aren't rendered inline.
+    function openGroupPopup(headerText, items) {
+        groupPopup.headerText = headerText;
+        groupPopup.groupItems = items;
+        groupPopup.open();
     }
 
     ColumnLayout {
@@ -126,6 +135,15 @@ Rectangle {
                         font.bold: true
                         font.pointSize: 11
                         opacity: 0.8
+
+                        // Opens the full list of this group's events in a
+                        // floating popup - the group key itself is the
+                        // click target, not the event cards.
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: entryItem.isHeaderEntry
+                            onClicked: root.openGroupPopup(modelData.headerText, modelData.items)
+                        }
                     }
 
                     Box {
@@ -156,6 +174,87 @@ Rectangle {
 
                         onPlayerRequested: (url, title, summary, isLive) =>
                             root.controller.playMedia(url, title, summary, isLive)
+                    }
+                }
+            }
+        }
+    }
+
+    // Floating list of one group's events (not a StackView push -
+    // project-description.md #2.1 asks for "a floating dialog"), opened by
+    // tapping a group header - lets the user browse a group's events even
+    // while showEvents is off and the Boxes aren't rendered inline.
+    Popup {
+        id: groupPopup
+        parent: root.Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min((parent ? parent.width : 400) * 0.9, 480)
+        height: Math.min((parent ? parent.height : 600) * 0.8, 640)
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        property string headerText: ""
+        property var groupItems: []
+
+        contentItem: ColumnLayout {
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Label {
+                    text: groupPopup.headerText
+                    font.bold: true
+                    font.pointSize: 15
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                }
+
+                ToolButton {
+                    text: "✕"
+                    onClicked: groupPopup.close()
+                }
+            }
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+
+                Column {
+                    width: groupPopup.width - 32
+                    spacing: 6
+
+                    Repeater {
+                        model: groupPopup.groupItems
+
+                        delegate: Box {
+                            required property var modelData
+
+                            width: parent ? parent.width : implicitWidth
+                            eventId: modelData.eventId
+                            eventType: modelData.eventType
+                            title: modelData.title
+                            summary: modelData.summary
+                            url: modelData.url
+                            tags: modelData.tags
+                            status: modelData.status
+                            payload: modelData.payload
+                            boxColor: Qt.lighter(root.color, 1.25)
+                            boxBorderColor: root.border.color
+
+                            onArticleRequested: (url, title, articleId, isJoomlaArticle) =>
+                                root.navigationStack.push(Qt.resolvedUrl("WebViewPage.qml"), {
+                                    pageUrl: url,
+                                    pageTitle: title,
+                                    articleId: isJoomlaArticle ? articleId : 0,
+                                    serverBaseUrl: root.serverBaseUrl
+                                })
+
+                            onPlayerRequested: (url, title, summary, isLive) =>
+                                root.controller.playMedia(url, title, summary, isLive)
+                        }
                     }
                 }
             }
