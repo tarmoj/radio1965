@@ -40,6 +40,8 @@ Page {
     }
 
     header: ToolBar {
+        background: Rectangle { color: "transparent" }
+
         RowLayout {
             anchors.fill: parent
             anchors.margins: 5
