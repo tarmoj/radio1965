@@ -137,6 +137,7 @@ qt_add_qml_module(appradio65
         Main.qml
         EventListView.qml
         EventDelegate.qml
+        Card.qml
         Box.qml
         Shelf.qml
         CollectionPage.qml

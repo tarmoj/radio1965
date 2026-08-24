@@ -64,7 +64,7 @@ Page {
         clip: true
         model: root.results
 
-        delegate: Box {
+        delegate: Card {
             width: ListView.view.width
             eventId: modelData.eventId
             eventType: modelData.eventType

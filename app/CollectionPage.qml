@@ -27,12 +27,12 @@ Page {
     // simple hue-per-shelf scheme suited to the app's existing dark
     // background (Main.qml's Material.background gradient).
     readonly property var shelfDefs: [
-        { types: ["livestream"], title: qsTr("Live Streams"), color: "#4a1620", border: "#8c2f45" },
-        { types: ["audio", "audiostream"], title: qsTr("Audio"), color: "#16304a", border: "#2f5f8c" },
-        { types: ["video", "videostream"], title: qsTr("Video"), color: "#2a1a4a", border: "#5b3a8c" },
-        { types: ["webcontent"], title: qsTr("Web Content"), color: "#16403c", border: "#2f8c7f" },
-        { types: ["article"], title: qsTr("Article"), color: "#4a3416", border: "#8c6a2f" },
-        { types: ["text"], title: qsTr("Message"), color: "#2c4a16", border: "#5f8c2f" }
+        { types: ["livestream"], title: qsTr("Live Streams"), color: "#4a1620" },
+        { types: ["audio", "audiostream"], title: qsTr("Audio"), color: "#16304a" },
+        { types: ["video", "videostream"], title: qsTr("Video"), color: "#2a1a4a" },
+        { types: ["webcontent"], title: qsTr("Web Content"), color: "#16403c" },
+        { types: ["article"], title: qsTr("Article"), color: "#4a3416" },
+        { types: ["text"], title: qsTr("Message"), color: "#2c4a16" }
     ]
 
     property var events: notificationManager.shelvedEvents()
@@ -151,8 +151,7 @@ Page {
                         required property var modelData
 
                         shelfTitle: modelData.title
-                        color: modelData.color
-                        border.color: modelData.border
+                        categoryColor: modelData.color
                         events: root.events.filter(e => modelData.types.includes(e.eventType))
                         groupMode: root.groupMode
                         showEvents: root.showEvents
