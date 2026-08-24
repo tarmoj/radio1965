@@ -21,6 +21,8 @@ On Video the seek bar should be below the video. How to do it if fullscreen?
 
 ## Konwn problems
 
+Search does not work ob Collection.
+
 Ended live streams make no sense in the Collection at the moment. 
 
 Video fullscreen dows not fill the screen on mobile devices.

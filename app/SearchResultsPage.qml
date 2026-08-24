@@ -65,6 +65,8 @@ Page {
         model: root.results
 
         delegate: Card {
+            required property var modelData
+
             width: ListView.view.width
             eventId: modelData.eventId
             eventType: modelData.eventType

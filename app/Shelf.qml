@@ -6,8 +6,8 @@ import QtQuick.Layouts
 // shelved events of one type (or folded set of types, see
 // CollectionPage.qml's shelfDefs), containing several Boxes - one per
 // group-key bucket under the active groupMode ("author"/"month"/"title").
-// Meant to be placed inside a ColumnLayout (Layout.fillWidth relies on
-// that).
+// Meant to be placed inside a GridLayout (Layout.fillWidth/maximumWidth/
+// alignment rely on that).
 Rectangle {
     id: root
 
@@ -24,12 +24,18 @@ Rectangle {
     // own fill) while categoryColor still needs forwarding down to Box and
     // its Cards for their tint.
     property color categoryColor: Material.primaryColor
+
     required property StackView navigationStack
     required property string serverBaseUrl
     required property PlaybackController controller
 
-    width: 300
-    height: 500
+    // Fills its GridLayout cell up to a reasonable cap rather than
+    // stretching indefinitely on wide screens, and never stretches
+    // vertically to match a taller neighbor in the same row - each Shelf
+    // stays as tall as its own content.
+    Layout.fillWidth: true
+    Layout.maximumWidth: 420
+    Layout.alignment: Qt.AlignTop
 
     visible: root.events.length > 0
     implicitHeight: root.visible ? (contentColumn.implicitHeight + 24) : 0

@@ -22,7 +22,13 @@ Rectangle {
     required property PlaybackController controller
 
     Layout.fillWidth: true
-    implicitHeight: contentColumn.implicitHeight + 16
+    // A real `height`, not implicitHeight: Box sits inside Shelf.qml's
+    // boxesColumn, a plain Column positioner (not a Layout), which sizes
+    // children (and therefore Shelf's own content-driven height) off their
+    // actual height, not implicitHeight - needed for Shelf's per-item
+    // (non-fixed) height in the Collection grid, so shelves can align to
+    // the grid's top rather than all stretching to a fixed size.
+    height: contentColumn.implicitHeight + 16
     radius: 6
     color: "transparent"
     //border.width: 1

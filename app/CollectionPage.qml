@@ -137,13 +137,22 @@ Page {
         }
 
         ScrollView {
+            id: shelvesScroll
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
-            ColumnLayout {
-                width: parent.width
-                spacing: 12
+            GridLayout {
+                id: shelvesGrid
+                width: shelvesScroll.availableWidth
+                columnSpacing: 12
+                rowSpacing: 12
+                // At least 2 columns, more as the screen gets wider - each
+                // column stays close to a ~260px target rather than
+                // stretching indefinitely (Shelf.qml also caps its own
+                // Layout.maximumWidth so a lone shelf in a row doesn't blow
+                // up on very wide screens).
+                columns: Math.max(2, Math.floor(width / 260))
 
                 Repeater {
                     model: root.shelfDefs
@@ -162,6 +171,7 @@ Page {
                 }
 
                 Label {
+                    Layout.columnSpan: shelvesGrid.columns
                     Layout.fillWidth: true
                     Layout.margins: 16
                     horizontalAlignment: Text.AlignHCenter
