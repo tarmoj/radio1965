@@ -94,7 +94,7 @@ ApplicationWindow {
         id: tabBar
         TabButton { text: "New Arrivals" }
         TabButton { text: "Collection" }
-        TabButton { text: "Archive" }
+        TabButton { text: "Broadcast" }
     }
 
     SwipeView {
@@ -102,7 +102,7 @@ ApplicationWindow {
         currentIndex: tabBar.currentIndex
         NewArrivalsPage {}
         CollectionPage {}
-        ArchivePage {}
+        BroadcastPage {}
     }
 }
 ```
@@ -110,6 +110,16 @@ For Content use StackView, that covers the main content area (between header and
 
 
 Later use a slim, persistent mini-player bar that survives across tab switches and stack pushes/pops (sitting between the SwipeView and the TabBar, or docked just above it
+
+## 2.1 Organizing the shevled events
+
+In the collection page (or it can be called also archive) the sheleved events are devided into Shelves (separate QML component) by event type:
+Live Streams, Audio, Video, Web Content, Article, Message
+
+Shelves have Boxes on them ( component Box)  that can be grouped by (add row layout with radio button or choice):
+Author (not present yet but will be introduced), Creation time (by month), alphabetically by Title. Maybe lateralso by tags but skip that now.
+
+Add a search strip that finds all events searched bu title (exac or partial match), author, word andywhere.
 
 ## 3. Main architecture
 
@@ -340,24 +350,6 @@ else
 fi
 ```
 
-TODO: later use dfferent application name, ie address for broadcasing audio: rtmp://live.uuu.ee/audio/<stream-name>
-
-In that case nginx.conf:
-```
-application live {
-    live on;
-    record all;
-    record_path /var/recordings/video;
-    record_suffix -%Y%m%d-%H%M%S.flv;
-}
-
-application audio {
-    live on;
-    record all;
-    record_path /var/recordings/audio;
-    record_suffix -%Y%m%d-%H%M%S.flv;
-}
-```
 
 ### 8.1 Audio streaming from Icecast
 
@@ -406,11 +398,24 @@ Mux + push via libavformat to Icecast.
 
 ## 10. Registration
 
+
+
+
+
 New table: users:
 
 id | name | email | role (null|pending|contributor|manager|banned) | password
 
 In app menu "Become a contributor" 
+
+For now:
+
+For initial test version:
+In app menu "Become a contributor" 
+    -> onClick: ask for name, email, password. For now the password is "1965"
+    If correct, add to name, email, contributor to table ( will be deleted later) 
+    
+For production version:
     -> onClick:  show dialog with rights and rules, field for name and email + password + repeat password.  If OK pressed,
         -> mark the name and email into tabel 'users', role 'pending', send confirmation email. If confirmed, mark 'contributor'. 
         How to let the app know? Notification only to this device? Restart app?
