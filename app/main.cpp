@@ -39,19 +39,18 @@ int main(int argc, char *argv[])
                           notificationManager.upsertEvents(events);
                       });
 
-    // "New Arrivals" (status=new) and "Collection" (status=shelved) -
-    // project-description.md #2.1. Shelving happens silently via
-    // server/cron_publish.py (no push), so these only pick it up once
-    // EventsApiClient::fetchEvents() re-hydrates the source model.
+    // "New Arrivals" (status=new) - project-description.md #2.1. Shelving
+    // happens silently via server/cron_publish.py (no push), so this only
+    // picks it up once EventsApiClient::fetchEvents() re-hydrates the
+    // source model. "Collection" (status=shelved) no longer needs its own
+    // proxy model here - CollectionPage.qml reads the shelved subset
+    // directly via NotificationManager::shelvedEvents() instead, since it
+    // groups/sorts the set in QML JS rather than rendering it through a
+    // flat ListView.
     QSortFilterProxyModel newEventsModel;
     newEventsModel.setSourceModel(&notificationManager);
     newEventsModel.setFilterRole(NotificationManager::StatusRole);
     newEventsModel.setFilterFixedString("new");
-
-    QSortFilterProxyModel shelfEventsModel;
-    shelfEventsModel.setSourceModel(&notificationManager);
-    shelfEventsModel.setFilterRole(NotificationManager::StatusRole);
-    shelfEventsModel.setFilterFixedString("shelved");
 #endif
 
 #ifdef RADIO65_ENABLE_BROADCAST
@@ -75,7 +74,6 @@ int main(int argc, char *argv[])
 #ifdef RADIO65_ENABLE_NOTIFICATIONS
     engine.rootContext()->setContextProperty("notificationManager", &notificationManager);
     engine.rootContext()->setContextProperty("newEventsModel", &newEventsModel);
-    engine.rootContext()->setContextProperty("shelfEventsModel", &shelfEventsModel);
 #endif
 #ifdef RADIO65_ENABLE_BROADCAST
     engine.rootContext()->setContextProperty("icecastBroadcaster", &icecastBroadcaster);

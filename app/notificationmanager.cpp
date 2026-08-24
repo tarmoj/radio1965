@@ -172,3 +172,42 @@ QVariantMap NotificationManager::findLiveStream() const
     }
     return {};
 }
+
+namespace {
+
+QVariantMap eventItemToMap(const EventItem &item)
+{
+    // Keys match roleNames() exactly (eventId/eventType, not id/type) so
+    // CollectionPage.qml/Shelf.qml/Box.qml bindings read the same field
+    // names regardless of whether an event came from this list or from a
+    // ListView delegate's auto-populated role properties.
+    QVariantList tags;
+    for (const QString &tag : item.tags)
+        tags.append(tag);
+
+    return {
+        { "eventId", item.id },
+        { "eventType", item.type },
+        { "title", item.title },
+        { "summary", item.summary },
+        { "url", item.url },
+        { "publishAt", item.publishAt },
+        { "shelfAt", item.shelfAt },
+        { "status", item.status },
+        { "tags", tags },
+        { "payload", item.payload },
+        { "commentsEnabled", item.commentsEnabled }
+    };
+}
+
+} // namespace
+
+QVariantList NotificationManager::shelvedEvents() const
+{
+    QVariantList result;
+    for (const EventItem &item : m_events) {
+        if (item.status == QStringLiteral("shelved"))
+            result.append(eventItemToMap(item));
+    }
+    return result;
+}

@@ -137,6 +137,10 @@ qt_add_qml_module(appradio65
         Main.qml
         EventListView.qml
         EventDelegate.qml
+        Box.qml
+        Shelf.qml
+        CollectionPage.qml
+        SearchResultsPage.qml
         WebViewPage.qml
         PlaybackController.qml
         PlayerBar.qml

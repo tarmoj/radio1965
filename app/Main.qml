@@ -283,7 +283,7 @@ ApplicationWindow {
                 onCurrentIndexChanged: tabBar.currentIndex = currentIndex
 
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
-                EventListView { eventsModel: shelfEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
+                CollectionPage { navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
                 BroadcastPage {}
 
 
