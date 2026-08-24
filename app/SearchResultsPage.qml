@@ -15,6 +15,8 @@ Page {
     required property string serverBaseUrl
     required property PlaybackController controller
 
+    background: Rectangle { color: "transparent" }
+
     // Case-insensitive substring match against title, summary, any tag, or
     // payload.author (if/when that field exists - project-description.md
     // #2.1 notes it's "not present yet but will be introduced").

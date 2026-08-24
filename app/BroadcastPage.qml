@@ -19,6 +19,8 @@ Page {
     property var occupiedChannels: []
     property string errorMessage: ""
 
+    background: Rectangle { color: "transparent" }
+
     function isChannelOccupied(channel) {
         return root.occupiedChannels.indexOf(channel) !== -1;
     }

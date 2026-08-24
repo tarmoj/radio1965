@@ -13,6 +13,10 @@ Rectangle {
     property string shelfTitle: ""
     property var events: []
     property string groupMode: "month"
+    // When false, only the group headers (e.g. month names, author names,
+    // title-letters) are shown, no Box cards underneath - a compact
+    // "just the sorting keys" view (project-description.md #2.1 follow-up).
+    property bool showEvents: true
     required property StackView navigationStack
     required property string serverBaseUrl
     required property PlaybackController controller
@@ -70,6 +74,8 @@ Rectangle {
         const entries = [];
         for (const key of keys) {
             entries.push({ isHeader: true, headerText: key });
+            if (!root.showEvents)
+                continue;
             const items = buckets[key].items.slice().sort((a, b) => (a.title || "").localeCompare(b.title || ""));
             for (const event of items)
                 entries.push({ isHeader: false, event: event });

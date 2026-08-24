@@ -17,6 +17,9 @@ Page {
 
     property string groupMode: "month"
     property bool searchVisible: false
+    property bool showEvents: true
+
+    background: Rectangle { color: "transparent" }
 
     // Folds server/db.py's 8 EVENT_TYPES into project-description.md's 6
     // shelves - audiostream/videostream (no dedicated shelf in the doc)
@@ -123,6 +126,14 @@ Page {
                 checked: root.groupMode === "title"
                 onToggled: root.groupMode = "title"
             }
+
+            Item { Layout.fillWidth: true }
+
+            CheckBox {
+                text: qsTr("Show events")
+                checked: root.showEvents
+                onToggled: root.showEvents = checked
+            }
         }
 
         ScrollView {
@@ -137,11 +148,15 @@ Page {
                 Repeater {
                     model: root.shelfDefs
                     delegate: Shelf {
+                        required property var modelData
+                        required property var showEvents
+
                         shelfTitle: modelData.title
                         color: modelData.color
                         border.color: modelData.border
                         events: root.events.filter(e => modelData.types.includes(e.eventType))
                         groupMode: root.groupMode
+                        showEvents: root.showEvents
                         navigationStack: root.navigationStack
                         serverBaseUrl: root.serverBaseUrl
                         controller: root.controller

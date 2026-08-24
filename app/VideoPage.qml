@@ -15,6 +15,8 @@ Page {
     id: root
     required property PlaybackController controller
 
+    background: Rectangle { color: "transparent" }
+
     header: ToolBar {
         RowLayout {
             anchors.fill: parent

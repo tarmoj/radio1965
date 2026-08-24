@@ -92,6 +92,18 @@ ItemDelegate {
                 font.pointSize: 13
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
+
+                // Opens a floating detail view with the full title/summary,
+                // scrollable - for events whose summary may be long
+                // (project-description.md #2.1 follow-up). A MouseArea, not
+                // reusing root's own onClicked, so this stays independent of
+                // the type-based routing above (article/audio/etc.) and
+                // works for every event type, including ones that already
+                // do something else on tap.
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: detailPopup.open()
+                }
             }
 
             Label {
@@ -147,5 +159,61 @@ ItemDelegate {
         color: Material.backgroundColor.lighter()
         border.width: 1
         border.color: Material.primaryColor.lighter()
+    }
+
+    // Floating detail view (not a StackView push - project-description.md
+    // #2.1 explicitly asks for "a floating dialog like Rect/Item"), for
+    // reading a long summary in full. Popup, not Dialog: a plain modal
+    // overlay centered over the whole window, sized to a fraction of it
+    // rather than to its content.
+    Popup {
+        id: detailPopup
+        parent: root.Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min((parent ? parent.width : 400) * 0.9, 480)
+        height: Math.min((parent ? parent.height : 600) * 0.8, 640)
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        contentItem: ColumnLayout {
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Label {
+                    text: root.title
+                    font.bold: true
+                    font.pointSize: 15
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                }
+
+                ToolButton {
+                    text: "✕"
+                    onClicked: detailPopup.close()
+                }
+            }
+
+            Label {
+                text: qsTr("Starts: ") + root.startsAtDisplay
+                visible: root.isLive && root.startsAtDisplay !== ""
+                color: Material.accentColor
+                Layout.fillWidth: true
+            }
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+
+                Label {
+                    width: parent ? parent.width : implicitWidth
+                    text: root.summary
+                    wrapMode: Text.Wrap
+                }
+            }
+        }
     }
 }
