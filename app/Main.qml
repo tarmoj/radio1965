@@ -12,7 +12,7 @@ ApplicationWindow {
     height: 640
     visible: true
     property string version: "0.5.5"
-    title: qsTr("Radio 1965") + " v" + version
+    title: qsTr("VÄIN") + " v" + version
     color: Material.background
 
     property color backgroundEndColor: "darkgreen"
