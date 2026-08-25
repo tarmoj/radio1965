@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.5.5"
+    property string version: Qt.application.version
     title: qsTr("VÄIN") + " v" + version
     color: Material.background
 
