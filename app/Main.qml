@@ -277,14 +277,23 @@ ApplicationWindow {
 
             SwipeView {
                 id: swipeView
+                clip: true
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 currentIndex: tabBar.currentIndex
                 onCurrentIndexChanged: tabBar.currentIndex = currentIndex
 
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
-                CollectionPage { navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
-                BroadcastPage {}
+
+                CollectionPage {
+                    clip: true
+                    navigationStack: stackView;
+                    serverBaseUrl: appSettings.serverUrl;
+                    controller: playbackController
+                }
+
+                BroadcastPage { }
+
 
 
             }

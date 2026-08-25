@@ -113,6 +113,7 @@ Rectangle {
             font.pointSize: 15
             wrapMode: Text.Wrap
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
         }
 
         // Plain Column (a Positioner, unlike ColumnLayout), specifically so

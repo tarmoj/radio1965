@@ -48,6 +48,9 @@ Rectangle {
             font.bold: true
             font.pointSize: 11
             opacity: 0.8
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
 
             // The group key itself is the click target that opens the
             // floating popup listing this Box's Cards - useful even when

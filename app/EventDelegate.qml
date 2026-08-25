@@ -51,6 +51,7 @@ ItemDelegate {
 
     width: ListView.view ? ListView.view.width : implicitWidth
     height: column.implicitHeight + 24
+    clip: true
 
     onClicked: {
         switch (eventType) {
@@ -92,6 +93,11 @@ ItemDelegate {
                 font.pointSize: 13
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
+                // Layout.minimumWidth defaults to implicitWidth, which for
+                // text is its unwrapped single-line width - without this,
+                // the RowLayout (and everything above it) gets forced
+                // wider to fit a long title instead of letting it wrap.
+                Layout.minimumWidth: 0
             }
 
             Label {
@@ -115,6 +121,7 @@ ItemDelegate {
             text: root.summary
             wrapMode: Text.Wrap
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             visible: root.eventType !== "text" || root.expanded
         }
 
