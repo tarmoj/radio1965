@@ -5,6 +5,8 @@
 
 Box -  header title should be clickable the whole row, not only the label (problem when only letter, like "T" )
 
+BroadCast page -  not name (take it from settings now) but Title.
+Think what the broadcast notification should be.
 
 Icon.
 

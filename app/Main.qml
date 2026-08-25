@@ -29,6 +29,17 @@ ApplicationWindow {
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
     }
 
+    // "Become a Contributor" gate (project-description.md follow-up) -
+    // role is just "none"/"contributor" for now, but named generically
+    // since administrator/other roles are expected later.
+    Settings {
+        id: userSettings
+        category: "User"
+        property string role: "none"
+        property string contributorName: ""
+        property string contributorEmail: ""
+    }
+
     Component.onCompleted: {
         eventsApiClient.fetchEvents(appSettings.serverUrl);
     }
@@ -142,6 +153,24 @@ ApplicationWindow {
                     }
                 }
 
+                MenuItem {
+                    text: qsTr("Become a Contributor")
+                    visible: userSettings.role !== "contributor"
+                    onTriggered: {
+                        contributorDialog.open()
+                        drawer.close()
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Leave contributor role")
+                    visible: userSettings.role !== "none"
+                    onTriggered: {
+                        userSettings.role = "none"
+                        drawer.close()
+                    }
+                }
+
             }
         }
 
@@ -178,6 +207,79 @@ ApplicationWindow {
             Label {
                 text: qsTr("© Tarmo Johannes\ntrmjhnns@gmail.com")
                 font.pointSize: 10
+            }
+        }
+    }
+
+    Dialog {
+        id: contributorDialog
+        title: qsTr("Become a Contributor")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        // Dialog doesn't auto-size itself from an explicit `width:` set on
+        // an inner child (that only ever controlled the ColumnLayout's own
+        // width, not the Dialog's actual content-area/frame) - without
+        // this, the ColumnLayout could render wider than the Dialog's
+        // frame, so the TextFields visibly stuck out past the popup.
+        width: Math.min(app.width - 40, 420)
+
+        property bool showError: false
+
+        // Fields shouldn't leak a previous attempt's input (including the
+        // password) across opens.
+        onOpened: {
+            nameField.text = ""
+            emailField.text = ""
+            passwordField.text = ""
+            contributorDialog.showError = false
+        }
+
+        ColumnLayout {
+            spacing: 8
+            width: contributorDialog.availableWidth
+
+            TextField {
+                id: nameField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Name")
+            }
+
+            TextField {
+                id: emailField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Email")
+            }
+
+            TextField {
+                id: passwordField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Password")
+                echoMode: TextInput.Password
+            }
+
+            Label {
+                text: qsTr("Incorrect password.")
+                color: "crimson"
+                visible: contributorDialog.showError
+            }
+
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Submit")
+                onClicked: {
+                    // Hardcoded for now - project-description.md doesn't
+                    // yet have a real contributor-registration flow.
+                    if (passwordField.text === "1965") {
+                        userSettings.role = "contributor"
+                        userSettings.contributorName = nameField.text
+                        userSettings.contributorEmail = emailField.text
+                        contributorDialog.showError = false
+                        contributorDialog.close()
+                    } else {
+                        contributorDialog.showError = true
+                    }
+                }
             }
         }
     }
@@ -292,7 +394,7 @@ ApplicationWindow {
                     controller: playbackController
                 }
 
-                BroadcastPage { }
+                BroadcastPage { isContributor: userSettings.role === "contributor" }
 
 
 
