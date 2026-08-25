@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 
     app.setOrganizationName("Tarmo Johannes Events and Software");
     app.setOrganizationDomain("eccm.org");
-    app.setApplicationName("Radio 1965");
+    app.setApplicationName("VÄIN");
 
     EventsApiClient eventsApiClient;
 

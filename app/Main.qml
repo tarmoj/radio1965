@@ -178,7 +178,7 @@ ApplicationWindow {
 
     Dialog {
         id: infoDialog
-        title: qsTr("About Radio 1965")
+        title: qsTr("About VÄIN")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Close
@@ -349,7 +349,7 @@ ApplicationWindow {
                 TabButton {
                     id: broadcastTabButton
                     icon.source: "qrc:/images/broadcast.svg" /*text: qsTr("Broadcast")*/
-                    icon.color: app.isBroadcasting ? "crimson" : broadcastTabButton.palette.windowText
+                    icon.color: app.isBroadcasting ? "crimson" : Material.foreground
 
                     // Small blinking "recording" dot overlay, on-air only -
                     // declared as a plain child of the TabButton control,
