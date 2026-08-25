@@ -111,15 +111,18 @@ For Content use StackView, that covers the main content area (between header and
 
 Later use a slim, persistent mini-player bar that survives across tab switches and stack pushes/pops (sitting between the SwipeView and the TabBar, or docked just above it
 
-## 2.1 Organizing the shevled events
+## 2.1 Organizing shevled events
 
-In the collection page (or it can be called also archive) the sheleved events are devided into Shelves (separate QML component) by event type:
+In the collection page (or it can be called also archive, no separate archive page any more) the sheleved events are devided into Shelves (separate QML component) by event type:
 Live Streams, Audio, Video, Web Content, Article, Message
+Use different background colours and according border colours for them (dark side) 
 
-Shelves have Boxes on them ( component Box)  that can be grouped by (add row layout with radio button or choice):
+Shelves have Boxes on them ( component Box)  that can be grouped by:
 Author (not present yet but will be introduced), Creation time (by month), alphabetically by Title. Maybe lateralso by tags but skip that now.
+Add row  with radio buttons for choice. Add a simple animation when sorting is changed.
 
-Add a search strip that finds all events searched bu title (exac or partial match), author, word andywhere.
+Add a search strip that finds all events searched bu title (exact or partial match), author, word andywhere. Probably it is good to use Stackview to push the  Results page there.
+The search rows are not always visible, just open it when user clicks on the search toolbuttton. 
 
 ## 3. Main architecture
 
@@ -398,10 +401,6 @@ Mux + push via libavformat to Icecast.
 
 ## 10. Registration
 
-
-
-
-
 New table: users:
 
 id | name | email | role (null|pending|contributor|manager|banned) | password
@@ -418,19 +417,19 @@ In app menu "Become a contributor"
 For production version:
     -> onClick:  show dialog with rights and rules, field for name and email + password + repeat password.  If OK pressed,
         -> mark the name and email into tabel 'users', role 'pending', send confirmation email. If confirmed, mark 'contributor'. 
-        How to let the app know? Notification only to this device? Restart app?
+        How to let the app know? Notification only to this device? Restart app? Or rather on "Refresh events"
 
-Only people with role "contributor" and "manager" can broadcast and make new events.
+Only people with role "contributor" and "manager" can broadcast and make new event -  BroadcastPage (also in TabBar) disabled if not contributor|manager. Add Popup "You must be contributor or manager to broadacst"
 
 TODO: rewrite editor page, that requires e-mail and password but can receive it also from URL 
 ? What about joomla?
 
-In app: store name, email, password. On startup, check and set for role and set it in settings.
-
-Show button "Share something valuable" ?or what?  in menu -> opens editor page with email and (encoded) password in the URL. 
+Add action "Share a gem"  in menu (if contributor|manager)-> opens editor page with email and (encoded) password in the URL. 
 What is better to use -  internal webview or external browser?
 
-If user is marked 'banned' -  do not allow use of the app at all.
+In app: store name, email, password in app settings. On startup, check and set for role and set it in settings. Add button "Reset role" to main menu.
+
+If user is marked 'banned' -  do not allow use of the app at all. (Show popup "You exiled. Contact the admistrators if it feels unjust.")
 
 In table 'events' add column 'author_id' - user who enetered the event.  
 

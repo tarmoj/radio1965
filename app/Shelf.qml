@@ -32,8 +32,14 @@ Rectangle {
     // Fills its GridLayout cell up to a reasonable cap rather than
     // stretching indefinitely on wide screens, and never stretches
     // vertically to match a taller neighbor in the same row - each Shelf
-    // stays as tall as its own content.
+    // stays as tall as its own content. minimumWidth: 0 is required too -
+    // without it, GridLayout falls back to this Rectangle's implicitWidth
+    // (undefined/content-driven, since Shelf sizes its content via anchors,
+    // not a Layout) as a hard floor, which is what let a Shelf's column
+    // refuse to shrink below the screen width.
     Layout.fillWidth: true
+    Layout.minimumWidth: 0
+    Layout.preferredWidth: 200
     Layout.maximumWidth: 420
     Layout.alignment: Qt.AlignTop
 
@@ -105,6 +111,8 @@ Rectangle {
             text: root.shelfTitle
             font.bold: true
             font.pointSize: 15
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         // Plain Column (a Positioner, unlike ColumnLayout), specifically so

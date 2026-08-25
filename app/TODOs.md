@@ -3,7 +3,8 @@
 
 ## TODOs
 
-Header background of pages from grey to almost transparent.
+Box -  header title should be clickable the whole row, not only the label (problem when only letter, like "T" )
+
 
 Icon.
 
@@ -20,6 +21,8 @@ Database managing page
 On Video the seek bar should be below the video. How to do it if fullscreen?
 
 ## Konwn problems
+
+some problem with the Page width in Collectionpage -  element go over or stay smaller than the screen (Android). <- TODO!!
 
 Search does not work ob Collection.
 

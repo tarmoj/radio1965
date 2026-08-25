@@ -143,18 +143,24 @@ Page {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            // Pinned to the viewport width, horizontal scrolling off - we
+            // never want the grid itself to scroll sideways, only down.
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
             GridLayout {
                 id: shelvesGrid
-                width: shelvesScroll.availableWidth
+                width: shelvesScroll.availableWidth - 2 * rowSpacing
                 columnSpacing: 12
                 rowSpacing: 12
-                // At least 2 columns, more as the screen gets wider - each
-                // column stays close to a ~260px target rather than
+                // At least 1 column, more as the screen gets wider - each
+                // column stays close to a ~200px target rather than
                 // stretching indefinitely (Shelf.qml also caps its own
                 // Layout.maximumWidth so a lone shelf in a row doesn't blow
-                // up on very wide screens).
-                columns: Math.max(2, Math.floor(width / 260))
+                // up on very wide screens). Accounts for spacing between
+                // columns: N columns need N*itemWidth + (N-1)*spacing to
+                // fit, i.e. N <= (width + spacing) / (itemWidth + spacing).
+                columns: Math.max(1, Math.floor(width / (200 + columnSpacing)))
 
                 Repeater {
                     model: root.shelfDefs
