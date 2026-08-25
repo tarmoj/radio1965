@@ -102,15 +102,24 @@ Page {
             }
         }
 
-        RowLayout {
+        Flow {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: 6
 
-            Label { text: qsTr("Group by:") }
+            // Flow (unlike RowLayout) doesn't support per-child vertical
+            // alignment - it always top-aligns each item within its row.
+            // RadioButton/CheckBox are taller than a plain Label, so match
+            // one of their implicit heights and center the text within it.
+            Label {
+                text: qsTr("Group by:")
+                height: authorRadio.implicitHeight
+                verticalAlignment: Text.AlignVCenter
+            }
 
             ButtonGroup { id: groupButtons }
 
             RadioButton {
+                id: authorRadio
                 text: qsTr("Author")
                 ButtonGroup.group: groupButtons
                 checked: root.groupMode === "author"

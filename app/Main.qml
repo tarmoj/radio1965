@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 480
     height: 640
     visible: true
-    property string version: "0.5.4"
+    property string version: "0.5.5"
     title: qsTr("Radio 1965") + " v" + version
     color: Material.background
 
@@ -286,7 +286,7 @@ ApplicationWindow {
                 EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
 
                 CollectionPage {
-                    clip: true
+                    clip: true // this did the tric of overflowing to next page
                     navigationStack: stackView;
                     serverBaseUrl: appSettings.serverUrl;
                     controller: playbackController
