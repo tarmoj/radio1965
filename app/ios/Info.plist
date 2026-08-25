@@ -45,6 +45,12 @@
     </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>Väin needs microphone access to broadcast your voice live.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Väin does not use camera.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Väin does not access your photo library.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Väin does not save photos to your photo library.</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSExceptionDomains</key>
