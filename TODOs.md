@@ -3,14 +3,20 @@
 
 ## TODOs
 
+To shlef -  not after a week but a day.
+
+Joomla articles -  how to delete? At the moment status "archived" works. "unpublised" brings them back. "trashed"?
+
+Joomla articles -  summary shorter.
+
+Webcontent -  what aout youtube and vimeo videos? embed them automatically?
+
 Box -  header title should be clickable the whole row, not only the label (problem when only letter, like "T" )
 
 BroadCast page -  not name (take it from settings now) but Title.
 Think what the broadcast notification should be.
 
-Icon.
-
-Change package name to org.eccm.vain -- does it break Firebase registration?
+(perhaps) Change package name to org.eccm.vain -- does it break Firebase registration?
 
 Save audio stream -  if required
 

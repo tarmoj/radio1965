@@ -45,9 +45,9 @@ def _absolutize_urls(html: str, base: str) -> str:
     """
     return _RELATIVE_URL_ATTR.sub(lambda m: f'{m.group(1)}={m.group(2)}{urljoin(base, m.group(3))}{m.group(2)}', html)
 
-# Events default to being moved to the shelf a week after publish_at if the
+# Events default to being moved to the shelf one day after publish_at if the
 # editor doesn't set an explicit shelf_at (see project-description.md #7).
-DEFAULT_SHELF_DELAY = timedelta(days=7)
+DEFAULT_SHELF_DELAY = timedelta(days=1)
 
 
 def _parse_datetime(value: str) -> datetime:
