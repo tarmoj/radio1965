@@ -173,7 +173,7 @@ def joomla_article_to_event(item: dict, tag_cache: dict) -> dict:
         "id": f"joomla_{article_id}",
         "type": "article",
         "title": attrs["title"],
-        "summary": strip_html(body_html),
+        "summary": strip_html(body_html, 200),
         "url": attrs.get("link") or f"https://eccm.ee/index.php?option=com_content&id={article_id}",
         "publish_at": publish_at,
         "shelf_at": shelf_at,
