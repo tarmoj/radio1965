@@ -7,11 +7,10 @@ To shlef -  not after a week but a day. DONE
 
 On open, show dialog, what VÄIN is, "Do not show again" checkbox. Perhaps the same dialog as in Menu entry "Info"? 
 
-Investiga
 
 Joomla articles -  how to delete? At the moment status "archived" works. "unpublised" brings them back. "trashed"?
 
-Joomla articles -  summary shorter.
+Joomla articles -  summary shorter. DONE
 
 Webcontent -  what aout youtube and vimeo videos? embed them automatically?
 
