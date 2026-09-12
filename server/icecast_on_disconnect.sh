@@ -29,6 +29,38 @@ log() { echo "$(date -Is) [on-disconnect] $*" >> "$LOGFILE"; }
 
 log "invoked: mount='$1' channel='$CHANNEL'"
 
+# project-description.md #8.2.1: stop any recording icecast_on_connect.sh
+# started for this channel, before touching the event - stopping the
+# recording promptly matters more than the unpublish call's ordering.
+RECORD_PIDFILE="/tmp/icecast_record_${CHANNEL}.pid"
+RECORD_PATHFILE="/tmp/icecast_record_${CHANNEL}.path"
+if [ -f "$RECORD_PIDFILE" ]; then
+  RECORD_PID=$(cat "$RECORD_PIDFILE")
+  RECORD_PATH=$(cat "$RECORD_PATHFILE" 2>/dev/null || echo "unknown")
+  if kill -0 "$RECORD_PID" 2>/dev/null; then
+    kill -TERM "$RECORD_PID" 2>/dev/null
+    # ffmpeg finalizes and exits on SIGTERM; a stream-copied mp3 has no
+    # trailing index/atom to finalize, so even an unresponsive process
+    # leaves a valid file up to its last complete frame - poll briefly
+    # rather than blocking indefinitely on it.
+    for attempt in 1 2 3 4 5; do
+      kill -0 "$RECORD_PID" 2>/dev/null || break
+      sleep 1
+    done
+    if kill -0 "$RECORD_PID" 2>/dev/null; then
+      log "recording pid=$RECORD_PID ('$RECORD_PATH') still alive after SIGTERM - leaving it be"
+    else
+      SIZE=$(stat -c%s "$RECORD_PATH" 2>/dev/null || echo "?")
+      log "stopped recording pid=$RECORD_PID -> '$RECORD_PATH' (${SIZE} bytes)"
+    fi
+  else
+    log "recording pidfile '$RECORD_PIDFILE' found but pid=$RECORD_PID is not running (already stopped/crashed)"
+  fi
+  rm -f "$RECORD_PIDFILE" "$RECORD_PATHFILE"
+else
+  log "no recording pidfile - save_stream was off, or on-connect never ran for this channel"
+fi
+
 if [ -f "$IDFILE" ]; then
   EVENT_ID=$(cat "$IDFILE")
   log "found id file, event_id='$EVENT_ID' - unpublishing"

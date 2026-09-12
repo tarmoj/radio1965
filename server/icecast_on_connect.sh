@@ -19,6 +19,9 @@ set -uo pipefail
 CHANNEL="${1#/}"   # normalize away a leading slash, e.g. "/user1" -> "user1"
 API_BASE="https://live.uuu.ee/radio1965/api"   # matches Main.qml appSettings.serverUrl default
 LOGFILE="/tmp/icecast_hooks.log"
+# project-description.md #8.2.1: kept separate from the (unrelated)
+# nginx-rtmp video pipeline's /var/recordings.
+RECORDING_DIR="/var/recordings/audio"
 
 # Same reasoning as icecast_on_disconnect.sh's log() - no logging existed
 # here before, so a failure to publish (or to write the id file the
@@ -74,15 +77,50 @@ if [ "$SEND_NOTIFICATION_RAW" = "0" ]; then
 fi
 log "resolved send_notification='$SEND_NOTIFICATION_RAW' -> send_notification=$SEND_NOTIFICATION"
 
-# No recording pipeline reads save_stream yet (TODOs.md "Save audio stream -
-# if required"); for now it's only logged and passed through in the event
-# payload so it's not lost once that pipeline exists.
 SAVE_STREAM_RAW=$(echo "$SOURCE" | jq -r '.save_stream // empty')
 SAVE_STREAM="false"
 if [ "$SAVE_STREAM_RAW" = "1" ]; then
   SAVE_STREAM="true"
 fi
 log "resolved save_stream='$SAVE_STREAM_RAW' -> save_stream=$SAVE_STREAM"
+
+# project-description.md #8.2.1: when save_stream is on, record the mount's
+# audio locally as mp3 for the duration of the broadcast.
+# icecast_on_disconnect.sh stops it (SIGTERM) via the pid file below - by
+# then it's guaranteed to exist because on-connect only reaches this point
+# after the retry loop above has already confirmed the source is live, so
+# there's no extra race to handle before starting ffmpeg here.
+PIDFILE="/tmp/icecast_record_${CHANNEL}.pid"
+PATHFILE="/tmp/icecast_record_${CHANNEL}.path"
+if [ "$SAVE_STREAM" = "true" ]; then
+  mkdir -p "$RECORDING_DIR"
+
+  # A leftover pidfile means a previous recording for this channel was never
+  # cleaned up (e.g. on-disconnect didn't run) - don't let a stale pid
+  # silently make us think we started a new recording when we didn't.
+  if [ -f "$PIDFILE" ]; then
+    log "warning: stale pidfile '$PIDFILE' found before starting a new recording - removing it"
+    rm -f "$PIDFILE" "$PATHFILE"
+  fi
+
+  # Slugify $NAME: lowercase, non-alphanumeric runs -> '-', trimmed, capped
+  # at 20 chars per project-description.md #8.2.1, falling back to "stream"
+  # if that leaves nothing (e.g. a name that's all diacritics/punctuation).
+  SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-20)
+  if [ -z "$SLUG" ]; then
+    SLUG="stream"
+  fi
+  DATESTAMP=$(date +%Y%m%d-%H%M%S)
+  RECORD_PATH="$RECORDING_DIR/${SLUG}-${DATESTAMP}.mp3"
+
+  ffmpeg -nostdin -loglevel error -y -i "http://localhost:8001/${CHANNEL}" -c copy "$RECORD_PATH" >>"$LOGFILE" 2>&1 &
+  RECORD_PID=$!
+  echo "$RECORD_PID" > "$PIDFILE"
+  echo "$RECORD_PATH" > "$PATHFILE"
+  log "started recording -> '$RECORD_PATH' (pid=$RECORD_PID)"
+else
+  log "save_stream=false, not recording"
+fi
 
 BODY=$(jq -n \
   --arg name "$NAME" \
