@@ -221,18 +221,26 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
 @app.post("/events/{event_id}/unpublish")
 def unpublish_event(event_id: str, session: Session = Depends(db.get_db)):
     """
-    Immediately moves an event to 'unpublished' - used by
+    Immediately moves an event to 'archived' - used by
     server/icecast_on_disconnect.sh (project-description.md #8.1/#9) so a
     livestream event disappears from both "New Arrivals" and "Collection"
     (list_events() only shows status new/shelved by default) the moment the
     broadcaster actually disconnects, rather than lingering as a "shelved"
     (archived-but-visible) entry - an ended broadcast isn't a collectible
     item like a finished audio/video, it's just over.
+
+    Not 'unpublished': this event's publish_at is already in the past (it
+    was published with publish_now=true), and cron_publish.py's
+    publish_due_events() sweeps every 'unpublished' row whose publish_at has
+    passed - setting status back to 'unpublished' here caused the very next
+    cron tick to treat the just-ended broadcast as newly due, resending the
+    "is on air" notification and flipping it back to 'new'. 'archived' is
+    just as hidden from list_events() but isn't touched by that sweep.
     """
     row = session.get(db.Event, event_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
-    row.status = "unpublished"
+    row.status = "archived"
     session.commit()
     return {"event": row.to_dict()}
 
