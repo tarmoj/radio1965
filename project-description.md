@@ -388,6 +388,25 @@ bitrate
 content-type (e.g. audio/mpeg)
 listeners (current count)
 
+### 8.2 Storing streams
+
+Storage location: save locally, then move to given remote location.
+
+At the moment skip moving to remote.
+
+
+#### 8.2.1 Audio
+
+When save_stream is 1, start saving audio stream as mp3. Filename: combined fro title (make the string url friendly, not longer than 20 characters) + date + .mp3 
+
+When stream is ended (and save_stream==1), close audio file
+
+### 8.2.2 Storing video sreams (nginx)
+
+Saving locally should work already to flv.
+Convert video to mp4.
+Move to remote location (later)
+
 
 
 ## 9. Broadcasting audio from app to Icecast

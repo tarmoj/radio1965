@@ -8,6 +8,9 @@ To shlef -  not after a week but a day. DONE
 On open, show dialog, what VÄIN is, "Do not show again" checkbox. Perhaps the same dialog as in Menu entry "Info"? 
 
 
+PlayerBar 
+-- when user pick an options that has a stream, play it immediately.
+
 Joomla articles -  how to delete? At the moment status "archived" works. "unpublised" brings them back. "trashed"?
 
 Joomla articles -  summary shorter. DONE
@@ -33,6 +36,8 @@ On Video the seek bar should be below the video. How to do it if fullscreen?
 
 ## Konwn problems
 
+
+
 some problem with the Page width in Collectionpage -  element go over or stay smaller than the screen (Android). <- TODO!!
 
 Search does not work ob Collection.
@@ -44,6 +49,7 @@ Video fullscreen dows not fill the screen on mobile devices.
 When video streaming is started, no automatic notification is saved.
 
 Sometimes old stream data stays hanging on player bar or not updated properly.
+- when I click on Card on Home page "Tester on air", the PlayerBar still shows "Radio 1965" -  the prvious stram data => The playerBar info is not updated when one clicks on card. It is not even updated when I select the channel from combobox.
 
 It is not intuitive to get back to channel selection from playing a file (PlayerBar).
 
