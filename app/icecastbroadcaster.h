@@ -40,21 +40,21 @@ public:
 
     // channel: one of "radio1965"/"user1".."user4" (no leading slash).
     // name/description become the ice-name/ice-description headers.
-    // sendNotification: forwarded as the ice-public header (1/0) - this app
-    // never uses Icecast's real public-directory/YP listing feature (no
-    // <directory> block is configured), so that header is repurposed as a
-    // cheap, guaranteed-to-round-trip-through-status-json.xsl carrier for
-    // "should icecast_on_connect.sh publish a notification for this
-    // broadcast" (see server/icecast_on_connect.sh, which reads it back via
-    // the source's "public" field). A brand-new custom ice-* header isn't
-    // used here because Icecast only serializes its fixed known field set
-    // into status-json.xsl - an invented header name wouldn't show up there
-    // at all.
-    //
-    // saveStream: same trick, forwarded as "save_stream=<0|1>" inside the
-    // ice-audio-info header (another of Icecast's fixed known fields,
-    // relayed back verbatim as the source's "audio_info" string in
-    // status-json.xsl) - ice-public was already spent on sendNotification.
+    // sendNotification/saveStream: both forwarded packed into the
+    // ice-audio-info header as "send_notification=<0|1>;save_stream=<0|1>"
+    // (see server/icecast_on_connect.sh, which reads them back). ice-public
+    // was tried first (as a 0/1 "should this publish a notification" flag)
+    // but doesn't survive into status-json.xsl at all on this Icecast setup
+    // (no <directory> block configured - the "public" field is simply
+    // absent from the JSON, confirmed via a live capture). ice-audio-info
+    // works instead because Icecast parses its semicolon-separated
+    // key=value pairs and hoists *every* key - not just its own recognized
+    // ones (bitrate/samplerate/channels) - onto its own top-level field on
+    // the source object, e.g. {"audio_info":"save_stream=1;...",
+    // "save_stream":1, "send_notification":0, ...}. A brand-new custom
+    // ice-* header isn't used here because Icecast only serializes its
+    // fixed known header set at all - an invented header name wouldn't be
+    // read, let alone reflected into status-json.xsl.
     // TODO(save-stream): server/icecast_on_connect.sh currently only reads
     // and logs this value; there's no recording pipeline behind it yet
     // (see TODOs.md "Save audio stream - if required").

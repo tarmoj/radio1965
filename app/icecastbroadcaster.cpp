@@ -142,18 +142,20 @@ void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QStr
     // the mountpoint (channel), not a separate homepage URL, so listeners
     // land on the stream itself (e.g. http://185.169.69.8:8001/user1).
     request += "ice-url: " + channel.toUtf8() + "\r\n";
-    // ice-public repurposed as a carrier for "should icecast_on_connect.sh
-    // publish a notification for this broadcast" - see the Q_INVOKABLE
-    // startBroadcast() doc comment in icecastbroadcaster.h for why this
-    // header specifically. This app never sets up Icecast's real
-    // public-directory/YP listing (no <directory> block), so there's no
-    // real "public" behavior being overloaded here.
-    request += QByteArray("ice-public: ") + (sendNotification ? "1" : "0") + "\r\n";
-    // ice-audio-info repurposed the same way as ice-public above, to carry
-    // BroadcastPage.qml's "Save stream" checkbox through to
-    // icecast_on_connect.sh via status-json.xsl's "audio_info" field - see
-    // the Q_INVOKABLE startBroadcast() doc comment in icecastbroadcaster.h.
-    request += QByteArray("ice-audio-info: save_stream=") + (saveStream ? "1" : "0") + "\r\n";
+    // ice-audio-info repurposed as a carrier for BroadcastPage.qml's "Send
+    // notification"/"Save stream" checkboxes through to
+    // icecast_on_connect.sh - confirmed via a live status-json.xsl capture
+    // that Icecast parses this header's semicolon-separated key=value pairs
+    // and hoists *any* key (not just its own recognized ones like bitrate/
+    // samplerate/channels) into its own top-level field on the source
+    // object, e.g. {"audio_info":"save_stream=1", "save_stream":1, ...}.
+    // ice-public was tried first for send_notification but doesn't survive
+    // into status-json.xsl at all here (no <directory> block configured -
+    // the "public" field is simply absent from the JSON), so both flags
+    // live here instead. See the Q_INVOKABLE startBroadcast() doc comment
+    // in icecastbroadcaster.h.
+    request += QByteArray("ice-audio-info: send_notification=") + (sendNotification ? "1" : "0")
+        + ";save_stream=" + (saveStream ? "1" : "0") + "\r\n";
     request += "\r\n";
     m_socket->write(request);
 }

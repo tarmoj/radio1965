@@ -52,35 +52,37 @@ NAME=$(echo "$SOURCE" | jq -r '.server_name // "Unknown"')
 DESCRIPTION=$(echo "$SOURCE" | jq -r '.server_description // ""')
 log "resolved name='$NAME' description='$DESCRIPTION' (source='$SOURCE')"
 
-# ice-public (see IcecastBroadcaster::sendIcecastHandshake()) is repurposed
-# to carry BroadcastPage.qml's "Send notification" checkbox through to
-# here. Fail open (send the notification) if the field is missing/
-# unparseable, rather than silently swallowing notifications on a
-# status-json.xsl field name/format mismatch - verify the actual field
-# name/type against a live capture (`curl -s
-# http://localhost:8001/status-json.xsl | jq '.icestats.source'` while
-# broadcasting with the checkbox unchecked) if this doesn't behave as
-# expected.
-PUBLIC=$(echo "$SOURCE" | jq -r '.public // empty')
+# send_notification/save_stream (see IcecastBroadcaster::sendIcecastHandshake())
+# are carried from BroadcastPage.qml's checkboxes via a single
+# "ice-audio-info: send_notification=<0|1>;save_stream=<0|1>" header.
+# ice-public was tried first for send_notification but doesn't survive into
+# status-json.xsl at all on this Icecast setup (no <directory> block
+# configured - the "public" field is simply absent from the JSON, confirmed
+# via a live capture: `curl -s http://localhost:8001/status-json.xsl | jq
+# '.icestats.source'`). ice-audio-info works instead because Icecast parses
+# its semicolon-separated key=value pairs and hoists *every* key onto its
+# own top-level field on the source object (not just its own recognized
+# ones like bitrate/samplerate/channels) - so both flags come back here as
+# plain integer fields, not nested inside a raw "audio_info" string. Fail
+# open (send the notification) if the field is missing/unparseable, rather
+# than silently swallowing notifications on a future field-name/format
+# mismatch.
+SEND_NOTIFICATION_RAW=$(echo "$SOURCE" | jq -r '.send_notification // empty')
 SEND_NOTIFICATION="true"
-if [ "$PUBLIC" = "0" ]; then
+if [ "$SEND_NOTIFICATION_RAW" = "0" ]; then
   SEND_NOTIFICATION="false"
 fi
-log "resolved public='$PUBLIC' -> send_notification=$SEND_NOTIFICATION"
+log "resolved send_notification='$SEND_NOTIFICATION_RAW' -> send_notification=$SEND_NOTIFICATION"
 
-# audio_info is Icecast's verbatim relay of the ice-audio-info header
-# (see IcecastBroadcaster::sendIcecastHandshake()), repurposed to carry
-# BroadcastPage.qml's "Save stream" checkbox as "save_stream=<0|1>" - ice-
-# public was already spent on send_notification above. No recording
-# pipeline reads this yet (TODOs.md "Save audio stream - if required");
-# for now it's only logged and passed through in the event payload so it's
-# not lost once that pipeline exists.
-AUDIO_INFO=$(echo "$SOURCE" | jq -r '.audio_info // empty')
+# No recording pipeline reads save_stream yet (TODOs.md "Save audio stream -
+# if required"); for now it's only logged and passed through in the event
+# payload so it's not lost once that pipeline exists.
+SAVE_STREAM_RAW=$(echo "$SOURCE" | jq -r '.save_stream // empty')
 SAVE_STREAM="false"
-if echo "$AUDIO_INFO" | grep -q 'save_stream=1'; then
+if [ "$SAVE_STREAM_RAW" = "1" ]; then
   SAVE_STREAM="true"
 fi
-log "resolved audio_info='$AUDIO_INFO' -> save_stream=$SAVE_STREAM"
+log "resolved save_stream='$SAVE_STREAM_RAW' -> save_stream=$SAVE_STREAM"
 
 BODY=$(jq -n \
   --arg name "$NAME" \
