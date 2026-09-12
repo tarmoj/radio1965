@@ -30,7 +30,11 @@ Page {
     property bool loading: false
     property string errorMessage: ""
 
+    background: Rectangle { color: "transparent" }
+
     header: ToolBar {
+        background: Rectangle { color: "transparent" }
+
         RowLayout {
             anchors.fill: parent
 

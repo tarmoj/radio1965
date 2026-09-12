@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(radio65 VERSION 0.1 LANGUAGES CXX)
+project(radio65 VERSION 0.5.6 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -111,6 +111,8 @@ qt_add_executable(appradio65
     eventsapiclient.h eventsapiclient.cpp
 )
 
+target_compile_definitions(appradio65 PRIVATE APP_VERSION="${PROJECT_VERSION}")
+
 if(RADIO65_ENABLE_NOTIFICATIONS)
     target_sources(appradio65 PRIVATE notificationmanager.h notificationmanager.cpp)
     target_compile_definitions(appradio65 PRIVATE RADIO65_ENABLE_NOTIFICATIONS)
@@ -137,6 +139,11 @@ qt_add_qml_module(appradio65
         Main.qml
         EventListView.qml
         EventDelegate.qml
+        Card.qml
+        Box.qml
+        Shelf.qml
+        CollectionPage.qml
+        SearchResultsPage.qml
         WebViewPage.qml
         PlaybackController.qml
         PlayerBar.qml

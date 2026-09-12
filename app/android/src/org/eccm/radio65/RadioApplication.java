@@ -23,7 +23,7 @@ public class RadioApplication extends QtApplication {
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID, "Radio65 Notifications", NotificationManager.IMPORTANCE_DEFAULT);
+                    CHANNEL_ID, "VÄIN Notifications", NotificationManager.IMPORTANCE_DEFAULT);
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);

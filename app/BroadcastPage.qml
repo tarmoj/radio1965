@@ -15,9 +15,15 @@ Item {
     id: root
 
     readonly property bool broadcastAvailable: typeof icecastBroadcaster !== "undefined"
+    // Passed in from Main.qml (userSettings.role === "contributor") -
+    // gates the broadcast UI the same way broadcastAvailable does, without
+    // removing the tab itself (see the class comment above).
+    property bool isContributor: false
     readonly property var channelNames: ["radio1965", "user1", "user2", "user3", "user4"]
     property var occupiedChannels: []
     property string errorMessage: ""
+
+    //background: Rectangle { color: "transparent" }
 
     function isChannelOccupied(channel) {
         return root.occupiedChannels.indexOf(channel) !== -1;
@@ -58,8 +64,10 @@ Item {
         width: parent.width - 32
         wrapMode: Text.Wrap
         horizontalAlignment: Text.AlignHCenter
-        visible: !root.broadcastAvailable
-        text: qsTr("Broadcasting is only available on desktop for now.")
+        visible: !root.broadcastAvailable || !root.isContributor
+        text: !root.broadcastAvailable
+              ? qsTr("Broadcasting is only available on desktop for now.")
+              : qsTr("Become a Contributor from the menu to unlock broadcasting.")
     }
 
     // Loader, not a plain Item with visible:false: this subtree's bindings
@@ -72,7 +80,7 @@ Item {
     Loader {
         anchors.fill: parent
         anchors.margins: 16
-        active: root.broadcastAvailable
+        active: root.broadcastAvailable && root.isContributor
         sourceComponent: ColumnLayout {
             spacing: 12
 

@@ -80,6 +80,14 @@ public:
     // handling).
     Q_INVOKABLE QVariantMap findLiveStream() const;
 
+    // The "shelved" subset as plain QVariantMaps (same field names as
+    // roleNames(), e.g. "eventType" not "type") - lets CollectionPage.qml
+    // group/sort/search over the full set in plain JS
+    // (project-description.md #2.1), which plain QAbstractListModel role
+    // access from QML doesn't support without per-role data() calls. Same
+    // shape/spirit as findLiveStream() above, just for the whole subset.
+    Q_INVOKABLE QVariantList shelvedEvents() const;
+
     // Singleton-style accessor so the Android JNI callback (which runs outside
     // of any QML context) can reach the instance created in main.cpp.
     static NotificationManager *instance();
