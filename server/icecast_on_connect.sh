@@ -68,11 +68,26 @@ if [ "$PUBLIC" = "0" ]; then
 fi
 log "resolved public='$PUBLIC' -> send_notification=$SEND_NOTIFICATION"
 
+# audio_info is Icecast's verbatim relay of the ice-audio-info header
+# (see IcecastBroadcaster::sendIcecastHandshake()), repurposed to carry
+# BroadcastPage.qml's "Save stream" checkbox as "save_stream=<0|1>" - ice-
+# public was already spent on send_notification above. No recording
+# pipeline reads this yet (TODOs.md "Save audio stream - if required");
+# for now it's only logged and passed through in the event payload so it's
+# not lost once that pipeline exists.
+AUDIO_INFO=$(echo "$SOURCE" | jq -r '.audio_info // empty')
+SAVE_STREAM="false"
+if echo "$AUDIO_INFO" | grep -q 'save_stream=1'; then
+  SAVE_STREAM="true"
+fi
+log "resolved audio_info='$AUDIO_INFO' -> save_stream=$SAVE_STREAM"
+
 BODY=$(jq -n \
   --arg name "$NAME" \
   --arg ch "$CHANNEL" \
   --arg desc "$DESCRIPTION" \
   --arg send_notification "$SEND_NOTIFICATION" \
+  --argjson save_stream "$SAVE_STREAM" \
   '{
     type: "livestream",
     title: ($name + " is on air on channel " + $ch + "!"),
@@ -81,7 +96,7 @@ BODY=$(jq -n \
     publish_now: true,
     send_notification: ($send_notification == "true"),
     tags: [],
-    payload: {}
+    payload: {save_stream: $save_stream}
   }')
 
 RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "$API_BASE/events/publish" \

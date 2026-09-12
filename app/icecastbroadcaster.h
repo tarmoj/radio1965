@@ -50,7 +50,15 @@ public:
     // used here because Icecast only serializes its fixed known field set
     // into status-json.xsl - an invented header name wouldn't show up there
     // at all.
-    Q_INVOKABLE void startBroadcast(const QString &channel, const QString &name, const QString &description, bool sendNotification);
+    //
+    // saveStream: same trick, forwarded as "save_stream=<0|1>" inside the
+    // ice-audio-info header (another of Icecast's fixed known fields,
+    // relayed back verbatim as the source's "audio_info" string in
+    // status-json.xsl) - ice-public was already spent on sendNotification.
+    // TODO(save-stream): server/icecast_on_connect.sh currently only reads
+    // and logs this value; there's no recording pipeline behind it yet
+    // (see TODOs.md "Save audio stream - if required").
+    Q_INVOKABLE void startBroadcast(const QString &channel, const QString &name, const QString &description, bool sendNotification, bool saveStream);
     Q_INVOKABLE void stopBroadcast();
 
     // Queries http://live.uuu.ee:8001/status-json.xsl and reports which
@@ -77,7 +85,7 @@ private slots:
     void onStatusJsonReply();
 
 private:
-    void sendIcecastHandshake(const QString &channel, const QString &name, const QString &description, bool sendNotification);
+    void sendIcecastHandshake(const QString &channel, const QString &name, const QString &description, bool sendNotification, bool saveStream);
     void encodeAndSend(const QByteArray &pcm);
     void teardown();
 

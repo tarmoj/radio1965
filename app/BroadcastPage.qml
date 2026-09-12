@@ -95,6 +95,7 @@ Item {
                 property string description: ""
                 property string lastChannel: "radio1965"
                 property bool sendNotification: true
+                property bool saveStream: true
             }
 
             ComboBox {
@@ -144,6 +145,14 @@ Item {
                 onToggled: broadcastSettings.sendNotification = checked
             }
 
+            CheckBox {
+                id: saveStreamCheck
+                text: qsTr("Save stream")
+                enabled: !icecastBroadcaster.broadcasting
+                checked: broadcastSettings.saveStream
+                onToggled: broadcastSettings.saveStream = checked
+            }
+
             Button {
                 Layout.alignment: Qt.AlignHCenter
                 text: icecastBroadcaster.broadcasting ? qsTr("Stop") : qsTr("Start")
@@ -152,7 +161,7 @@ Item {
                         icecastBroadcaster.stopBroadcast();
                     } else {
                         root.errorMessage = "";
-                        icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked);
+                        icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked, saveStreamCheck.checked);
                     }
                 }
             }
