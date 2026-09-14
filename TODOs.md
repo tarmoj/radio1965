@@ -43,7 +43,7 @@ On Video the seek bar should be below the video. How to do it if fullscreen?
 
 ## Konwn problems
 
-
+When problem with connecting to Icecast -  app crashes (happens in IcecastBroadcaster::teardown() )
 
 some problem with the Page width in Collectionpage -  element go over or stay smaller than the screen (Android). <- TODO!!
 

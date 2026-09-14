@@ -121,7 +121,7 @@ class SubscribeRequest(BaseModel):
 # uploading to eccm.ee.
 class FinalizeRecordingIn(BaseModel):
     url: str
-    type: str = "audio"
+    type: str = "streamrecording"
 
 
 # Mirrors the Event JSON schema (v2) + editor spec (project-description.md

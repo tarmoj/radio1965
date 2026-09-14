@@ -5,8 +5,13 @@ import QtQuick.Layouts
 // One row in the "New Arrivals"/"Collection" lists (project-description.md
 // #2.1). Tap behavior depends on `type`: "text" expands the summary
 // in place, "article"/"webcontent" open WebViewPage, and
-// "audio"/"video"/"livestream" hand off to PlaybackController (the
-// persistent PlayerBar strip, see Main.qml/PlaybackController.qml).
+// "audio"/"video"/"livestream"/"streamrecording" hand off to
+// PlaybackController (the persistent PlayerBar strip, see
+// Main.qml/PlaybackController.qml). "streamrecording" is a finished
+// "Save stream" livestream recording (server/icecast_on_disconnect.sh's
+// finalize-recording call, project-description.md #8.2.1) - deliberately
+// not "livestream" (see isLive below) and not "audio" (kept distinct from
+// readymade/uploaded audio - see CollectionPage.qml's shelfDefs).
 ItemDelegate {
     id: root
 
@@ -42,7 +47,7 @@ ItemDelegate {
         return isNaN(parsed.getTime()) ? "" : Qt.formatDateTime(parsed, "d MMM yyyy, HH:mm");
     }
     readonly property string typeIcon: {
-        if (eventType === "audio")
+        if (eventType === "audio" || eventType === "streamrecording")
             return "qrc:/images/sound.svg";
         if (eventType === "video" || eventType === "livestream")
             return "qrc:/images/play.svg";
@@ -64,6 +69,7 @@ ItemDelegate {
         case "audio":
         case "video":
         case "livestream":
+        case "streamrecording":
             playerRequested(url, title, summary, isLive);
             break;
         default:

@@ -21,13 +21,18 @@ Page {
 
     background: Rectangle { color: "transparent" }
 
-    // Folds server/db.py's 8 EVENT_TYPES into project-description.md's 6
-    // shelves - audiostream/videostream (no dedicated shelf in the doc)
-    // fold into Audio/Video as the closest semantic match. Colors are a
+    // Folds server/db.py's 9 EVENT_TYPES into project-description.md's 6
+    // shelves plus "Stream Recordings" - audiostream/videostream (no
+    // dedicated shelf in the doc) fold into Audio/Video as the closest
+    // semantic match. "streamrecording" (a finished "Save stream" livestream
+    // recording, see server/icecast_on_disconnect.sh's finalize-recording
+    // call) gets its own shelf rather than folding into "Audio", so it stays
+    // visually distinct from readymade/uploaded audio content. Colors are a
     // simple hue-per-shelf scheme suited to the app's existing dark
     // background (Main.qml's Material.background gradient).
     readonly property var shelfDefs: [
         { types: ["livestream"], title: qsTr("Live Streams"), color: "#4a1620" },
+        { types: ["streamrecording"], title: qsTr("Stream Recordings"), color: "#3a2a4a" },
         { types: ["audio", "audiostream"], title: qsTr("Audio"), color: "#16304a" },
         { types: ["video", "videostream"], title: qsTr("Video"), color: "#2a1a4a" },
         { types: ["webcontent"], title: qsTr("Web Content"), color: "#16403c" },

@@ -111,7 +111,7 @@ if [ "$RECORDING_STOPPED" = "true" ] && [ -n "$RECORD_PATH" ] && [ -f "$RECORD_P
       # captured for this channel) since there's nothing to update.
       if [ -n "$EVENT_ID" ]; then
         REMOTE_URL="https://eccm.ee/radio1965/streams/$(basename "$RECORD_PATH")"
-        FINALIZE_BODY=$(jq -n --arg url "$REMOTE_URL" --arg type "audio" '{url: $url, type: $type}')
+        FINALIZE_BODY=$(jq -n --arg url "$REMOTE_URL" --arg type "streamrecording" '{url: $url, type: $type}')
         FINALIZE_RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "$API_BASE/events/${EVENT_ID}/finalize-recording" \
           -H "Content-Type: application/json" -d "$FINALIZE_BODY")
         FINALIZE_HTTP_CODE=$(echo "$FINALIZE_RESPONSE" | tail -n1)
