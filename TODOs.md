@@ -3,9 +3,16 @@
 
 ## TODOs
 
+SSH connection keys to eccm.ee  DONE
+Location of recordings: 
+/home/eccmee1/www/radio1965/streams
+
 To shlef -  not after a week but a day. DONE
 
 On open, show dialog, what VÄIN is, "Do not show again" checkbox. Perhaps the same dialog as in Menu entry "Info"? 
+
+Broadcasting:
+- signal meter.
 
 
 PlayerBar 

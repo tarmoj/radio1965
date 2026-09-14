@@ -34,9 +34,11 @@ log "invoked: mount='$1' channel='$CHANNEL'"
 # recording promptly matters more than the unpublish call's ordering.
 RECORD_PIDFILE="/tmp/icecast_record_${CHANNEL}.pid"
 RECORD_PATHFILE="/tmp/icecast_record_${CHANNEL}.path"
+RECORD_PATH=""
+RECORDING_STOPPED="false"
 if [ -f "$RECORD_PIDFILE" ]; then
   RECORD_PID=$(cat "$RECORD_PIDFILE")
-  RECORD_PATH=$(cat "$RECORD_PATHFILE" 2>/dev/null || echo "unknown")
+  RECORD_PATH=$(cat "$RECORD_PATHFILE" 2>/dev/null || echo "")
   if kill -0 "$RECORD_PID" 2>/dev/null; then
     kill -TERM "$RECORD_PID" 2>/dev/null
     # ffmpeg finalizes and exits on SIGTERM; a stream-copied mp3 has no
@@ -52,13 +54,47 @@ if [ -f "$RECORD_PIDFILE" ]; then
     else
       SIZE=$(stat -c%s "$RECORD_PATH" 2>/dev/null || echo "?")
       log "stopped recording pid=$RECORD_PID -> '$RECORD_PATH' (${SIZE} bytes)"
+      RECORDING_STOPPED="true"
     fi
   else
     log "recording pidfile '$RECORD_PIDFILE' found but pid=$RECORD_PID is not running (already stopped/crashed)"
+    RECORDING_STOPPED="true"
   fi
   rm -f "$RECORD_PIDFILE" "$RECORD_PATHFILE"
 else
   log "no recording pidfile - save_stream was off, or on-connect never ran for this channel"
+fi
+
+# project-description.md #8.2 (lines 393-397): once the recording is
+# confirmed finished, move it to eccm.ee over ssh/rsync - backgrounded so a
+# slow/stalled transfer can't block or risk timing out this hook (same
+# reasoning as backgrounding ffmpeg itself in icecast_on_connect.sh), and
+# doesn't delay the unpublish call below.
+#
+# Not relying on icecast2's own $HOME/.ssh (e.g. a "Host eccm.ee" alias in
+# ~/.ssh/config with User/Port/IdentityFile resolved implicitly): `getent
+# passwd icecast2` shows its home as /usr/share/icecast2, a root-owned
+# package directory that gets reset on icecast2 upgrades/reinstalls - not a
+# sane place to park a private key, and relying on it is what made
+# `sudo -u icecast2 ssh eccm.ee` hang in the first place (no config, no
+# known_hosts entry for icecast2 to use). Point ssh at a dedicated
+# key/known_hosts under /etc/radio65-eccm-ssh (owned by icecast2, 600)
+# via explicit flags instead, so this doesn't depend on icecast2 having a
+# usable home directory at all.
+ECCM_SSH_KEY="/etc/radio65-eccm-ssh/id_rsa_eccm_live"
+ECCM_SSH_KNOWN_HOSTS="/etc/radio65-eccm-ssh/known_hosts"
+if [ "$RECORDING_STOPPED" = "true" ] && [ -n "$RECORD_PATH" ] && [ -f "$RECORD_PATH" ]; then
+  REMOTE_DEST="eccmee1@eccm.ee:/home/eccmee1/www/radio1965/streams/"
+  (
+    if rsync -az -e "ssh -p 38307 -i $ECCM_SSH_KEY -o UserKnownHostsFile=$ECCM_SSH_KNOWN_HOSTS -o StrictHostKeyChecking=accept-new" \
+        "$RECORD_PATH" "$REMOTE_DEST" >>"$LOGFILE" 2>&1; then
+      log "moved recording '$RECORD_PATH' -> $REMOTE_DEST"
+      rm -f "$RECORD_PATH"
+    else
+      log "failed to move recording '$RECORD_PATH' to $REMOTE_DEST - left in place for retry"
+    fi
+  ) &
+  disown
 fi
 
 if [ -f "$IDFILE" ]; then

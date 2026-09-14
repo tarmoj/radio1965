@@ -392,8 +392,9 @@ listeners (current count)
 
 Storage location: save locally, then move to given remote location.
 
-At the moment skip moving to remote.
-
+Move the stream over ssh protocol (rsync or scp or similar) to: eccm.ee folder
+/home/eccmee1/www/radio1965/streams
+User, port and key are already configured on the server.
 
 #### 8.2.1 Audio
 
