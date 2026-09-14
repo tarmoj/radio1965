@@ -116,6 +116,14 @@ class SubscribeRequest(BaseModel):
     topic: str
 
 
+# Used by finalize_recording() - server/icecast_on_disconnect.sh's POST once
+# a "Save stream" recording (project-description.md #8.2.1) has finished
+# uploading to eccm.ee.
+class FinalizeRecordingIn(BaseModel):
+    url: str
+    type: str = "audio"
+
+
 # Mirrors the Event JSON schema (v2) + editor spec (project-description.md
 # #4, #7). `status` is not client-settable - the server derives it from
 # publish_now/publish_at (see publish_event()). Fields not in the v2 draft
@@ -241,6 +249,37 @@ def unpublish_event(event_id: str, session: Session = Depends(db.get_db)):
     if row is None:
         raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
     row.status = "archived"
+    session.commit()
+    return {"event": row.to_dict()}
+
+
+@app.post("/events/{event_id}/finalize-recording")
+def finalize_recording(event_id: str, body: FinalizeRecordingIn, session: Session = Depends(db.get_db)):
+    """
+    Called by server/icecast_on_disconnect.sh once a "Save stream" recording
+    (project-description.md #8.2.1) has finished uploading to eccm.ee.
+    Points the event at the real recording file and moves it from
+    'archived' (set immediately on disconnect by unpublish_event(), before
+    the upload finishes) to 'shelved' - the app treats status='shelved'
+    events as collectible, and changing `type` away from "livestream"
+    reuses EventDelegate.qml's existing type-based tap dispatch
+    (audio/video -> PlaybackController.playMedia with isLive=false) so a
+    finished recording plays back like any other audio/video item, with no
+    app-side changes needed. A plain type="livestream" row would otherwise
+    always be treated as isLive regardless of whether it has a real url.
+
+    Not swept by cron_publish.py's shelf_due_events() (which only touches
+    rows already at status='new') or publish_due_events() (only
+    'unpublished' rows), so setting status='shelved' directly here is safe.
+    """
+    row = session.get(db.Event, event_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
+    if body.type not in db.EVENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid type '{body.type}'")
+    row.url = body.url
+    row.type = body.type
+    row.status = "shelved"
     session.commit()
     return {"event": row.to_dict()}
 

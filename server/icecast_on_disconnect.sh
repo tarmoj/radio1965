@@ -83,6 +83,16 @@ fi
 # usable home directory at all.
 ECCM_SSH_KEY="/etc/radio65-eccm-ssh/id_rsa_eccm_live"
 ECCM_SSH_KNOWN_HOSTS="/etc/radio65-eccm-ssh/known_hosts"
+
+# Read (but don't delete) the event id now, before the existing unpublish
+# block below deletes IDFILE - the backgrounded rsync subshell further down
+# needs it too (project-description.md #8.2.1's finalize-recording step),
+# and by the time that subshell finishes IDFILE would otherwise be long gone.
+EVENT_ID=""
+if [ -f "$IDFILE" ]; then
+  EVENT_ID=$(cat "$IDFILE")
+fi
+
 if [ "$RECORDING_STOPPED" = "true" ] && [ -n "$RECORD_PATH" ] && [ -f "$RECORD_PATH" ]; then
   REMOTE_DEST="eccmee1@eccm.ee:/home/eccmee1/www/radio1965/streams/"
   (
@@ -90,6 +100,24 @@ if [ "$RECORDING_STOPPED" = "true" ] && [ -n "$RECORD_PATH" ] && [ -f "$RECORD_P
         "$RECORD_PATH" "$REMOTE_DEST" >>"$LOGFILE" 2>&1; then
       log "moved recording '$RECORD_PATH' -> $REMOTE_DEST"
       rm -f "$RECORD_PATH"
+
+      # project-description.md #8.2.1: point the event at the real
+      # recording and move it from 'archived' (set by the unpublish call
+      # below, immediately on disconnect) to 'shelved' so it reappears in
+      # the app's Collection as a playable Audio card - see
+      # server/main.py's finalize_recording(). Only attempted once the
+      # upload actually succeeded (not on rsync failure); the event stays
+      # 'archived' if EVENT_ID is empty (on-connect never ran/no id was
+      # captured for this channel) since there's nothing to update.
+      if [ -n "$EVENT_ID" ]; then
+        REMOTE_URL="https://eccm.ee/radio1965/streams/$(basename "$RECORD_PATH")"
+        FINALIZE_BODY=$(jq -n --arg url "$REMOTE_URL" --arg type "audio" '{url: $url, type: $type}')
+        FINALIZE_RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "$API_BASE/events/${EVENT_ID}/finalize-recording" \
+          -H "Content-Type: application/json" -d "$FINALIZE_BODY")
+        FINALIZE_HTTP_CODE=$(echo "$FINALIZE_RESPONSE" | tail -n1)
+        FINALIZE_BODY_RESPONSE=$(echo "$FINALIZE_RESPONSE" | sed '$d')
+        log "finalize-recording response: http=$FINALIZE_HTTP_CODE body=$FINALIZE_BODY_RESPONSE (event_id='$EVENT_ID' url='$REMOTE_URL')"
+      fi
     else
       log "failed to move recording '$RECORD_PATH' to $REMOTE_DEST - left in place for retry"
     fi
@@ -97,8 +125,7 @@ if [ "$RECORDING_STOPPED" = "true" ] && [ -n "$RECORD_PATH" ] && [ -f "$RECORD_P
   disown
 fi
 
-if [ -f "$IDFILE" ]; then
-  EVENT_ID=$(cat "$IDFILE")
+if [ -n "$EVENT_ID" ]; then
   log "found id file, event_id='$EVENT_ID' - unpublishing"
   RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "$API_BASE/events/${EVENT_ID}/unpublish")
   HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
