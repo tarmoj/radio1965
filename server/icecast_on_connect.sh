@@ -142,7 +142,7 @@ BODY=$(jq -n \
   --argjson save_stream "$SAVE_STREAM" \
   '{
     type: "livestream",
-    title: ($name + " is on air on channel " + $ch + "!"),
+    title: ($name + " on " + $ch),
     summary: $desc,
     url: ("http://live.uuu.ee:8001/" + $ch),
     publish_now: true,
