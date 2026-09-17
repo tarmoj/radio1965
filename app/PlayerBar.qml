@@ -62,7 +62,10 @@ Item {
 
             ComboBox {
                 id: channelCombo
-                Layout.preferredWidth: 110
+                Layout.minimumWidth: 110
+                Layout.fillWidth: true
+                Layout.maximumWidth: 250
+
                 visible: !root.controller.browsingRecentMedia
                 model: root.controller.channelOptions
                 currentIndex: root.controller.channelOptions.indexOf(root.controller.selectedChannel)
@@ -101,7 +104,9 @@ Item {
             // of the item the combobox appeared to show.
             ComboBox {
                 id: recentMediaCombo
-                Layout.preferredWidth: 110
+                Layout.minimumWidth: 110
+                Layout.fillWidth: true
+                Layout.maximumWidth: 250
                 visible: root.controller.browsingRecentMedia
                 model: [{ title: qsTr("Recent media"), url: "" }].concat(root.controller.recentMedia)
                 textRole: "title"

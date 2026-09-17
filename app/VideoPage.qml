@@ -31,10 +31,23 @@ Page {
     readonly property bool fullscreenActive: root.Window.window && root.Window.window.visibility === Window.FullScreen
     property bool controlsVisible: true
 
+    // Restored on exit instead of hardcoding Window.Windowed: on platforms
+    // with no real windowed mode (iOS/iPadOS), the window's visibility
+    // before entering fullscreen is whatever the OS gave it automatically
+    // (not Windowed) - forcing Windowed there makes Qt apply Main.qml's
+    // literal width/height as real on-screen geometry, shrinking the whole
+    // app down instead of returning it to filling the iPad's screen.
+    property int previousVisibility: Window.Windowed
+
     function toggleFullscreen() {
         if (!root.Window.window)
             return;
-        root.Window.window.visibility = root.fullscreenActive ? Window.Windowed : Window.FullScreen;
+        if (root.fullscreenActive) {
+            root.Window.window.visibility = root.previousVisibility;
+        } else {
+            root.previousVisibility = root.Window.window.visibility;
+            root.Window.window.visibility = Window.FullScreen;
+        }
         root.controlsVisible = true;
     }
 
