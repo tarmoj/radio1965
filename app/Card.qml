@@ -14,6 +14,10 @@ EventDelegate {
     property color cardColor: Material.backgroundColor.lighter()
     property color cardBorderColor: Material.primaryColor.lighter()
 
+    // Collection/search Cards default to title-only, with an explicit
+    // expand button - see EventDelegate.qml's showExpandToggle.
+    showExpandToggle: true
+
     background: Rectangle {
         radius: 5
         color: root.cardColor

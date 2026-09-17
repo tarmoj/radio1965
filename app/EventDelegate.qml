@@ -34,6 +34,14 @@ ItemDelegate {
 
     property bool expanded: false
 
+    // Card.qml (used by Box.qml/SearchResultsPage.qml - i.e. Collection and
+    // search, the "boxed" contexts) sets this true so every type collapses
+    // to title-only by default with an explicit expand button, rather than
+    // this delegate's plain EventListView.qml ("New Arrivals") behavior
+    // below where only "text" events start collapsed and everything else
+    // always shows its summary.
+    property bool showExpandToggle: false
+
     readonly property bool isLive: eventType === "livestream"
 
     // Distinct from publish_at (when the card/notification appears):
@@ -113,6 +121,18 @@ ItemDelegate {
                 font.bold: true
                 font.pointSize: 10
             }
+
+            // Own click target, independent of onClicked above (which is
+            // claimed by play/navigate for most types) - AbstractButton
+            // controls grab the press themselves, so tapping this doesn't
+            // also fire the delegate's own onClicked underneath it.
+            ToolButton {
+                visible: root.showExpandToggle && root.summary.length > 0
+                icon.source: root.expanded ? "qrc:/images/arrow_drop_up.svg" : "qrc:/images/arrow_drop_down.svg"
+                implicitWidth: 28
+                implicitHeight: 28
+                onClicked: root.expanded = !root.expanded
+            }
         }
 
         Label {
@@ -128,7 +148,10 @@ ItemDelegate {
             wrapMode: Text.Wrap
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            visible: root.eventType !== "text" || root.expanded
+            // showExpandToggle contexts (Collection/search) collapse every
+            // type to title-only by default, not just "text" - see the
+            // expand ToolButton above.
+            visible: root.showExpandToggle ? root.expanded : (root.eventType !== "text" || root.expanded)
         }
 
         Flow {

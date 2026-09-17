@@ -30,8 +30,13 @@ Page {
     // visually distinct from readymade/uploaded audio content. Colors are a
     // simple hue-per-shelf scheme suited to the app's existing dark
     // background (Main.qml's Material.background gradient).
+    //
+    // Deliberately no "livestream" shelf: an in-progress broadcast isn't a
+    // collectible item (it's covered live via "New Arrivals"/the "LIVE"
+    // badge) - once it ends, icecast_on_disconnect.sh's finalize-recording
+    // call retypes it to "streamrecording" if it was saved, which does get
+    // a shelf here; if it wasn't saved, it simply has nothing left to show.
     readonly property var shelfDefs: [
-        { types: ["livestream"], title: qsTr("Live Streams"), color: "#4a1620" },
         { types: ["streamrecording"], title: qsTr("Stream Recordings"), color: "#3a2a4a" },
         { types: ["audio", "audiostream"], title: qsTr("Audio"), color: "#16304a" },
         { types: ["video", "videostream"], title: qsTr("Video"), color: "#2a1a4a" },
