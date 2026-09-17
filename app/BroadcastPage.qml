@@ -98,6 +98,7 @@ Item {
                 property bool saveStream: true
             }
 
+
             ComboBox {
                 id: channelCombo
                 Layout.fillWidth: true
@@ -111,6 +112,25 @@ Item {
                     enabled: !root.isChannelOccupied(modelData)
                 }
 
+                // ComboBox has no built-in placeholderText equivalent (unlike
+                // TextField above), so this mimics one by hand: a small
+                // caption straddling the control's top border - anchoring
+                // verticalCenter to parent.top centers it exactly on the
+                // border line, and the background rectangle "cuts" through
+                // that line the same way Material's own outlined-field
+                // placeholder does, rather than just overlapping it.
+                Label {
+                    text: qsTr("Channel:")
+                    font.pointSize: 9
+                    color: Material.frameColor
+                    padding: 2
+                    background: Rectangle { color: Material.background }
+                    anchors.left: parent.left
+                    anchors.leftMargin: 12
+                    anchors.verticalCenter: parent.top
+                }
+
+
                 // Refresh on open instead of a separate refresh button -
                 // same pattern as PlayerBar.qml's channel combobox.
                 Connections {
@@ -122,7 +142,7 @@ Item {
             TextField {
                 id: nameField
                 Layout.fillWidth: true
-                placeholderText: qsTr("Name")
+                placeholderText: qsTr("Title")
                 enabled: !icecastBroadcaster.broadcasting
                 text: broadcastSettings.name
                 onTextChanged: broadcastSettings.name = text
@@ -156,6 +176,15 @@ Item {
             Button {
                 Layout.alignment: Qt.AlignHCenter
                 text: icecastBroadcaster.broadcasting ? qsTr("Stop") : qsTr("Start")
+                // channelCombo.currentText defaults to broadcastSettings.lastChannel
+                // ("radio1965" the first time) without the user ever having to open
+                // the dropdown - the delegate's `enabled: !root.isChannelOccupied(...)`
+                // above only blocks *picking* an occupied channel from the popup, it
+                // does nothing for a channel that's already selected by default. Gate
+                // Start itself so a busy default channel can't be broadcast to either
+                // way - only applies while not already broadcasting, so Stop is always
+                // clickable.
+                enabled: icecastBroadcaster.broadcasting || !root.isChannelOccupied(channelCombo.currentText)
                 onClicked: {
                     if (icecastBroadcaster.broadcasting) {
                         icecastBroadcaster.stopBroadcast();
@@ -164,6 +193,13 @@ Item {
                         icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked, saveStreamCheck.checked);
                     }
                 }
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                visible: !icecastBroadcaster.broadcasting && root.isChannelOccupied(channelCombo.currentText)
+                text: qsTr("Channel \"%1\" is busy").arg(channelCombo.currentText)
+                color: "crimson"
             }
 
             Label {

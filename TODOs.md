@@ -35,6 +35,8 @@ Save audio stream -  if required
 
 "Contributor" role. Password to editor page.
 
+Add name/author filed to events and where it is needed (connected to registration system)
+
 Checkbox "Notify -  never"  (editor)
 
 Database managing page
