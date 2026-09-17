@@ -182,6 +182,6 @@ ItemDelegate {
         radius: 5
         color: Material.backgroundColor.lighter()
         border.width: 1
-        border.color: Material.primaryColor.lighter()
+        border.color: Material.primaryColor.darker()
     }
 }

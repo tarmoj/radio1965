@@ -16,7 +16,7 @@ Rectangle {
     required property var items
     property bool showEvents: true
     property color cardColor: Material.backgroundColor.lighter()
-    property color cardBorderColor: Material.primaryColor.lighter()
+    property color cardBorderColor: Material.primaryColor.darker()
     required property StackView navigationStack
     required property string serverBaseUrl
     required property PlaybackController controller

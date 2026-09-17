@@ -413,7 +413,12 @@ ApplicationWindow {
                 currentIndex: tabBar.currentIndex
                 onCurrentIndexChanged: tabBar.currentIndex = currentIndex
 
-                EventListView { eventsModel: newEventsModel; navigationStack: stackView; serverBaseUrl: appSettings.serverUrl; controller: playbackController }
+                EventListView {
+                    eventsModel: newEventsModel;
+                    navigationStack: stackView;
+                    serverBaseUrl: appSettings.serverUrl;
+                    controller: playbackController
+                }
 
                 CollectionPage {
                     clip: true // this did the tric of overflowing to next page
