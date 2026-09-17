@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtMultimedia
 import QtQuick.Dialogs
 import QtCore
+import QtQuick.Window
 
 
 ApplicationWindow {
@@ -312,6 +313,14 @@ ApplicationWindow {
         PlayerBar {
             Layout.fillWidth: true
             controller: playbackController
+            // Hidden (not just occluded) while VideoPage is fullscreen so
+            // StackView/VideoPage can actually claim its space too - a
+            // Layout child's visible:false is excluded from space
+            // allocation. Keyed off the window's own visibility rather
+            // than a new custom signal/alias: Window.FullScreen is
+            // currently only ever entered via VideoPage.qml's own toggle,
+            // so this stays correct without a new cross-file channel.
+            visible: app.visibility !== Window.FullScreen
         }
 
         StackView {
