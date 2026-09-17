@@ -276,9 +276,24 @@ void IcecastBroadcaster::teardown()
     }
 
     if (m_socket) {
-        m_socket->disconnectFromHost();
-        m_socket->deleteLater();
+        // Disconnect signals and clear the member *before* calling
+        // disconnectFromHost()/deleteLater(), not after: on a socket that's
+        // already in an error state (e.g. connection refused - Icecast
+        // unreachable), disconnectFromHost() can synchronously re-emit
+        // disconnected() right here, which was direct-connected to
+        // onSocketDisconnected() - since m_broadcasting is still true at
+        // this point (only cleared later below), that reentrant call would
+        // invoke teardown() again *while this call is still paused inside
+        // disconnectFromHost()*, nulling m_socket out from under this frame
+        // and crashing the very next line (m_socket->deleteLater() on a
+        // null m_socket, even though the `if (m_socket)` guard above had
+        // already passed). Disconnecting first prevents the reentrancy
+        // outright rather than merely surviving it.
+        QTcpSocket *socket = m_socket;
         m_socket = nullptr;
+        socket->disconnect(this);
+        socket->disconnectFromHost();
+        socket->deleteLater();
     }
 
     m_httpResponseBuffer.clear();
