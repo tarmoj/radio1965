@@ -199,7 +199,11 @@ ApplicationWindow {
             // }
 
             Label {
-                text: qsTr("Info comes here.")
+                text: qsTr(`
+Väin (Estonian for 'strait'), a seemingly narrow body of water with a depth undetectable from the surface and a layered structure that constantly varies. It is an intermediate area that bridges one time to another.
+
+VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonian Centre for Contemporary Music. It connects not only the past and the present, but also the people using it. Follow or broadcast audio streams, receive notifications about key events, and read, listen to, watch, or share something meaningful. Be connected with ECCM.
+                           `)
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
             }
