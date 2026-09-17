@@ -30,6 +30,17 @@ Page {
     property bool loading: false
     property string errorMessage: ""
 
+    // QtWebView's native content (Android's real WebView widget / iOS's
+    // WKWebView) always renders on top of the entire Qt Quick scene,
+    // documented Qt limitation with no z-value fix - so the app's Drawer
+    // (Main.qml) can never render above it while it's visible. Reached via
+    // the ApplicationWindow.window attached property since Main.qml's
+    // `drawer` id isn't reachable from this separate file - see Main.qml's
+    // `property alias drawerOpened: drawer.opened`. Hiding the WebView
+    // while the drawer is open is the only way to make the drawer usable
+    // on top of an open article, since it can't be layered above.
+    readonly property bool drawerOpen: ApplicationWindow.window ? ApplicationWindow.window.drawerOpened : false
+
     background: Rectangle { color: "transparent" }
 
     header: ToolBar {
@@ -54,7 +65,7 @@ Page {
     WebView {
         id: webView
         anchors.fill: parent
-        visible: !root.loading && root.errorMessage === ""
+        visible: !root.loading && root.errorMessage === "" && !root.drawerOpen
     }
 
     BusyIndicator {

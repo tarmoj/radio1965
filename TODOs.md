@@ -47,7 +47,7 @@ On Video the seek bar should be below the video. How to do it if fullscreen?
 
 ## Konwn problems
 
-When problem with connecting to Icecast -  app crashes (happens in IcecastBroadcaster::teardown() )
+When problem with connecting to Icecast -  app crashes (happens in IcecastBroadcaster::teardown() ) DONE
 
 some problem with the Page width in Collectionpage -  element go over or stay smaller than the screen (Android). <- TODO!!
 
@@ -59,8 +59,9 @@ When video streaming is started, no automatic notification is saved.
 
 Sometimes old stream data stays hanging on player bar or not updated properly.
 - when I click on Card on Home page "Tester on air", the PlayerBar still shows "Radio 1965" -  the prvious stram data => The playerBar info is not updated when one clicks on card. It is not even updated when I select the channel from combobox.
+FIXED
 
-It is not intuitive to get back to channel selection from playing a file (PlayerBar).
+It is not intuitive to get back to channel selection from playing a file (PlayerBar) FIXED
 
 
 

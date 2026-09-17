@@ -24,6 +24,16 @@ ApplicationWindow {
     readonly property bool broadcastAvailable: typeof icecastBroadcaster !== "undefined"
     readonly property bool isBroadcasting: app.broadcastAvailable && icecastBroadcaster.broadcasting
 
+    // Exposed so pushed pages in a *different* QML file (e.g. WebViewPage.qml,
+    // reached via the ApplicationWindow.window attached property) can react
+    // to the drawer without a direct id reference, which only works within
+    // the same document. See WebViewPage.qml's WebView.visible - QtWebView's
+    // native content always renders on top of the whole Qt Quick scene
+    // (documented Qt limitation, no z value fixes it), so the only way to
+    // let the Drawer be usable/visible while an article is open is to
+    // temporarily hide the WebView itself while the drawer is open.
+    property alias drawerOpened: drawer.opened
+
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
@@ -309,6 +319,15 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             initialItem: feedComponent
+
+            // WebViewPage.qml's QtWebView content renders via a native
+            // platform view (Android's real WebView widget / iOS's
+            // WKWebView) composited on top of the entire Qt Quick scene -
+            // it's not a real scene-graph item, so no z value can put the
+            // Drawer (or any QML Popup/Overlay) above it once it's pushed.
+            // Closing the drawer whenever the current page changes sidesteps
+            // that platform limitation instead of trying to out-z-order it.
+            onCurrentItemChanged: if (drawer.opened) drawer.close()
         }
     }
 
