@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:code.qt.io)",
+      "Bash(curl -fsSL \"https://code.qt.io/cgit/qt/qtwebview.git/plain/src/plugins/darwin/qdarwinwebview.mm\" -o /tmp/qdarwinwebview.mm)",
+      "Read(//tmp/**)",
+      "WebSearch"
+    ]
+  }
+}

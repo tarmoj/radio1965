@@ -138,7 +138,8 @@ Item {
 
             Slider {
                 Layout.preferredWidth: 80
-                Layout.minimumWidth: 30
+                Layout.minimumWidth: 40
+                Layout.maximumWidth: 200
                 Layout.fillWidth:  true
                 from: 0
                 to: 1

@@ -64,7 +64,18 @@ Page {
 
     WebView {
         id: webView
-        anchors.fill: parent
+        // Collapsing width/height to 0 (not just toggling `visible`) while
+        // the drawer is open: QtWebView's native content is embedded via
+        // QQuickWindowContainer, and on iOS specifically the container's
+        // `visible` propagation to the underlying WKWebView-backed window
+        // has been reported unreliable (the WebView just stays on top
+        // regardless - see Qt forum thread 77281). Its width/height changes
+        // are forwarded straight through to the native window's own
+        // setWidth/setHeight though, so a zero-sized WebView reliably has
+        // nothing left to render/hit-test even when `visible` alone
+        // wouldn't have hidden it.
+        width: root.drawerOpen ? 0 : parent.width
+        height: root.drawerOpen ? 0 : parent.height
         visible: !root.loading && root.errorMessage === "" && !root.drawerOpen
     }
 
