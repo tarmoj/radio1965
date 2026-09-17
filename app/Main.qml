@@ -16,7 +16,7 @@ ApplicationWindow {
     title: qsTr("VÄIN") + " v" + version
     color: Material.background
 
-    property color backgroundEndColor: "darkgreen"
+    property color backgroundEndColor: "#245a28"   // primary container — deep green
 
     // icecastBroadcaster is only registered as a context property on
     // builds with RADIO65_ENABLE_BROADCAST (see app/CMakeLists.txt) -
