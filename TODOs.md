@@ -9,18 +9,20 @@ Location of recordings:
 
 To shlef -  not after a week but a day. DONE
 
+Save audio stream -  if required DONE
+
+Joomla articles -  summary shorter. DONE
+
 On open, show dialog, what VÄIN is, "Do not show again" checkbox. Perhaps the same dialog as in Menu entry "Info"? 
 
 Broadcasting:
 - signal meter.
-
 
 PlayerBar 
 -- when user pick an options that has a stream, play it immediately.
 
 Joomla articles -  how to delete? At the moment status "archived" works. "unpublised" brings them back. "trashed"?
 
-Joomla articles -  summary shorter. DONE
 
 Webcontent -  what aout youtube and vimeo videos? embed them automatically?
 
@@ -31,7 +33,7 @@ Think what the broadcast notification should be.
 
 (perhaps) Change package name to org.eccm.vain -- does it break Firebase registration?
 
-Save audio stream -  if required
+
 
 "Contributor" role. Password to editor page.
 
@@ -49,9 +51,7 @@ When problem with connecting to Icecast -  app crashes (happens in IcecastBroadc
 
 some problem with the Page width in Collectionpage -  element go over or stay smaller than the screen (Android). <- TODO!!
 
-Search does not work ob Collection.
-
-Ended live streams make no sense in the Collection at the moment. 
+Search does not work on Collection.
 
 Video fullscreen dows not fill the screen on mobile devices.
 

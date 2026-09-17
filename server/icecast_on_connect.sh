@@ -84,6 +84,18 @@ if [ "$SAVE_STREAM_RAW" = "1" ]; then
 fi
 log "resolved save_stream='$SAVE_STREAM_RAW' -> save_stream=$SAVE_STREAM"
 
+# "radio1965" is the always-on main channel (also used by non-app sources
+# like ezstream/raw ffmpeg, which have no way to set send_notification/
+# save_stream via ice-audio-info at all - see BroadcastPage.qml/
+# IcecastBroadcaster::sendIcecastHandshake()) - never notify or record for
+# it, regardless of what the source requested, but still publish the event
+# below as normal so its title/description show up in the app.
+if [ "$CHANNEL" = "radio1965" ]; then
+  SEND_NOTIFICATION="false"
+  SAVE_STREAM="false"
+  log "channel='radio1965' - forcing send_notification=false save_stream=false (event is still published)"
+fi
+
 # project-description.md #8.2.1: when save_stream is on, record the mount's
 # audio locally as mp3 for the duration of the broadcast.
 # icecast_on_disconnect.sh stops it (SIGTERM) via the pid file below - by
