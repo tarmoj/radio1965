@@ -38,6 +38,7 @@ ApplicationWindow {
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
+        property bool showInfoOnStartup: true
     }
 
     // "Become a Contributor" gate (project-description.md follow-up) -
@@ -53,6 +54,10 @@ ApplicationWindow {
 
     Component.onCompleted: {
         eventsApiClient.fetchEvents(appSettings.serverUrl);
+        if (appSettings.showInfoOnStartup) {
+            infoDialog.showDontShowCheckbox = true;
+            infoDialog.open();
+        }
     }
 
     // Push is FYI-only (project-description.md #5): NotificationManager
@@ -171,6 +176,7 @@ ApplicationWindow {
                 MenuItem {
                     text: qsTr("Info")
                     onTriggered: {
+                        infoDialog.showDontShowCheckbox = false;
                         infoDialog.open()
                         drawer.close()
                     }
@@ -187,10 +193,23 @@ ApplicationWindow {
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Close
+        // Dialog doesn't auto-size itself from an explicit `width:` set on
+        // an inner child (that only ever controls the ColumnLayout's own
+        // width, not the Dialog's actual content-area/frame) - same fix as
+        // contributorDialog below: the width has to go on the Dialog itself.
+        width: Math.min(app.width - 40, 420)
+
+        // Only true when this dialog was auto-opened at startup (see
+        // Component.onCompleted above) - set back to false whenever it's
+        // opened from the drawer's "Info" MenuItem, so the checkbox below
+        // (which controls appSettings.showInfoOnStartup, a startup-only
+        // concern) doesn't show up in a context where it wouldn't mean
+        // anything.
+        property bool showDontShowCheckbox: false
 
         ColumnLayout {
             spacing: 8
-            width: Math.min(app.width - 40, 420)
+            width: infoDialog.availableWidth
 
             // Label {
             //     text: qsTr("Radio 1965 %1").arg(version)
@@ -216,6 +235,13 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             Label {
                 text: qsTr("© Tarmo Johannes\ntrmjhnns@gmail.com")
                 font.pointSize: 10
+            }
+
+            CheckBox {
+                text: qsTr("Don't show on startup")
+                visible: infoDialog.showDontShowCheckbox
+                checked: !appSettings.showInfoOnStartup
+                onToggled: appSettings.showInfoOnStartup = !checked
             }
         }
     }
