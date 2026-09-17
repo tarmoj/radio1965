@@ -12,9 +12,13 @@
 #include <QNetworkRequest>
 #include <QTcpSocket>
 #include <QUrl>
+#include <QVarLengthArray>
 #include <qpermissions.h>
 
 #include <lame/lame.h>
+
+#include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -221,19 +225,50 @@ void IcecastBroadcaster::onAudioReadyRead()
         encodeAndSend(pcm);
 }
 
+void IcecastBroadcaster::setGain(qreal gain)
+{
+    gain = std::clamp(gain, 0.0, 4.0);
+    if (qFuzzyCompare(m_gain, gain))
+        return;
+    m_gain = gain;
+    emit gainChanged();
+}
+
 void IcecastBroadcaster::encodeAndSend(const QByteArray &pcm)
 {
     if (!m_lame)
         return;
 
-    const auto *samples = reinterpret_cast<const short int *>(pcm.constData());
+    const auto *rawSamples = reinterpret_cast<const short int *>(pcm.constData());
     const int numSamples = static_cast<int>(pcm.size() / sizeof(short int));
+    if (numSamples <= 0)
+        return;
+
+    // Gain is applied here, not left to the OS input mixer, so
+    // BroadcastPage.qml's gain slider affects the actual encoded/streamed
+    // signal - and so the peak meter below (inputLevel) reflects the same
+    // post-gain, clipped samples that end up on the wire, not the raw mic
+    // level.
+    QVarLengthArray<short int, 8192> adjusted(numSamples);
+    int peak = 0;
+    for (int i = 0; i < numSamples; ++i) {
+        const int scaled = static_cast<int>(std::lround(rawSamples[i] * m_gain));
+        const int clamped = std::clamp(scaled, -32768, 32767);
+        adjusted[i] = static_cast<short int>(clamped);
+        peak = std::max(peak, std::abs(clamped));
+    }
+
+    const qreal level = std::clamp(peak / 32768.0, 0.0, 1.0);
+    if (!qFuzzyCompare(m_inputLevel, level)) {
+        m_inputLevel = level;
+        emit inputLevelChanged();
+    }
 
     QByteArray mp3Buf(MP3_BUF_SIZE, Qt::Uninitialized);
     // Mono input: LAME's own convention is to pass the same buffer as both
     // the left and right channel argument (see lame.h's lame_encode_buffer
     // docs) rather than a null right-channel pointer.
-    const int written = lame_encode_buffer(m_lame, samples, samples, numSamples,
+    const int written = lame_encode_buffer(m_lame, adjusted.constData(), adjusted.constData(), numSamples,
                                             reinterpret_cast<unsigned char *>(mp3Buf.data()), mp3Buf.size());
     if (written <= 0)
         return;
@@ -304,6 +339,11 @@ void IcecastBroadcaster::teardown()
     m_broadcasting = false;
     m_onAir = false;
     m_handshakeAccepted = false;
+
+    if (m_inputLevel != 0.0) {
+        m_inputLevel = 0.0;
+        emit inputLevelChanged();
+    }
 
     if (wasBroadcasting)
         emit broadcastStateChanged();

@@ -96,12 +96,21 @@ Item {
                 property string lastChannel: "radio1965"
                 property bool sendNotification: true
                 property bool saveStream: true
+                property real gain: 1.0
             }
+
+            // Restores the last-used gain onto the C++ broadcaster - m_gain
+            // itself defaults to 1.0 and isn't persisted there, only here in
+            // Settings, same division of responsibility as the other fields
+            // above (broadcastSettings holds the value, the checkboxes/
+            // fields push it into icecastBroadcaster).
+            Component.onCompleted: icecastBroadcaster.gain = broadcastSettings.gain
 
 
             ComboBox {
                 id: channelCombo
                 Layout.fillWidth: true
+                visible: !icecastBroadcaster.broadcasting
                 enabled: !icecastBroadcaster.broadcasting
                 model: root.channelNames
                 currentIndex: Math.max(0, root.channelNames.indexOf(broadcastSettings.lastChannel))
@@ -142,6 +151,7 @@ Item {
             TextField {
                 id: nameField
                 Layout.fillWidth: true
+                visible: !icecastBroadcaster.broadcasting
                 placeholderText: qsTr("Title")
                 enabled: !icecastBroadcaster.broadcasting
                 text: broadcastSettings.name
@@ -151,26 +161,117 @@ Item {
             TextField {
                 id: descriptionField
                 Layout.fillWidth: true
+                visible: !icecastBroadcaster.broadcasting
                 placeholderText: qsTr("Description")
                 enabled: !icecastBroadcaster.broadcasting
                 text: broadcastSettings.description
                 onTextChanged: broadcastSettings.description = text
             }
 
-            CheckBox {
-                id: sendNotificationCheck
-                text: qsTr("Send notification")
-                enabled: !icecastBroadcaster.broadcasting
-                checked: broadcastSettings.sendNotification
-                onToggled: broadcastSettings.sendNotification = checked
+            // Combined into one Flow (rather than two separate rows) to save
+            // vertical space - Flow (unlike RowLayout) wraps onto a second
+            // line by itself on narrow/portrait screens instead of forcing
+            // either control to shrink or overflow.
+            Flow {
+                Layout.fillWidth: true
+                visible: !icecastBroadcaster.broadcasting
+                spacing: 12
+
+                CheckBox {
+                    id: sendNotificationCheck
+                    text: qsTr("Send notification")
+                    enabled: !icecastBroadcaster.broadcasting
+                    checked: broadcastSettings.sendNotification
+                    onToggled: broadcastSettings.sendNotification = checked
+                }
+
+                CheckBox {
+                    id: saveStreamCheck
+                    text: qsTr("Save stream")
+                    enabled: !icecastBroadcaster.broadcasting
+                    checked: broadcastSettings.saveStream
+                    onToggled: broadcastSettings.saveStream = checked
+                }
             }
 
-            CheckBox {
-                id: saveStreamCheck
-                text: qsTr("Save stream")
-                enabled: !icecastBroadcaster.broadcasting
-                checked: broadcastSettings.saveStream
-                onToggled: broadcastSettings.saveStream = checked
+            // Replaces the Channel/Title/Description/checkboxes controls
+            // above (all hidden via visible:!broadcasting) once live - those
+            // values can't be changed mid-broadcast anyway (see their own
+            // enabled:!broadcasting), so showing the static result instead
+            // saves the vertical space they'd otherwise keep occupying.
+            Label {
+                Layout.fillWidth: true
+                visible: icecastBroadcaster.broadcasting
+                wrapMode: Text.Wrap
+                font.bold: true
+                text: qsTr("Broadcasting \"%1\" on %2").arg(nameField.text).arg(channelCombo.currentText)
+            }
+
+            // Level meter + gain slider, vertical and side by side so they
+            // read like a mixing-desk channel strip - only meaningful while
+            // QAudioSource is actually capturing (i.e. while broadcasting),
+            // so tucked away here rather than shown alongside the
+            // pre-broadcast form controls above.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                visible: icecastBroadcaster.broadcasting
+                spacing: 24
+
+                readonly property int meterHeight: 120
+
+                ColumnLayout {
+                    spacing: 4
+
+                    Label { Layout.alignment: Qt.AlignHCenter; text: qsTr("Level") }
+
+                    // Peak meter fed by IcecastBroadcaster::inputLevel -
+                    // reads post-gain samples, so this reflects the same
+                    // clipped signal that's actually being streamed, not
+                    // the raw mic input.
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 20
+                        Layout.preferredHeight: parent.parent.meterHeight
+                        radius: 4
+                        color: Material.dividerColor
+                        clip: true
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            radius: 4
+                            height: parent.height * icecastBroadcaster.inputLevel
+                            color: icecastBroadcaster.inputLevel > 0.9 ? "crimson"
+                                   : icecastBroadcaster.inputLevel > 0.7 ? "orange" : "limegreen"
+
+                            Behavior on height { NumberAnimation { duration: 80 } }
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    spacing: 4
+
+                    Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: qsTr("Gain: %1%").arg(Math.round(gainSlider.value * 100))
+                    }
+
+                    Slider {
+                        id: gainSlider
+                        orientation: Qt.Vertical
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredHeight: parent.parent.meterHeight
+                        from: 0.0
+                        to: 2.0
+                        value: broadcastSettings.gain
+                        onMoved: {
+                            broadcastSettings.gain = value;
+                            icecastBroadcaster.gain = value;
+                        }
+                    }
+                }
             }
 
             Button {

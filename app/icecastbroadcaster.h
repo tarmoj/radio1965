@@ -29,6 +29,16 @@ class IcecastBroadcaster : public QObject
     Q_PROPERTY(bool broadcasting READ isBroadcasting NOTIFY broadcastStateChanged)
     Q_PROPERTY(bool onAir READ isOnAir NOTIFY onAirChanged)
     Q_PROPERTY(int elapsedSeconds READ elapsedSeconds NOTIFY elapsedSecondsChanged)
+    // Peak of the most recently captured PCM buffer, post-gain, normalized
+    // to [0, 1] - drives BroadcastPage.qml's input level meter. Only ever
+    // updates while m_audioSource is actually running (i.e. while
+    // broadcasting), since mic capture is tied to startBroadcast().
+    Q_PROPERTY(qreal inputLevel READ inputLevel NOTIFY inputLevelChanged)
+    // Linear multiplier applied to captured samples before MP3 encoding, so
+    // BroadcastPage.qml's gain slider affects the actual streamed signal
+    // (and the meter above, which reads post-gain samples) rather than
+    // just a UI-only value. 1.0 = unity, clamped to [0, 4] in setGain().
+    Q_PROPERTY(qreal gain READ gain WRITE setGain NOTIFY gainChanged)
 
 public:
     explicit IcecastBroadcaster(QObject *parent = nullptr);
@@ -37,6 +47,9 @@ public:
     bool isBroadcasting() const { return m_broadcasting; }
     bool isOnAir() const { return m_onAir; }
     int elapsedSeconds() const;
+    qreal inputLevel() const { return m_inputLevel; }
+    qreal gain() const { return m_gain; }
+    void setGain(qreal gain);
 
     // channel: one of "radio1965"/"user1".."user4" (no leading slash).
     // name/description become the ice-name/ice-description headers.
@@ -74,6 +87,8 @@ signals:
     void elapsedSecondsChanged();
     void broadcastError(const QString &message);
     void occupiedChannelsChanged(const QStringList &occupied);
+    void inputLevelChanged();
+    void gainChanged();
 
 private slots:
     void onSocketConnected();
@@ -99,6 +114,8 @@ private:
     bool m_broadcasting = false;
     bool m_onAir = false;
     bool m_handshakeAccepted = false;
+    qreal m_inputLevel = 0.0;
+    qreal m_gain = 1.0;
     QByteArray m_httpResponseBuffer;
     // MP3 bytes encoded before the handshake response arrives - flushed to
     // the socket once accepted, never written mid-handshake.

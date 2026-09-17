@@ -19,7 +19,7 @@ Broadcasting:
 - signal meter.
 
 PlayerBar 
--- when user pick an options that has a stream, play it immediately.
+-- when user pick an options that has a stream, play it immediately. DONE
 
 Joomla articles -  how to delete? At the moment status "archived" works. "unpublised" brings them back. "trashed"?
 
@@ -28,22 +28,20 @@ Webcontent -  what aout youtube and vimeo videos? embed them automatically?
 
 Box -  header title should be clickable the whole row, not only the label (problem when only letter, like "T" )
 
-BroadCast page -  not name (take it from settings now) but Title.
+BroadCast page -  not name (take it from settings now) but Title. DONE
+
 Think what the broadcast notification should be.
 
 (perhaps) Change package name to org.eccm.vain -- does it break Firebase registration?
 
-
-
 "Contributor" role. Password to editor page.
+Checkbox "Notify -  never"  (editor)
 
 Add name/author filed to events and where it is needed (connected to registration system)
 
-Checkbox "Notify -  never"  (editor)
-
 Database managing page
 
-On Video the seek bar should be below the video. How to do it if fullscreen?
+On Video the seek bar should be below the video. How to do it if fullscreen? DONE
 
 ## Konwn problems
 
@@ -51,9 +49,9 @@ When problem with connecting to Icecast -  app crashes (happens in IcecastBroadc
 
 some problem with the Page width in Collectionpage -  element go over or stay smaller than the screen (Android). <- TODO!!
 
-Search does not work on Collection.
+Search does not work on Collection. SEEMS OK.
 
-Video fullscreen dows not fill the screen on mobile devices.
+Video fullscreen dows not fill the screen on mobile devices. FIXED
 
 When video streaming is started, no automatic notification is saved.
 

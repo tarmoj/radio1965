@@ -148,21 +148,7 @@ ApplicationWindow {
                 width: parent.width //  availableWidth
                 spacing: 10
 
-                MenuItem {
-                    text: qsTr("Something")
-                    onTriggered: {
-                        console.log("Something clicked")
-                    }                }
 
-
-
-                MenuItem {
-                    text: qsTr("Info")
-                    onTriggered: {
-                        infoDialog.open()
-                        drawer.close()
-                    }
-                }
 
                 MenuItem {
                     text: qsTr("Become a Contributor")
@@ -178,6 +164,14 @@ ApplicationWindow {
                     visible: userSettings.role !== "none"
                     onTriggered: {
                         userSettings.role = "none"
+                        drawer.close()
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Info")
+                    onTriggered: {
+                        infoDialog.open()
                         drawer.close()
                     }
                 }
