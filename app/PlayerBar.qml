@@ -46,27 +46,24 @@ Item {
             }
 
             Image {
-                source: root.controller.isLive ? "qrc:/images/radio.svg" :
-                            "qrc:/images/audio_file.svg"
-                //visible: root.controller.showChannelSelector
-                sourceSize.width: 18
-                sourceSize.height: 18
+                source: root.controller.browsingRecentMedia ? "qrc:/images/audio_file.svg" :
+                            "qrc:/images/radio.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
 
-                // Explicit way back to the channel picker after listening
-                // to a fixed-media item - Stop alone no longer does this
-                // (see PlaybackController.stop() vs backToChannels()).
+                // Pure view toggle between the live-channel and recent-media
+                // comboboxes below - never touches actual playback, so
+                // tapping this is safe regardless of what's currently
+                // playing (see PlaybackController.toggleSelectorMode()).
                 TapHandler {
-                    enabled: !root.controller.showChannelSelector
-                    onTapped: root.controller.backToChannels()
+                    onTapped: root.controller.toggleSelectorMode()
                 }
             }
-
-
 
             ComboBox {
                 id: channelCombo
                 Layout.preferredWidth: 110
-                visible: root.controller.showChannelSelector
+                visible: !root.controller.browsingRecentMedia
                 model: root.controller.channelOptions
                 currentIndex: root.controller.channelOptions.indexOf(root.controller.selectedChannel)
                 onActivated: root.controller.selectChannel(root.controller.channelOptions[currentIndex])
@@ -90,15 +87,47 @@ Item {
                 }
             }
 
-            // Fixed media (an event's own url, not the live channel picker)
-            // takes the channel combobox's spot in the compact row instead
-            // of only showing in the expanded section - visible whenever
-            // the combobox isn't.
-            Label {
+            // Recent-media picker - local playback history (project-
+            // description.md #8.2.1's "Save stream" recordings included),
+            // see PlaybackController._recordRecentMedia(). Doubles as the
+            // "currently selected" indicator the same way channelCombo does
+            // for live channels: currentIndex tracks controller.mediaUrl.
+            // A leading "Recent media" placeholder (index 0, not a real
+            // history entry) is shown whenever nothing currently loaded
+            // matches an entry, rather than defaulting to the most-recent
+            // real item - that looked selected/loaded even though nothing
+            // had actually been chosen yet, so pressing Play just resumed
+            // whatever was playing before (e.g. the radio channel) instead
+            // of the item the combobox appeared to show.
+            ComboBox {
+                id: recentMediaCombo
                 Layout.preferredWidth: 110
-                elide: Text.ElideRight
-                visible: !root.controller.showChannelSelector
-                text: root.controller.displayTitle
+                visible: root.controller.browsingRecentMedia
+                model: [{ title: qsTr("Recent media"), url: "" }].concat(root.controller.recentMedia)
+                textRole: "title"
+                valueRole: "url"
+                currentIndex: {
+                    for (let i = 0; i < root.controller.recentMedia.length; i++) {
+                        if (root.controller.recentMedia[i].url === root.controller.mediaUrl)
+                            return i + 1; // +1: index 0 is the placeholder
+                    }
+                    return 0;
+                }
+                onActivated: {
+                    if (currentIndex === 0)
+                        return; // placeholder - not a real item, no-op
+                    const item = root.controller.recentMedia[currentIndex - 1];
+                    if (item)
+                        root.controller.playMedia(item.url, item.title, item.summary, false);
+                }
+                background: Rectangle {
+                    implicitWidth: 110
+                    implicitHeight: 32
+                    radius: 4
+                    color: "transparent"
+                    border.width: 0
+                    border.color: "transparent"
+                }
             }
 
             Image {
@@ -136,6 +165,75 @@ Item {
             }
         }
 
+        // Narrow "now playing" strip - single-pass marquee, since the
+        // static title Label that used to live in controlsRow is gone
+        // (superseded by this: the one place title/summary show now,
+        // whether live or fixed media). Hidden while expanded, since the
+        // RowLayout below already shows the summary in full there.
+        Item {
+            id: nowPlayingRow
+            Layout.fillWidth: true
+            height: nowPlayingLabel.implicitHeight
+            clip: true
+            visible: !root.controller.expanded && nowPlayingRow.scrollText !== ""
+
+            readonly property string scrollText: {
+                const t = root.controller.displayTitle;
+                const s = root.controller.displaySummary;
+                return t && s ? (t + "   -   " + s) : (t || s || "");
+            }
+
+            Label {
+                id: nowPlayingLabel
+                text: nowPlayingRow.scrollText
+                font.pointSize: 8
+
+                readonly property bool needsScroll: implicitWidth > nowPlayingRow.width
+
+                // Plain SequentialAnimation with an explicit target/property
+                // (started/stopped imperatively below), not "SequentialAnimation
+                // on x": the latter permanently destroys any declarative
+                // binding on x the first time it actually runs (QML: writing
+                // to a property, including via an animation, removes its
+                // binding - it does not come back once the animation stops).
+                // That meant a later short/empty title got stuck wherever
+                // the animation last left x (often off-screen), looking
+                // like the row "didn't clear" even though `text` itself had
+                // updated correctly.
+                SequentialAnimation {
+                    id: scrollAnim
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        target: nowPlayingLabel
+                        property: "x"
+                        from: nowPlayingRow.width
+                        to: -nowPlayingLabel.implicitWidth
+                        duration: Math.max(12000, nowPlayingLabel.implicitWidth * 30)
+                    }
+                    PauseAnimation { duration: 800 }
+                }
+
+                function _restartScroll() {
+                    if (nowPlayingRow.visible && needsScroll) {
+                        nowPlayingLabel.x = nowPlayingRow.width;
+                        scrollAnim.restart();
+                    } else {
+                        scrollAnim.stop();
+                        nowPlayingLabel.x = 0;
+                    }
+                }
+
+                onTextChanged: nowPlayingLabel._restartScroll()
+                onNeedsScrollChanged: nowPlayingLabel._restartScroll()
+                Component.onCompleted: nowPlayingLabel._restartScroll()
+
+                Connections {
+                    target: nowPlayingRow
+                    function onVisibleChanged() { nowPlayingLabel._restartScroll(); }
+                }
+            }
+        }
+
         RowLayout {
 
             Layout.fillWidth: true
@@ -144,11 +242,24 @@ Item {
 
             Item { Layout.preferredWidth: 12} // spacer
 
-            Label {
+            ColumnLayout {
                 Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                visible: root.controller.displaySummary.length > 0
-                text: root.controller.displaySummary
+                spacing: 2
+
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    font.bold: true
+                    visible: root.controller.displayTitle.length > 0
+                    text: root.controller.displayTitle
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    visible: root.controller.displaySummary.length > 0
+                    text: root.controller.displaySummary
+                }
             }
 
             RowLayout {

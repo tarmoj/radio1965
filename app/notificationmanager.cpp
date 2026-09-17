@@ -164,10 +164,11 @@ void NotificationManager::addMessage(const QString &, const QString &, const QSt
     emit refreshRequested();
 }
 
-QVariantMap NotificationManager::findLiveStream() const
+QVariantMap NotificationManager::findLiveStream(const QString &url) const
 {
     for (const EventItem &item : m_events) {
-        if (item.type == QStringLiteral("livestream") && item.status == QStringLiteral("new"))
+        if (item.type == QStringLiteral("livestream") && item.status == QStringLiteral("new")
+            && item.url == url)
             return { { "title", item.title }, { "summary", item.summary } };
     }
     return {};

@@ -73,12 +73,15 @@ public:
     Q_INVOKABLE void addMessage(const QString &title, const QString &summary, const QString &data);
 
     // Title/summary of the current type=="livestream" && status=="new"
-    // event, or an empty map if none - metadata only (project-description.md
-    // #8). PlayerPage.qml uses this purely to label the stream; it does NOT
-    // decide whether playback is attempted - that's up to whether the HLS
-    // URL itself actually loads (see PlayerPage.qml's MediaPlayer error
-    // handling).
-    Q_INVOKABLE QVariantMap findLiveStream() const;
+    // event whose url matches `url` exactly, or an empty map if none -
+    // metadata only (project-description.md #8). PlaybackController.qml
+    // passes channelUrl(selectedChannel) so this only ever surfaces the
+    // title for the channel actually being listened to - without this
+    // filter, an always-on channel (e.g. radio1965's ezstream filler,
+    // whose event stays status="new" indefinitely) would permanently win
+    // this lookup and its title would keep showing even after switching to
+    // a completely different, silent channel.
+    Q_INVOKABLE QVariantMap findLiveStream(const QString &url) const;
 
     // The "shelved" subset as plain QVariantMaps (same field names as
     // roleNames(), e.g. "eventType" not "type") - lets CollectionPage.qml

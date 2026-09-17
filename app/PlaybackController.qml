@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtMultimedia
 
@@ -60,7 +61,10 @@ QtObject {
         function onOccupiedChannelsChanged(list) { root.occupiedChannels = list; }
     }
 
-    Component.onCompleted: root.refreshChannelAvailability()
+    Component.onCompleted: {
+        root.refreshChannelAvailability();
+        root._loadRecentMedia();
+    }
 
     property string mediaUrl: ""
     property string mediaTitle: ""
@@ -72,7 +76,53 @@ QtObject {
     // presses Play or picks a channel, though - see start()/selectChannel().
     property bool isLive: true
     property string selectedChannel: "radio1965"
-    readonly property bool showChannelSelector: root.isLive && root.mediaUrl === ""
+
+    // Purely which combobox PlayerBar.qml shows (live channels vs recent
+    // media) - independent of isLive/mediaUrl so toggling this in the UI
+    // never touches actual playback, only which picker is visible.
+    property bool browsingRecentMedia: false
+
+    function toggleSelectorMode() {
+        root.browsingRecentMedia = !root.browsingRecentMedia;
+    }
+
+    // Local playback history (project-description.md #8.2.1's "Save
+    // stream" recordings included - anything played via playMedia() with
+    // isLive=false), persisted via QtCore.Settings same as
+    // BroadcastPage.qml's broadcastSettings. Settings can't natively store
+    // an array of objects, hence the JSON-string round-trip.
+    // Wrapped in a `property Settings ...:` assignment, not a bare child
+    // declaration - QtObject (this file's root type) has no default
+    // property to receive bare children, unlike Item (same reason
+    // _occupancyConnections/player/_retryTimer below are all declared this
+    // way rather than as plain child objects).
+    property Settings recentMediaSettings: Settings {
+        id: recentMediaSettings
+        category: "RecentMedia"
+        property string itemsJson: "[]"
+    }
+    property var recentMedia: []
+    readonly property int maxRecentMedia: 15
+
+    function _loadRecentMedia() {
+        try {
+            root.recentMedia = JSON.parse(recentMediaSettings.itemsJson);
+        } catch (e) {
+            root.recentMedia = [];
+        }
+    }
+
+    function _recordRecentMedia(url, title, summary) {
+        if (!url)
+            return;
+        // Dedupe by url and move to front, rather than allowing the same
+        // item to appear twice or staying stuck at its old position when
+        // replayed.
+        const filtered = root.recentMedia.filter(item => item.url !== url);
+        filtered.unshift({ url: url, title: title, summary: summary });
+        root.recentMedia = filtered.slice(0, root.maxRecentMedia);
+        recentMediaSettings.itemsJson = JSON.stringify(root.recentMedia);
+    }
 
     property bool loading: false
     property string errorMessage: ""
@@ -97,7 +147,12 @@ QtObject {
             root.liveInfo = null;
             return;
         }
-        const info = notificationManager.findLiveStream();
+        // Same url start() actually plays (mediaUrl wins if set - e.g. a
+        // tapped livestream card - otherwise the selected channel) - not
+        // just root.selectedChannel, so this stays correct for both entry
+        // points into live playback.
+        const liveUrl = root.mediaUrl || root.channelUrl(root.selectedChannel);
+        const info = notificationManager.findLiveStream(liveUrl);
         root.liveInfo = (info && info.title) ? info : null;
     }
 
@@ -112,26 +167,16 @@ QtObject {
         return channel === "video" ? root.liveStreamUrl : ("http://live.uuu.ee:8001/" + channel);
     }
 
-    // Called by PlayerBar's channel ComboBox: switches immediately if
-    // something is already playing/loading, otherwise just records the
-    // choice - avoids firing network requests on every combobox change
-    // while idle (the default state on launch).
+    // Called by PlayerBar's channel ComboBox onActivated (a real user pick,
+    // not merely opening the popup) - starts playback immediately so the
+    // user doesn't need a separate Play press after picking a channel.
     function selectChannel(channel) {
         root.selectedChannel = channel;
         root.isLive = true;
         root.mediaUrl = "";
         root.mediaTitle = "";
         root.mediaSummary = "";
-        if (root.loading || player.playbackState !== MediaPlayer.StoppedState) {
-            root.start();
-        } else {
-            // Otherwise player.source still holds whatever channel/file was
-            // loaded before - togglePlayPause()'s "nothing loaded yet"
-            // check (player.source === "") would miss that a *different*
-            // channel was picked, and a subsequent Play press would just
-            // resume the old source instead of loading the new one.
-            player.source = "";
-        }
+        root.start();
     }
 
     // Called by EventListView.qml instead of pushing PlayerPage.qml.
@@ -140,6 +185,12 @@ QtObject {
         root.mediaUrl = url;
         root.mediaTitle = title;
         root.mediaSummary = summary;
+        // Only fixed (non-live) items go into history - EventDelegate.qml
+        // only passes isLive=true for type="livestream" cards (an
+        // in-progress broadcast), so this naturally covers
+        // audio/video/streamrecording without any type-checking here.
+        if (!isLive)
+            root._recordRecentMedia(url, title, summary);
         root.start();
     }
 
@@ -192,9 +243,12 @@ QtObject {
         root.liveStreamOffline = false;
     }
 
-    // Explicit "done listening to this file, back to radio" action - called
-    // from PlayerBar when the user taps the media-type icon while on fixed
-    // media (see showChannelSelector).
+    // Explicit "done listening to this file, back to radio" action - stops
+    // playback and resets isLive/mediaUrl/liveInfo. Not currently wired to
+    // any PlayerBar.qml control (the old media-icon tap that used to call
+    // this now calls toggleSelectorMode() instead, which is a pure view
+    // toggle that never touches playback) - left available for whatever
+    // future control needs a full reset back to live/idle.
     function backToChannels() {
         player.stop();
         player.source = "";

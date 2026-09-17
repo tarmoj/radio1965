@@ -121,7 +121,7 @@ Item {
                 // placeholder does, rather than just overlapping it.
                 Label {
                     text: qsTr("Channel:")
-                    font.pointSize: 9
+                    font.pointSize: 10
                     color: Material.frameColor
                     padding: 2
                     background: Rectangle { color: Material.background }
