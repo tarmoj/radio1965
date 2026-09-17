@@ -229,12 +229,24 @@ if(IOS)
     if(NOT RADIO65_FIREBASE_FRAMEWORKS)
         message(FATAL_ERROR "No Firebase XCFrameworks found in ios/Firebase - run ios/scripts/fetch_firebase_sdk.sh first.")
     endif()
+    # GoogleUtilities' GULNSData+zlib category (gul_dataByGzippingData:error:)
+    # isn't referenced by any ordinary symbol at link time, so the linker
+    # drops that .o from the vendored static XCFramework and it crashes at
+    # runtime with "unrecognized selector". A blanket -ObjC would fix that,
+    # but it also force-loads every Objective-C .o from every static library
+    # on the link line - including Qt's iOS frameworks, which Qt's own CMake
+    # package config already lists more than once (harmless normally, since
+    # the linker just skips symbols it already has) - producing duplicate
+    # symbol errors for Qt's own classes. Force-loading just the one object
+    # file we need, via an otherwise-unused symbol that lives in it, avoids
+    # that collateral damage.
     target_link_libraries(appradio65 PRIVATE
         ${RADIO65_FIREBASE_FRAMEWORKS}
         "-framework SystemConfiguration"
         "-framework Security"
         "-framework CFNetwork"
         "-framework UserNotifications"
+        "-Wl,-u,_GULNSDataZlibErrorDomain"
     )
 
     # Not needed yet for the first UI-only build; enable once HLS/RTMP stream
