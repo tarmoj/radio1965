@@ -198,6 +198,18 @@ if(ANDROID)
     set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_NAME org.eccm.radio65)
     set_property(TARGET appradio65 PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android)
 
+    # androiddeployqt overwrites android:versionName/android:versionCode in
+    # the packaged manifest with these, regardless of what's hardcoded in
+    # android/AndroidManifest.xml - keeps the Play Store version tied to
+    # PROJECT_VERSION above instead of drifting out of sync. versionCode
+    # must be a plain increasing integer (Play rejects a re-upload unless
+    # it's strictly greater than the last one), so it's derived from
+    # MAJOR/MINOR/PATCH rather than reusing the dotted version string.
+    set_property(TARGET appradio65 PROPERTY QT_ANDROID_VERSION_NAME ${PROJECT_VERSION})
+    math(EXPR RADIO65_ANDROID_VERSION_CODE
+        "${PROJECT_VERSION_MAJOR} * 1000000 + ${PROJECT_VERSION_MINOR} * 1000 + ${PROJECT_VERSION_PATCH}")
+    set_property(TARGET appradio65 PROPERTY QT_ANDROID_VERSION_CODE ${RADIO65_ANDROID_VERSION_CODE})
+
     if(EXISTS "${RADIO65_ANDROID_OPENSSL_DIR}/android_openssl.cmake")
         include("${RADIO65_ANDROID_OPENSSL_DIR}/android_openssl.cmake")
         add_android_openssl_libraries(appradio65)
