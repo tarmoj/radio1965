@@ -40,7 +40,18 @@ if(ANDROID)
     if(NOT CMAKE_ANDROID_NDK)
         message(FATAL_ERROR "CMAKE_ANDROID_NDK is not set - required to cross-compile libmp3lame for Android")
     endif()
-    set(LAME_TOOLCHAIN_BIN "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin")
+    # NDK toolchain prebuilts are published per-host under different
+    # directory names (linux-x86_64 / darwin-x86_64 / windows-x86_64) -
+    # hardcoding one broke Mac builds, since this NDK only ships
+    # darwin-x86_64 here, not linux-x86_64.
+    if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+        set(LAME_NDK_HOST_TAG "darwin-x86_64")
+    elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+        set(LAME_NDK_HOST_TAG "windows-x86_64")
+    else()
+        set(LAME_NDK_HOST_TAG "linux-x86_64")
+    endif()
+    set(LAME_TOOLCHAIN_BIN "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/${LAME_NDK_HOST_TAG}/bin")
     set(LAME_ANDROID_API 28) # matches QT_ANDROID_MIN_SDK_VERSION below
     ExternalProject_Add(lame_android
         URL https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
@@ -48,6 +59,7 @@ if(ANDROID)
         CONFIGURE_COMMAND <SOURCE_DIR>/configure
             --host=aarch64-linux-android
             --disable-shared --enable-static --disable-frontend
+            --libdir=/usr/local/lib
             CC=${LAME_TOOLCHAIN_BIN}/aarch64-linux-android${LAME_ANDROID_API}-clang
             AR=${LAME_TOOLCHAIN_BIN}/llvm-ar
             RANLIB=${LAME_TOOLCHAIN_BIN}/llvm-ranlib
@@ -55,12 +67,12 @@ if(ANDROID)
         BUILD_COMMAND make -j
         INSTALL_COMMAND make install DESTDIR=<INSTALL_DIR>
         BUILD_IN_SOURCE TRUE
-        BUILD_BYPRODUCTS <INSTALL_DIR>/usr/local/lib64/libmp3lame.a
+        BUILD_BYPRODUCTS <INSTALL_DIR>/usr/local/lib/libmp3lame.a
     )
     ExternalProject_Get_Property(lame_android install_dir)
     add_library(mp3lame_android STATIC IMPORTED)
     set_target_properties(mp3lame_android PROPERTIES
-        IMPORTED_LOCATION "${install_dir}/usr/local/lib64/libmp3lame.a")
+        IMPORTED_LOCATION "${install_dir}/usr/local/lib/libmp3lame.a")
     add_dependencies(mp3lame_android lame_android)
     file(MAKE_DIRECTORY "${install_dir}/usr/local/include")
     target_include_directories(mp3lame_android INTERFACE "${install_dir}/usr/local/include")
