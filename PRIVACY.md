@@ -1,6 +1,6 @@
 # Privacy Policy — VÄIN
 
-_Last updated: 18 September 2026_
+_Last updated: 19 September 2026_
 
 VÄIN ("the App") is developed for the "Radio Tallinn 1965" project, run by
 the Estonian Centre for Contemporary Music (ECCM). This policy explains what
@@ -19,7 +19,7 @@ registers your device with Firebase Cloud Messaging (FCM), a service
 provided by Google, and sends the resulting device token to our server so
 we can deliver notifications to it. This token is only used to send you
 notifications about content in the App and is not shared with any other
-third party or used for advertising.richard
+third party or used for advertising.
 
 ### App preferences
 Settings such as your preferred server, whether you've dismissed the
@@ -28,31 +28,17 @@ title/description/channel are stored locally on your device. This
 information never leaves your device.
 
 ### Becoming a Contributor
-The App lets a user register as a "Contributor" in order to broadcast audio
-or publish content. Contributor registration collects:
+The App lets a user unlock a "Contributor" role in order to broadcast audio
+or publish content. As of version 0.5.9, this only requires a shared
+password checked locally on your device — your name and e-mail address are
+not collected by us and are not sent to our server. Any name/e-mail you
+enter in this dialog is stored only locally on your device, the same as the
+App preferences described above, and never leaves it. This may change in a
+future version, in which case this policy will be updated to describe the
+new behavior before it takes effect.
 
-- your **name**
-- your **e-mail address**
-
-This information is sent to and stored on our server. By registering as a
-Contributor, you:
-
-- take responsibility for the accuracy and correctness of the posts you
-  submit or broadcast under your Contributor account, and
-- agree that we may use your e-mail address to contact you about matters
-  concerning the content you have posted (for example, questions,
-  corrections, or complaints about a specific post).
-
-Your name and e-mail address are not used for marketing, are not sold, and
-are not shared with third parties, except where required to resolve a
-concern about content you published (e.g. sharing your contact details with
-a party raising a legitimate complaint about a specific post, or if
-required by law).
-
-You may request the correction or deletion of your Contributor data, or ask
-to leave the Contributor role, at any time by contacting us at the address
-above; the App also lets you leave the Contributor role yourself from its
-menu.
+You can leave the Contributor role yourself at any time from the App's
+menu, which clears this locally-stored information.
 
 ### Microphone access
 If you use the App's broadcasting feature, the App accesses your device's
