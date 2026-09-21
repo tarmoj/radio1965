@@ -185,6 +185,23 @@ QtObject {
         root.mediaUrl = url;
         root.mediaTitle = title;
         root.mediaSummary = summary;
+        // Keep PlayerBar's channel ComboBox (bound to selectedChannel) in
+        // sync with whatever's actually playing - e.g. tapping a
+        // "livestream" Card/notification for "user1" while selectedChannel
+        // was still "radio1965" from a previous session left the ComboBox
+        // showing the wrong channel even though the right one was playing.
+        // Only PlayerBar's own onActivated calls selectChannel() directly
+        // (a real user pick), so updating selectedChannel here - a plain
+        // property write, not a call to selectChannel()/start() - can't
+        // cause a double-trigger: it neither re-enters start() itself (the
+        // call below already covers that) nor fires onActivated, which only
+        // reacts to actual popup interaction, not a currentIndex binding
+        // update.
+        if (isLive) {
+            const matched = root.channelOptions.find(channel => root.channelUrl(channel) === url);
+            if (matched)
+                root.selectedChannel = matched;
+        }
         // Only fixed (non-live) items go into history - EventDelegate.qml
         // only passes isLive=true for type="livestream" cards (an
         // in-progress broadcast), so this naturally covers
