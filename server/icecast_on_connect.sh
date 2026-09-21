@@ -77,10 +77,15 @@ if [ "$SEND_NOTIFICATION_RAW" = "0" ]; then
 fi
 log "resolved send_notification='$SEND_NOTIFICATION_RAW' -> send_notification=$SEND_NOTIFICATION"
 
+# Fail open (record) if the field is missing/unparseable, same reasoning as
+# send_notification above - a source with no way to set ice-audio-info at
+# all (e.g. ezstream/raw ffmpeg pointed at a non-radio1965 mount, not just
+# BroadcastPage.qml) should still get saved by default rather than silently
+# going unrecorded.
 SAVE_STREAM_RAW=$(echo "$SOURCE" | jq -r '.save_stream // empty')
-SAVE_STREAM="false"
-if [ "$SAVE_STREAM_RAW" = "1" ]; then
-  SAVE_STREAM="true"
+SAVE_STREAM="true"
+if [ "$SAVE_STREAM_RAW" = "0" ]; then
+  SAVE_STREAM="false"
 fi
 log "resolved save_stream='$SAVE_STREAM_RAW' -> save_stream=$SAVE_STREAM"
 
