@@ -12,9 +12,29 @@
     .row > * { flex: 1; }
     button { margin-top: 1.5em; padding: 0.6em 1.2em; }
     pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; }
+    #lockScreen { max-width: 320px; margin: 4em auto; text-align: center; }
+    #lockError { color: #b00020; min-height: 1.2em; }
   </style>
 </head>
 <body>
+  <!-- Client-side gate only: good enough to keep the editor off casual/
+       search-engine stumbling, not a substitute for real server-side auth
+       (see project-description.md #7's "rewrite editor page, that requires
+       e-mail and password" TODO for that). The point of hashing here isn't
+       to withstand a targeted attacker (a 4-digit PIN's SHA-256 is
+       trivially brute-forceable offline once someone has this source) - a
+       plaintext password sitting directly in the page/view-source would
+       have been casually, instantly readable; this at least isn't that. -->
+  <div id="lockScreen">
+    <h1>Radio 1965 - Editor</h1>
+    <label>Password
+      <input id="lockPassword" type="password" autofocus />
+    </label>
+    <div id="lockError"></div>
+    <button id="unlockButton" type="button">Unlock</button>
+  </div>
+
+  <div id="appContent" style="display: none">
   <h1>Radio 1965 - New Event</h1>
   <p>
     Notification server URL:
@@ -90,8 +110,55 @@
 
   <h2>Result</h2>
   <pre id="log"></pre>
+  </div>
 
   <script>
+    // --- Lock screen: SHA-256("1966") - see the comment above #lockScreen.
+    // Not the plaintext itself, so a casual look at this source (or a
+    // server-permissions file, if this were instead done via .htpasswd)
+    // doesn't hand over the actual password.
+    const EDITOR_PASSWORD_HASH =
+      "c00cf031587d12c309358e85de8876b2738d3ef2cadd88db6b07318ea0ba8973";
+    const UNLOCK_SESSION_KEY = "radio65EditorUnlocked";
+
+    async function sha256Hex(text) {
+      const bytes = new TextEncoder().encode(text);
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    function unlockEditor() {
+      document.getElementById("lockScreen").style.display = "none";
+      document.getElementById("appContent").style.display = "";
+    }
+
+    async function tryUnlock() {
+      const passwordEl = document.getElementById("lockPassword");
+      const errorEl = document.getElementById("lockError");
+      const hash = await sha256Hex(passwordEl.value);
+      if (hash === EDITOR_PASSWORD_HASH) {
+        errorEl.textContent = "";
+        // Session-only (not localStorage) - closing the tab/browser asks
+        // again, but repeated edits/reloads in one sitting don't re-prompt.
+        sessionStorage.setItem(UNLOCK_SESSION_KEY, "1");
+        unlockEditor();
+      } else {
+        errorEl.textContent = "Wrong password.";
+        passwordEl.value = "";
+        passwordEl.focus();
+      }
+    }
+
+    document.getElementById("unlockButton").addEventListener("click", tryUnlock);
+    document.getElementById("lockPassword").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") tryUnlock();
+    });
+
+    if (sessionStorage.getItem(UNLOCK_SESSION_KEY) === "1") {
+      unlockEditor();
+    }
     const logEl = document.getElementById("log");
     function log(msg) {
       logEl.textContent += msg + "\n";
