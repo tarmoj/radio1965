@@ -81,7 +81,28 @@ ItemDelegate {
             playerRequested(url, title, summary, isLive);
             break;
         default:
-            expanded = !expanded;
+            // "text" events carry their actual message in
+            // payload.text (set by the editor's "Text" field - see
+            // editor/index.html) - summary is just the notification/card
+            // preview, so a tap opens the full message in a popup rather
+            // than merely expanding the (often-truncated) preview in
+            // place.
+            textDialog.open();
+        }
+    }
+
+    Dialog {
+        id: textDialog
+        title: root.title
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Close
+        width: Math.min(root.width - 40, 420)
+
+        Label {
+            width: textDialog.availableWidth
+            wrapMode: Text.Wrap
+            text: (root.payload && root.payload.text) || root.summary
         }
     }
 
