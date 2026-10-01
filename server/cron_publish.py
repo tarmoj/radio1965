@@ -28,10 +28,24 @@ def publish_due_events(session) -> None:
     )
     for event in due:
         try:
-            notifications.send_event_notification(event.to_dict(), config.TEST_TOPIC)
+            # send_notification has no DB column of its own - main.py's
+            # publish_event() stashes it in payload._send_notification for
+            # exactly this moment (see its own comment) since a scheduled
+            # event's EventIn request body is long gone by the time this
+            # cron job runs. Defaults to True (notify) if somehow absent,
+            # matching EventIn.send_notification's own default.
+            payload = dict(event.payload or {})
+            send_notification = payload.pop("_send_notification", True)
+            if send_notification:
+                notifications.send_event_notification(event.to_dict(), config.TEST_TOPIC)
+            event.payload = payload
             event.status = "new"
             session.commit()
-            logger.info("Published event '%s' (sent notification, status -> new)", event.id)
+            logger.info(
+                "Published event '%s' (%s, status -> new)",
+                event.id,
+                "sent notification" if send_notification else "notification skipped",
+            )
         except Exception:
             session.rollback()
             logger.exception("Failed to publish event '%s'", event.id)

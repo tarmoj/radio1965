@@ -62,11 +62,12 @@
       <span class="row">
         <span>Announce at</span>
         <span><input id="publishNow" type="checkbox" checked /> Now</span>
+        <span><input id="noNotification" type="checkbox" /> No notification</span>
       </span>
       <input id="publishAt" type="datetime-local" disabled />
     </label>
 
-    <label>Put to shelf at <em>(optional - defaults to one week after publish)</em>
+    <label>Put to shelf at <em>(optional - defaults to one day after publish)</em>
       <input id="shelfAt" type="datetime-local" />
     </label>
 
@@ -193,6 +194,7 @@
         url: type === "text" ? "" : document.getElementById("url").value,
         publish_now: publishNowEl.checked,
         publish_at: publishNowEl.checked ? null : publishAtEl.value || null,
+        send_notification: !document.getElementById("noNotification").checked,
         shelf_at: document.getElementById("shelfAt").value || null,
         tags,
         payload,

@@ -197,6 +197,19 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
 
     shelf_at = _parse_datetime(event.shelf_at) if event.shelf_at else publish_at + DEFAULT_SHELF_DELAY
 
+    payload = dict(event.payload)
+    if status == "unpublished":
+        # send_notification itself has no DB column - it's only read right
+        # below for an immediate publish. For a scheduled ("unpublished")
+        # event, cron_publish.py's publish_due_events() is what actually
+        # fires the notification, possibly hours/days later, so the flag
+        # has to survive somewhere until then - stashed in payload (same
+        # place icecast_on_connect.sh already stashes save_stream) under an
+        # underscored key so it reads as internal bookkeeping, not
+        # app-facing content. Stripped back out in publish_due_events()
+        # once it's actually consumed.
+        payload["_send_notification"] = event.send_notification
+
     row = db.Event(
         id=event_id,
         type=event.type,
@@ -207,7 +220,7 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
         shelf_at=shelf_at,
         status=status,
         comments_enabled=event.comments_enabled,
-        payload=event.payload,
+        payload=payload,
         tags=[db.Tag(tag=tag) for tag in event.tags],
     )
     session.add(row)
