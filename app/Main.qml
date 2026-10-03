@@ -16,6 +16,9 @@ ApplicationWindow {
     title: qsTr("VÄIN") + " v" + version
     color: Material.background
 
+    //font.family: "monospace"
+    //font.pointSize: 12
+
     property color backgroundEndColor: "#245a28"   // primary container — deep green
 
     // icecastBroadcaster is only registered as a context property on
