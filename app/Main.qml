@@ -168,6 +168,19 @@ ApplicationWindow {
                 }
 
                 MenuItem {
+                    text: qsTr("Temporary contributor")
+                    // Hidden once you're already either kind of contributor -
+                    // "Become a Contributor" above stays offered even as a
+                    // temporaryContributor, so upgrading later is still
+                    // possible; this one has nothing left to offer then.
+                    visible: userSettings.role === "none"
+                    onTriggered: {
+                        temporaryContributorDialog.open()
+                        drawer.close()
+                    }
+                }
+
+                MenuItem {
                     text: qsTr("Leave contributor role")
                     visible: userSettings.role !== "none"
                     onTriggered: {
@@ -322,6 +335,70 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         }
     }
 
+    Dialog {
+        id: temporaryContributorDialog
+        title: qsTr("Temporary contributor")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        // Same reasoning as contributorDialog above - width has to go on
+        // the Dialog itself, not an inner child.
+        width: Math.min(app.width - 40, 420)
+
+        property bool showError: false
+
+        // Same reasoning as contributorDialog's onOpened above.
+        onOpened: {
+            tempNameField.text = ""
+            tempPasswordField.text = ""
+            temporaryContributorDialog.showError = false
+        }
+
+        ColumnLayout {
+            spacing: 8
+            width: temporaryContributorDialog.availableWidth
+
+            // No email field - project-description.md #10.1 item 1
+            // explicitly says temporary contributors don't need to give one.
+            TextField {
+                id: tempNameField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Name")
+            }
+
+            TextField {
+                id: tempPasswordField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Password")
+                echoMode: TextInput.Password
+            }
+
+            Label {
+                text: qsTr("Incorrect password.")
+                color: "crimson"
+                visible: temporaryContributorDialog.showError
+            }
+
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Submit")
+                onClicked: {
+                    // Same hardcoded placeholder password as
+                    // contributorDialog - project-description.md #10.1's
+                    // server-checked, per-role password file is future work.
+                    if (tempPasswordField.text === "1965") {
+                        userSettings.role = "temporaryContributor"
+                        userSettings.contributorName = tempNameField.text
+                        temporaryContributorDialog.showError = false
+                        temporaryContributorDialog.close()
+                    } else {
+                        temporaryContributorDialog.showError = true
+                    }
+                }
+            }
+        }
+    }
+
     // Instantiated exactly once here and threaded down explicitly to
     // PlayerBar, VideoPage (as a pushed initial property) and both
     // EventListView instances - see PlaybackController.qml for why this is
@@ -454,7 +531,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                     controller: playbackController
                 }
 
-                BroadcastPage { isContributor: userSettings.role === "contributor" }
+                BroadcastPage {
+                    isContributor: userSettings.role === "contributor" || userSettings.role === "temporaryContributor"
+                }
 
 
 

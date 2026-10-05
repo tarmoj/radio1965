@@ -421,6 +421,17 @@ Mux + push via libavformat to Icecast.
 
 ## 10. Registration
 
+
+
+1) 1) Temporary contributor  
+- user can become a temporay contributor (role "temporaryContributor") by entering name and password
+- no need to ask for email address
+- check the password on the server, not locally. Store the password in a protected text file (via permissions) on  but do not encrypt it -  it should easy to edit the file and replace the password.
+- the role is valid for 24 hours and then resets to normal
+- temporaryContributor has broadcasting limit (like 5 minutes) - max broadcastLimit minutes per session, then automatic stop for broadcast, disable broadcasting button for the next broadcastLimit minutes.
+
+2) Permanent contributor.
+
 New table: users:
 
 id | name | email | role (null|pending|contributor|manager|banned) | password

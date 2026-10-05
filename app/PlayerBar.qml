@@ -51,6 +51,7 @@ Item {
                 sourceSize.width: 22
                 sourceSize.height: 22
 
+
                 // Pure view toggle between the live-channel and recent-media
                 // comboboxes below - never touches actual playback, so
                 // tapping this is safe regardless of what's currently

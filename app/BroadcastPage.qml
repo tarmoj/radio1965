@@ -19,7 +19,11 @@ Item {
     // gates the broadcast UI the same way broadcastAvailable does, without
     // removing the tab itself (see the class comment above).
     property bool isContributor: false
-    readonly property var channelNames: ["radio1965", "user1", "user2", "user3", "user4"]
+    // radio1965 (the always-on main channel) is deliberately excluded -
+    // broadcast to it only by external tools (ezstream/raw ffmpeg directly
+    // against Icecast, see icecastbroadcaster.cpp's own comments), never
+    // picked here by an app user.
+    readonly property var channelNames: ["user1", "user2", "user3", "user4"]
     property var occupiedChannels: []
     property string errorMessage: ""
 
@@ -93,7 +97,7 @@ Item {
                 category: "Broadcast"
                 property string name: ""
                 property string description: ""
-                property string lastChannel: "radio1965"
+                property string lastChannel: "user1"
                 property bool sendNotification: true
                 property bool saveStream: true
                 property real gain: 1.0
@@ -278,7 +282,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: icecastBroadcaster.broadcasting ? qsTr("Stop") : qsTr("Start")
                 // channelCombo.currentText defaults to broadcastSettings.lastChannel
-                // ("radio1965" the first time) without the user ever having to open
+                // ("user1" the first time) without the user ever having to open
                 // the dropdown - the delegate's `enabled: !root.isChannelOccupied(...)`
                 // above only blocks *picking* an occupied channel from the popup, it
                 // does nothing for a channel that's already selected by default. Gate
