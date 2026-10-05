@@ -242,7 +242,8 @@ def register_contributor(req: ContributorRegisterIn, session: Session = Depends(
         user = existing
     else:
         user = db.User(
-            id=f"usr_{int(time.time() * 1000)}",
+            # id is auto-increment - not set here, unlike Event's "evt_<ts>"
+            # style ids (see db.py's User.id comment).
             name=req.name,
             email=req.email,
             role="pending",

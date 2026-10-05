@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
     String,
     Text,
     create_engine,
@@ -57,8 +58,8 @@ class Event(Base):
     # the editor to actually know who's submitting, which is #10.3's auth
     # rework - out of scope for now). Column exists so it's ready once that
     # lands, per the doc's explicit ask.
-    author_id: Mapped[str | None] = mapped_column(
-        String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    author_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[object] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[object] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -106,7 +107,10 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Plain auto-increment integer (not Event's "evt_<ts>"-style string id)
+    # - easier to hand-edit/cross-reference directly in the DB (e.g. to
+    # manually set someone to role='manager').
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     role: Mapped[str] = mapped_column(Enum(*USER_ROLES, name="user_role"), nullable=False, default="pending")

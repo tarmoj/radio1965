@@ -15,8 +15,10 @@ USE radio65;
 
 -- "Become a Contributor" accounts (project-description.md #10.2) - must
 -- exist before `events` below, since events.author_id references it.
+-- Plain auto-increment integer id (not Event's "evt_<ts>"-style string) -
+-- easier to hand-edit/cross-reference directly in the DB.
 CREATE TABLE IF NOT EXISTS users (
-  id            VARCHAR(64) PRIMARY KEY,
+  id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(255) NOT NULL,
   email         VARCHAR(255) NOT NULL UNIQUE,
   role          ENUM('pending','contributor','manager','banned') NOT NULL DEFAULT 'pending',
@@ -40,7 +42,7 @@ CREATE TABLE IF NOT EXISTS events (
   -- Who posted this event - nullable, not yet populated by
   -- POST /events/publish (project-description.md #10.2/#10.3 - out of
   -- scope until the editor itself knows who's submitting).
-  author_id        VARCHAR(64) NULL,
+  author_id        INT NULL,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
@@ -59,5 +61,28 @@ CREATE TABLE IF NOT EXISTS tags (
 -- `author_id`, same situation as EVENT_TYPES growing over time) needs this
 -- run by hand instead:
 --   CREATE TABLE users (...);               -- the CREATE TABLE above
---   ALTER TABLE events ADD COLUMN author_id VARCHAR(64) NULL,
+--   ALTER TABLE events ADD COLUMN author_id INT NULL,
+--     ADD FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
+--
+-- If you already created `users` with the old VARCHAR(64) "usr_<ts>" id
+-- (before it switched to a plain auto-increment INT) and only have
+-- throwaway test rows in it so far (author_id is never populated yet, so
+-- there's nothing real depending on the old id values): events.author_id's
+-- FK has to be dropped first - MySQL refuses to touch users.id while
+-- anything still references it, even if every value is NULL.
+--   SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+--     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'events'
+--       AND COLUMN_NAME = 'author_id' AND REFERENCED_TABLE_NAME = 'users';
+--   ALTER TABLE events DROP FOREIGN KEY <name from the query above>;
+--
+-- Then either drop and recreate (simplest, loses existing rows):
+--   DROP TABLE users;
+--   CREATE TABLE users (...);               -- the CREATE TABLE above
+-- ...or convert in place to keep existing rows:
+--   ALTER TABLE users ADD COLUMN id_new INT AUTO_INCREMENT UNIQUE FIRST;
+--   ALTER TABLE users DROP PRIMARY KEY, DROP COLUMN id,
+--     CHANGE COLUMN id_new id INT AUTO_INCREMENT PRIMARY KEY;
+--
+-- Either way, finish by converting author_id to match and re-adding the FK:
+--   ALTER TABLE events MODIFY COLUMN author_id INT NULL,
 --     ADD FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
