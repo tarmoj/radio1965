@@ -42,3 +42,21 @@ except KeyError as exc:
         "(create it from your own credentials, see sql/schema.sql) before "
         "starting the server."
     ) from exc
+
+# SMTP settings for the "Become a Contributor" confirmation email
+# (project-description.md #10.2) - see server/emailer.py. Not committed to
+# git, same as the other secrets above; set via env vars (server/set_env.sh)
+# before starting the server. SMTP_HOST left unset is a valid, supported
+# state (emailer.send_email() logs a warning and no-ops instead of raising)
+# so local/dev runs without a real mail server don't hard-fail registration.
+SMTP_HOST = os.getenv("RADIO65_SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("RADIO65_SMTP_PORT", "587"))
+SMTP_USER = os.getenv("RADIO65_SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("RADIO65_SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "noreply@radio1965.ee")
+
+# This server's own public base URL (no trailing slash) - used to build the
+# confirmation link embedded in that email, e.g.
+# "https://live.uuu.ee/radio1965/api". Matches app/Main.qml's
+# appSettings.serverUrl default.
+PUBLIC_BASE_URL = os.getenv("RADIO65_PUBLIC_BASE_URL", "https://live.uuu.ee/radio1965/api")

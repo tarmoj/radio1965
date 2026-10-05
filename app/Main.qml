@@ -44,23 +44,58 @@ ApplicationWindow {
         property bool showInfoOnStartup: true
     }
 
-    // "Become a Contributor" gate (project-description.md follow-up) -
-    // role is just "none"/"contributor" for now, but named generically
-    // since administrator/other roles are expected later.
+    // "Become a Contributor" gate (project-description.md #10) - role is
+    // "none"/"pending"/"contributor"/"temporaryContributor"/"manager".
+    // "banned" also exists server-side (db.USER_ROLES) but nothing acts on
+    // it in the app yet - see checkContributorStatus()'s own comment.
     Settings {
         id: userSettings
         category: "User"
         property string role: "none"
         property string contributorName: ""
         property string contributorEmail: ""
+        // Opaque per-account secret from POST /contributors/register -
+        // doubles as the credential for checkContributorStatus()'s
+        // GET /contributors/status calls. Only ever set for the permanent
+        // "Become a Contributor" flow (#10.2) - temporaryContributor
+        // (#10.1) has no account/token of its own.
+        property string accessToken: ""
     }
 
     Component.onCompleted: {
         eventsApiClient.fetchEvents(appSettings.serverUrl);
+        checkContributorStatus();
         if (appSettings.showInfoOnStartup) {
             infoDialog.showDontShowCheckbox = true;
             infoDialog.open();
         }
+    }
+
+    // Polls GET /contributors/status (project-description.md #10.2) to
+    // notice a "pending" -> "contributor" transition once the user clicks
+    // the emailed confirmation link - the doc's own suggested sync point,
+    // "on Refresh events" (called from both here and the header's refresh
+    // button below), plus on startup. A no-op whenever there's nothing to
+    // check (no token, or role already settled as something other than
+    // "pending" - "banned" included, since nothing here acts on it yet).
+    function checkContributorStatus() {
+        if (userSettings.role !== "pending" || !userSettings.accessToken)
+            return;
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", appSettings.serverUrl + "/contributors/status?token=" + encodeURIComponent(userSettings.accessToken));
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return;
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                userSettings.role = response.role;
+            }
+            // Non-200 (network error, 404 unknown token): leave role as
+            // "pending" and silently try again next time - this runs
+            // often enough (startup + every refresh) that surfacing a
+            // transient failure to the user isn't worth it.
+        };
+        xhr.send();
     }
 
     // Push is FYI-only (project-description.md #5): NotificationManager
@@ -129,7 +164,10 @@ ApplicationWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 //text: "⟳"
                 icon.source: "qrc:/images/refresh.svg"
-                onClicked: eventsApiClient.fetchEvents(appSettings.serverUrl)
+                onClicked: {
+                    eventsApiClient.fetchEvents(appSettings.serverUrl);
+                    checkContributorStatus();
+                }
             }
         }
     }
@@ -160,11 +198,24 @@ ApplicationWindow {
 
                 MenuItem {
                     text: qsTr("Become a Contributor")
-                    visible: userSettings.role !== "contributor"
+                    // Was `!== "contributor"` - now also hidden while
+                    // "pending" (see the Label just below) and while
+                    // already "manager". Still offered for
+                    // temporaryContributor, so upgrading to a real account
+                    // is possible.
+                    visible: userSettings.role === "none" || userSettings.role === "temporaryContributor"
                     onTriggered: {
                         contributorDialog.open()
                         drawer.close()
                     }
+                }
+
+                Label {
+                    text: qsTr("Registration pending - check your email")
+                    visible: userSettings.role === "pending"
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                    opacity: 0.8
                 }
 
                 MenuItem {
@@ -185,6 +236,11 @@ ApplicationWindow {
                     visible: userSettings.role !== "none"
                     onTriggered: {
                         userSettings.role = "none"
+                        // Stale otherwise - harmless (checkContributorStatus()
+                        // only ever fires while role === "pending"), but no
+                        // reason to keep it around once the account is
+                        // disowned locally.
+                        userSettings.accessToken = ""
                         drawer.close()
                     }
                 }
@@ -275,7 +331,8 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // frame, so the TextFields visibly stuck out past the popup.
         width: Math.min(app.width - 40, 420)
 
-        property bool showError: false
+        property string errorMessage: ""
+        property bool verifying: false
 
         // Fields shouldn't leak a previous attempt's input (including the
         // password) across opens.
@@ -283,53 +340,117 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             nameField.text = ""
             emailField.text = ""
             passwordField.text = ""
-            contributorDialog.showError = false
+            repeatPasswordField.text = ""
+            contributorDialog.errorMessage = ""
+            contributorDialog.verifying = false
+        }
+
+        // project-description.md #10.2: real, permanent contributor
+        // accounts - POSTs to the server (server/main.py's
+        // register_contributor()), which creates a 'pending' db.User row
+        // and emails a confirmation link. Same XMLHttpRequest pattern as
+        // temporaryContributorDialog's submit() below. Password matching
+        // is checked client-side first (no point round-tripping to the
+        // server for that); everything else is the server's call.
+        function submit() {
+            if (passwordField.text !== repeatPasswordField.text) {
+                contributorDialog.errorMessage = qsTr("Passwords do not match.");
+                return;
+            }
+            contributorDialog.errorMessage = "";
+            contributorDialog.verifying = true;
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", appSettings.serverUrl + "/contributors/register");
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== XMLHttpRequest.DONE)
+                    return;
+                contributorDialog.verifying = false;
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    userSettings.role = response.role;
+                    userSettings.accessToken = response.access_token;
+                    userSettings.contributorName = nameField.text;
+                    userSettings.contributorEmail = emailField.text;
+                    contributorDialog.close();
+                } else if (xhr.status === 409) {
+                    contributorDialog.errorMessage = qsTr("That email is already registered.");
+                } else if (xhr.status === 403) {
+                    contributorDialog.errorMessage = qsTr("That email cannot register.");
+                } else {
+                    contributorDialog.errorMessage = qsTr("Could not reach the server. Try again later.");
+                }
+            };
+            xhr.send(JSON.stringify({ name: nameField.text, email: emailField.text, password: passwordField.text }));
         }
 
         ColumnLayout {
             spacing: 8
             width: contributorDialog.availableWidth
 
+            // Placeholder wording - replace with real rights/rules text
+            // whenever it's decided.
+            Label {
+                text: qsTr("By registering, you agree to be identified as the author of what you post and to follow the community's content guidelines.")
+                wrapMode: Text.Wrap
+                font.pointSize: 10
+                opacity: 0.8
+                Layout.fillWidth: true
+            }
+
             TextField {
                 id: nameField
                 Layout.fillWidth: true
+                enabled: !contributorDialog.verifying
                 placeholderText: qsTr("Name")
             }
 
             TextField {
                 id: emailField
                 Layout.fillWidth: true
+                enabled: !contributorDialog.verifying
                 placeholderText: qsTr("Email")
             }
 
             TextField {
                 id: passwordField
                 Layout.fillWidth: true
+                enabled: !contributorDialog.verifying
                 placeholderText: qsTr("Password")
                 echoMode: TextInput.Password
             }
 
-            Label {
-                text: qsTr("Incorrect password.")
-                color: "crimson"
-                visible: contributorDialog.showError
+            TextField {
+                id: repeatPasswordField
+                Layout.fillWidth: true
+                enabled: !contributorDialog.verifying
+                placeholderText: qsTr("Repeat password")
+                echoMode: TextInput.Password
             }
 
-            Button {
+            Label {
+                text: contributorDialog.errorMessage
+                color: "crimson"
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                visible: text !== ""
+            }
+
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                text: qsTr("Submit")
-                onClicked: {
-                    // Hardcoded for now - project-description.md doesn't
-                    // yet have a real contributor-registration flow.
-                    if (passwordField.text === "1965") {
-                        userSettings.role = "contributor"
-                        userSettings.contributorName = nameField.text
-                        userSettings.contributorEmail = emailField.text
-                        contributorDialog.showError = false
-                        contributorDialog.close()
-                    } else {
-                        contributorDialog.showError = true
-                    }
+                spacing: 8
+
+                BusyIndicator {
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    running: contributorDialog.verifying
+                    visible: running
+                }
+
+                Button {
+                    text: qsTr("Submit")
+                    enabled: !contributorDialog.verifying
+                    onClicked: contributorDialog.submit()
                 }
             }
         }
@@ -568,7 +689,14 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                 }
 
                 BroadcastPage {
+                    // "manager" per project-description.md #10.2: "Only
+                    // people with role 'contributor', 'temporaryContributor'
+                    // and 'manager' can broadcast". Nothing assigns
+                    // "manager" yet (manual DB update only - see the
+                    // registration plan's "Out of scope" notes), but the
+                    // gate itself should already respect it.
                     isContributor: userSettings.role === "contributor" || userSettings.role === "temporaryContributor"
+                                   || userSettings.role === "manager"
                     isTemporaryContributor: userSettings.role === "temporaryContributor"
                 }
 

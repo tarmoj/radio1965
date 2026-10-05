@@ -32,6 +32,9 @@ class Base(DeclarativeBase):
 
 EVENT_TYPES = ("text", "audio", "video", "audiostream", "videostream", "article", "webcontent", "livestream", "streamrecording")
 EVENT_STATUSES = ("unpublished", "new", "shelved", "archived")
+# "none" (no row) isn't a stored value - it's what GET /contributors/status
+# (main.py) returns when a token isn't found at all.
+USER_ROLES = ("pending", "contributor", "manager", "banned")
 
 
 class Event(Base):
@@ -49,6 +52,14 @@ class Event(Base):
     )
     comments_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Who posted this event - nullable, and not populated by
+    # POST /events/publish yet (project-description.md #10.2: that needs
+    # the editor to actually know who's submitting, which is #10.3's auth
+    # rework - out of scope for now). Column exists so it's ready once that
+    # lands, per the doc's explicit ask.
+    author_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[object] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[object] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -82,6 +93,33 @@ class Tag(Base):
     tag: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
 
     event: Mapped["Event"] = relationship(back_populates="tags")
+
+
+class User(Base):
+    """
+    "Become a Contributor" accounts (project-description.md #10.2) - rows
+    start life as role='pending' (created by POST /contributors/register),
+    flipped to 'contributor' once the emailed confirmation link is visited
+    (GET /contributors/confirm). 'manager'/'banned' are only ever set by a
+    manual DB update for now - no self-service flow creates them.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    role: Mapped[str] = mapped_column(Enum(*USER_ROLES, name="user_role"), nullable=False, default="pending")
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Opaque per-user secret (see main.py's register/confirm/status
+    # endpoints) - doubles as both the one-time email confirmation link's
+    # token and the app's ongoing "am I confirmed yet" status-check
+    # credential, so nothing after initial registration ever needs to look
+    # a user up by email again (which would let anyone probe whether an
+    # arbitrary email address is registered).
+    access_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    created_at: Mapped[object] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[object] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 def get_db() -> Generator[Session, None, None]:
