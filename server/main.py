@@ -8,18 +8,21 @@ Run from the repo root with:
 
 import logging
 import re
+import secrets
 import time
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
+import bcrypt
 import requests
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from server import config, db, joomla_importer, notifications
+from server import config, db, emailer, joomla_importer, notifications
 
 # Minimal responsive wrapper for Joomla's article "text" field (a bare HTML
 # fragment with no viewport meta/CSS of its own) - see GET /articles/{id}.
@@ -122,6 +125,14 @@ class TemporaryContributorVerifyIn(BaseModel):
     password: str
 
 
+# Used by register_contributor() - app/Main.qml's "Become a Contributor"
+# dialog (project-description.md #10.2).
+class ContributorRegisterIn(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
 # Used by finalize_recording() - server/icecast_on_disconnect.sh's POST once
 # a "Save stream" recording (project-description.md #8.2.1) has finished
 # uploading to eccm.ee.
@@ -200,6 +211,93 @@ def verify_temporary_contributor_password(req: TemporaryContributorVerifyIn):
         raise HTTPException(status_code=403, detail="Incorrect password")
 
     return {"ok": True}
+
+
+@app.post("/contributors/register")
+def register_contributor(req: ContributorRegisterIn, session: Session = Depends(db.get_db)):
+    """
+    project-description.md #10.2: "Become a Contributor" (the permanent
+    role, distinct from #10.1's temporaryContributor) - creates a
+    db.User row with role='pending' and emails a confirmation link
+    (GET /contributors/confirm). The returned access_token is both that
+    link's ?token= value and the app's own ongoing credential for
+    GET /contributors/status - nothing after this call is ever looked up
+    by email again, so there's no way to probe whether an arbitrary email
+    address is registered.
+    """
+    password_hash = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
+
+    existing = session.query(db.User).filter(db.User.email == req.email).one_or_none()
+    if existing and existing.role in ("contributor", "manager"):
+        raise HTTPException(status_code=409, detail="Email already registered")
+    if existing and existing.role == "banned":
+        raise HTTPException(status_code=403, detail="This email cannot register")
+
+    if existing:
+        # role == "pending" - re-registering (e.g. lost the confirmation
+        # email) just refreshes name/password and resends, reusing the
+        # same access_token rather than minting a new one.
+        existing.name = req.name
+        existing.password_hash = password_hash
+        user = existing
+    else:
+        user = db.User(
+            id=f"usr_{int(time.time() * 1000)}",
+            name=req.name,
+            email=req.email,
+            role="pending",
+            password_hash=password_hash,
+            access_token=secrets.token_urlsafe(32),
+        )
+        session.add(user)
+
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="Email already registered") from None
+    session.refresh(user)
+
+    confirm_url = f"{config.PUBLIC_BASE_URL}/contributors/confirm?token={user.access_token}"
+    emailer.send_email(
+        user.email,
+        "Confirm your VÄIN contributor account",
+        f"Hi {user.name},\n\n"
+        f"Click the link below to confirm your contributor account for VÄIN (Radio Tallinn 1965):\n\n"
+        f"{confirm_url}\n\n"
+        f"If you didn't request this, you can ignore this email.",
+    )
+
+    return {"access_token": user.access_token, "role": user.role}
+
+
+@app.get("/contributors/confirm", response_class=HTMLResponse)
+def confirm_contributor(token: str, session: Session = Depends(db.get_db)):
+    """Visited from the email link register_contributor() sends."""
+    user = session.query(db.User).filter(db.User.access_token == token).one_or_none()
+    if not user:
+        return ARTICLE_HTML_TEMPLATE.format(body="<p>Invalid or expired confirmation link.</p>")
+
+    if user.role == "pending":
+        user.role = "contributor"
+        session.commit()
+        return ARTICLE_HTML_TEMPLATE.format(body="<p>Your contributor account is confirmed. You can close this page and return to the app.</p>")
+
+    return ARTICLE_HTML_TEMPLATE.format(body="<p>This account is already confirmed.</p>")
+
+
+@app.get("/contributors/status")
+def get_contributor_status(token: str, session: Session = Depends(db.get_db)):
+    """
+    Polled by app/Main.qml's checkContributorStatus() (on startup and on
+    the refresh button) to notice a 'pending' -> 'contributor' transition
+    - project-description.md #10.2's own "how does the app know?" question,
+    answered via "on Refresh events".
+    """
+    user = session.query(db.User).filter(db.User.access_token == token).one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Unknown token")
+    return {"role": user.role}
 
 
 @app.post("/events/publish")

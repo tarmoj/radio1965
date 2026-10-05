@@ -436,22 +436,19 @@ New table: users:
 
 id | name | email | role (null|pending|contributor|manager|banned) | password
 
+Add field 'author' in table 'events' (linked to users)
+
 In app menu "Become a contributor" 
 
-For now:
-
-For initial test version:
-In app menu "Become a contributor" 
-    -> onClick: ask for name, email, password. For now the password is "1965"
-    If correct, add to name, email, contributor to table ( will be deleted later) 
     
 For production version:
     -> onClick:  show dialog with rights and rules, field for name and email + password + repeat password.  If OK pressed,
         -> mark the name and email into tabel 'users', role 'pending', send confirmation email. If confirmed, mark 'contributor'. 
         How to let the app know? Notification only to this device? Restart app? Or rather on "Refresh events"
 
-Only people with role "contributor" and "manager" can broadcast and make new event -  BroadcastPage (also in TabBar) disabled if not contributor|manager. Add Popup "You must be contributor or manager to broadacst"
+Only people with role "contributor", "temporaryContributor" and "manager" can broadcast and make new event -  BroadcastPage (also in TabBar) disabled if not contributor|manager. Add Popup "You must be contributor or manager to broadacst"
 
+3) 
 TODO: rewrite editor page, that requires e-mail and password but can receive it also from URL 
 ? What about joomla?
 
