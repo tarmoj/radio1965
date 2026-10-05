@@ -345,13 +345,47 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
 
-        property bool showError: false
+        property string errorMessage: ""
+        property bool verifying: false
 
         // Same reasoning as contributorDialog's onOpened above.
         onOpened: {
             tempNameField.text = ""
             tempPasswordField.text = ""
-            temporaryContributorDialog.showError = false
+            temporaryContributorDialog.errorMessage = ""
+            temporaryContributorDialog.verifying = false
+        }
+
+        // Checked server-side, not locally (project-description.md #10.1
+        // item 1 is explicit about this - unlike contributorDialog's still-
+        // placeholder "1965" check above) against
+        // config.TEMPORARY_CONTRIBUTOR_PASSWORD_PATH, a plain-text file an
+        // admin can edit directly on the server - see server/main.py's
+        // verify_temporary_contributor_password(). Plain XMLHttpRequest
+        // here rather than routing through EventsApiClient (C++): this is
+        // the only place in the app that needs a one-off POST, so adding a
+        // whole C++ method (+ rebuild) for it isn't worth it.
+        function submit() {
+            temporaryContributorDialog.errorMessage = "";
+            temporaryContributorDialog.verifying = true;
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", appSettings.serverUrl + "/temporary-contributor/verify");
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== XMLHttpRequest.DONE)
+                    return;
+                temporaryContributorDialog.verifying = false;
+                if (xhr.status === 200) {
+                    userSettings.role = "temporaryContributor";
+                    userSettings.contributorName = tempNameField.text;
+                    temporaryContributorDialog.close();
+                } else if (xhr.status === 403) {
+                    temporaryContributorDialog.errorMessage = qsTr("Incorrect password.");
+                } else {
+                    temporaryContributorDialog.errorMessage = qsTr("Could not reach the server. Try again later.");
+                }
+            };
+            xhr.send(JSON.stringify({ password: tempPasswordField.text }));
         }
 
         ColumnLayout {
@@ -363,37 +397,39 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             TextField {
                 id: tempNameField
                 Layout.fillWidth: true
+                enabled: !temporaryContributorDialog.verifying
                 placeholderText: qsTr("Name")
             }
 
             TextField {
                 id: tempPasswordField
                 Layout.fillWidth: true
+                enabled: !temporaryContributorDialog.verifying
                 placeholderText: qsTr("Password")
                 echoMode: TextInput.Password
             }
 
             Label {
-                text: qsTr("Incorrect password.")
+                text: temporaryContributorDialog.errorMessage
                 color: "crimson"
-                visible: temporaryContributorDialog.showError
+                visible: text !== ""
             }
 
-            Button {
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                text: qsTr("Submit")
-                onClicked: {
-                    // Same hardcoded placeholder password as
-                    // contributorDialog - project-description.md #10.1's
-                    // server-checked, per-role password file is future work.
-                    if (tempPasswordField.text === "1965") {
-                        userSettings.role = "temporaryContributor"
-                        userSettings.contributorName = tempNameField.text
-                        temporaryContributorDialog.showError = false
-                        temporaryContributorDialog.close()
-                    } else {
-                        temporaryContributorDialog.showError = true
-                    }
+                spacing: 8
+
+                BusyIndicator {
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    running: temporaryContributorDialog.verifying
+                    visible: running
+                }
+
+                Button {
+                    text: qsTr("Submit")
+                    enabled: !temporaryContributorDialog.verifying
+                    onClicked: temporaryContributorDialog.submit()
                 }
             }
         }
@@ -533,6 +569,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
 
                 BroadcastPage {
                     isContributor: userSettings.role === "contributor" || userSettings.role === "temporaryContributor"
+                    isTemporaryContributor: userSettings.role === "temporaryContributor"
                 }
 
 

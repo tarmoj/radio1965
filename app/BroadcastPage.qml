@@ -15,10 +15,17 @@ Item {
     id: root
 
     readonly property bool broadcastAvailable: typeof icecastBroadcaster !== "undefined"
-    // Passed in from Main.qml (userSettings.role === "contributor") -
-    // gates the broadcast UI the same way broadcastAvailable does, without
-    // removing the tab itself (see the class comment above).
+    // Passed in from Main.qml (userSettings.role === "contributor" or
+    // "temporaryContributor") - gates the broadcast UI the same way
+    // broadcastAvailable does, without removing the tab itself (see the
+    // class comment above).
     property bool isContributor: false
+    // Passed in from Main.qml (userSettings.role === "temporaryContributor")
+    // - project-description.md #10.1's per-session broadcast time limit +
+    // cooldown only apply to this role, never to a full "contributor".
+    property bool isTemporaryContributor: false
+    // "like 5 minutes" per project-description.md #10.1.
+    readonly property int temporaryBroadcastLimitSeconds: 180 // 3 minutes
     // radio1965 (the always-on main channel) is deliberately excluded -
     // broadcast to it only by external tools (ezstream/raw ffmpeg directly
     // against Icecast, see icecastbroadcaster.cpp's own comments), never
@@ -101,6 +108,66 @@ Item {
                 property bool sendNotification: true
                 property bool saveStream: true
                 property real gain: 1.0
+                // ISO datetime string, "" when no cooldown is active -
+                // project-description.md #10.1's per-session broadcast
+                // limit for temporaryContributor. Persisted (not just an
+                // in-memory property) so the cooldown survives an app
+                // restart too, not just staying within one run.
+                property string temporaryCooldownUntil: ""
+            }
+
+            // Forces temporaryCooldownRemainingSeconds below to
+            // re-evaluate once a second - a plain Date.now()-based
+            // computation has no QML property to bind to, so without this
+            // tick it would only ever update when something else happened
+            // to touch the UI.
+            property int _nowTick: 0
+            Timer {
+                interval: 1000
+                running: root.isTemporaryContributor
+                repeat: true
+                onTriggered: parent._nowTick++
+            }
+
+            readonly property real temporaryCooldownRemainingSeconds: {
+                // References _nowTick (unused otherwise) purely so this
+                // binding re-evaluates on the Timer's tick above - a plain
+                // Date.now()-based computation has no QML property of its
+                // own to bind to.
+                if (_nowTick < 0 || !root.isTemporaryContributor || !broadcastSettings.temporaryCooldownUntil)
+                    return 0;
+                const until = new Date(broadcastSettings.temporaryCooldownUntil).getTime();
+                return Math.max(0, (until - Date.now()) / 1000);
+            }
+
+            // Called on *any* end of a temporaryContributor's broadcast -
+            // reaching the time limit (auto-stop, below) or a manual Stop
+            // press (the Start/Stop Button's onClicked) both count as using
+            // up the session, so the cooldown starts either way. Otherwise
+            // someone could just stop manually just before the limit and
+            // immediately start a fresh full-length session, defeating the
+            // whole point of the limit.
+            function endTemporaryBroadcastSession() {
+                if (root.isTemporaryContributor) {
+                    broadcastSettings.temporaryCooldownUntil =
+                        new Date(Date.now() + root.temporaryBroadcastLimitSeconds * 1000).toISOString();
+                }
+            }
+
+            // Force-stops a temporaryContributor's broadcast once it hits
+            // the time limit - icecastBroadcaster.elapsedSeconds already
+            // ticks every second (see the existing elapsed-time Label
+            // below), so this just watches it rather than running a
+            // second independent timer.
+            Connections {
+                target: icecastBroadcaster
+                function onElapsedSecondsChanged() {
+                    if (root.isTemporaryContributor && icecastBroadcaster.broadcasting
+                            && icecastBroadcaster.elapsedSeconds >= root.temporaryBroadcastLimitSeconds) {
+                        icecastBroadcaster.stopBroadcast();
+                        endTemporaryBroadcastSession();
+                    }
+                }
             }
 
             // Restores the last-used gain onto the C++ broadcaster - m_gain
@@ -289,10 +356,15 @@ Item {
                 // Start itself so a busy default channel can't be broadcast to either
                 // way - only applies while not already broadcasting, so Stop is always
                 // clickable.
-                enabled: icecastBroadcaster.broadcasting || !root.isChannelOccupied(channelCombo.currentText)
+                // Also blocked while a temporaryContributor's cooldown is
+                // still running - same reasoning as the busy-channel gate
+                // above, just a second independent condition.
+                enabled: icecastBroadcaster.broadcasting
+                         || (!root.isChannelOccupied(channelCombo.currentText) && temporaryCooldownRemainingSeconds <= 0)
                 onClicked: {
                     if (icecastBroadcaster.broadcasting) {
                         icecastBroadcaster.stopBroadcast();
+                        endTemporaryBroadcastSession();
                     } else {
                         root.errorMessage = "";
                         icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked, saveStreamCheck.checked);
@@ -309,6 +381,13 @@ Item {
 
             Label {
                 Layout.alignment: Qt.AlignHCenter
+                visible: !icecastBroadcaster.broadcasting && temporaryCooldownRemainingSeconds > 0
+                text: qsTr("Broadcasting limit reached - try again in %1").arg(root.formatElapsed(temporaryCooldownRemainingSeconds))
+                color: "crimson"
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignHCenter
                 visible: icecastBroadcaster.onAir
                 text: qsTr("● On air")
                 color: "crimson"
@@ -318,7 +397,10 @@ Item {
             Label {
                 Layout.alignment: Qt.AlignHCenter
                 visible: icecastBroadcaster.broadcasting
-                text: root.formatElapsed(icecastBroadcaster.elapsedSeconds)
+                text: root.isTemporaryContributor
+                      ? qsTr("%1 (%2 left)").arg(root.formatElapsed(icecastBroadcaster.elapsedSeconds))
+                            .arg(root.formatElapsed(Math.max(0, root.temporaryBroadcastLimitSeconds - icecastBroadcaster.elapsedSeconds)))
+                      : root.formatElapsed(icecastBroadcaster.elapsedSeconds)
             }
 
             Label {

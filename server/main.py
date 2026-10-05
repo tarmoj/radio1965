@@ -116,6 +116,12 @@ class SubscribeRequest(BaseModel):
     topic: str
 
 
+# Used by verify_temporary_contributor_password() - app/Main.qml's
+# "Temporary contributor" dialog (project-description.md #10.1).
+class TemporaryContributorVerifyIn(BaseModel):
+    password: str
+
+
 # Used by finalize_recording() - server/icecast_on_disconnect.sh's POST once
 # a "Save stream" recording (project-description.md #8.2.1) has finished
 # uploading to eccm.ee.
@@ -169,6 +175,31 @@ def notify_test():
 def subscribe_device(req: SubscribeRequest):
     response = notifications.subscribe_to_topic([req.token], req.topic)
     return {"success_count": response.success_count, "failure_count": response.failure_count}
+
+
+@app.post("/temporary-contributor/verify")
+def verify_temporary_contributor_password(req: TemporaryContributorVerifyIn):
+    """
+    project-description.md #10.1: "Temporary contributor" - checked here
+    (not locally in the app) against config.TEMPORARY_CONTRIBUTOR_PASSWORD_PATH,
+    a plain-text file an admin can edit directly. Read fresh on every call
+    (no caching) so an edit takes effect immediately, without restarting
+    this server.
+    """
+    try:
+        with open(config.TEMPORARY_CONTRIBUTOR_PASSWORD_PATH) as f:
+            expected_password = f.read().strip()
+    except OSError:
+        logger.exception(
+            "Could not read temporary contributor password file at '%s'",
+            config.TEMPORARY_CONTRIBUTOR_PASSWORD_PATH,
+        )
+        raise HTTPException(status_code=500, detail="Server misconfigured") from None
+
+    if not expected_password or req.password != expected_password:
+        raise HTTPException(status_code=403, detail="Incorrect password")
+
+    return {"ok": True}
 
 
 @app.post("/events/publish")

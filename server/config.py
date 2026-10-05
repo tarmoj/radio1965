@@ -19,6 +19,18 @@ SEND_TEST_NOTIFICATION = os.getenv("SEND_TEST_NOTIFICATION") == "1"
 # receive the test push.
 TEST_TOPIC = "radio65_event"
 
+# Plain-text file holding the current "Temporary contributor" password
+# (project-description.md #10.1) - deliberately NOT hashed/encrypted, so an
+# admin can just open the file and replace the password directly. Protect
+# it via filesystem permissions instead (e.g. chmod 600, owned by whatever
+# user runs this server) rather than via encryption. Read fresh on every
+# request (see main.py's verify_temporary_contributor_password()), so an
+# edit takes effect immediately without restarting the server.
+TEMPORARY_CONTRIBUTOR_PASSWORD_PATH = os.getenv(
+    "RADIO65_TEMP_CONTRIBUTOR_PASSWORD_PATH",
+    "server/radio65-temp-contributor-password.txt",
+)
+
 # MySQL/MariaDB connection URL for the Events DB (see sql/schema.sql). Not
 # committed to git - set it via env var, e.g. `source server/set_env.sh`
 # (see server/set_env.sh, gitignored) before starting the server.

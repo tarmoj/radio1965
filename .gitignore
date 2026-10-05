@@ -1,6 +1,7 @@
 app/build/*
 app/android/.gradle
 radio65/build/*
+build/*
 *.user
 .DS_Store
 app/ios/Firebase/

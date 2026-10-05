@@ -99,10 +99,20 @@ ItemDelegate {
         standardButtons: Dialog.Close
         width: Math.min(root.width - 40, 420)
 
-        Label {
-            width: textDialog.availableWidth
-            wrapMode: Text.Wrap
-            text: (root.payload && root.payload.text) || root.summary
+        // ColumnLayout + Layout.fillWidth, not a bare Label with
+        // `width: textDialog.availableWidth`: that direct reference to the
+        // Dialog's own computed availableWidth fed back into Material
+        // Dialog.qml's implicitHeight (itself derived from the content's
+        // implicitHeight, which depends on the wrapped Label's height,
+        // which depends on its width...) - reported at runtime as "Binding
+        // loop detected for property implicitHeight". Sizing via a Layout
+        // instead avoids referencing the Dialog's own metrics at all.
+        contentItem: ColumnLayout {
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: (root.payload && root.payload.text) || root.summary
+            }
         }
     }
 
