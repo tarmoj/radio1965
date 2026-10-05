@@ -28,7 +28,7 @@ TEST_TOPIC = "radio65_event"
 # edit takes effect immediately without restarting the server.
 TEMPORARY_CONTRIBUTOR_PASSWORD_PATH = os.getenv(
     "RADIO65_TEMP_CONTRIBUTOR_PASSWORD_PATH",
-    "server/radio65-temp-contributor-password.txt",
+    "server/config/radio65-temp-contributor-password.txt",
 )
 
 # MySQL/MariaDB connection URL for the Events DB (see sql/schema.sql). Not
