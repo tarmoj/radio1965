@@ -60,7 +60,7 @@ SMTP_HOST = os.getenv("RADIO65_SMTP_HOST", "mail.eccm.ee")
 SMTP_PORT = int(os.getenv("RADIO65_SMTP_PORT", "465"))
 SMTP_USER = os.getenv("RADIO65_SMTP_USER", "info@eccm.ee")
 SMTP_PASSWORD = os.getenv("RADIO65_SMTP_PASSWORD", "")
-SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "no-reply@eccm.ee")
+SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "info@eccm.ee")
 
 # This server's own public base URL (no trailing slash) - used to build the
 # confirmation link embedded in that email, e.g.
