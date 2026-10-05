@@ -44,16 +44,23 @@ except KeyError as exc:
     ) from exc
 
 # SMTP settings for the "Become a Contributor" confirmation email
-# (project-description.md #10.2) - see server/emailer.py. Not committed to
-# git, same as the other secrets above; set via env vars (server/set_env.sh)
-# before starting the server. SMTP_HOST left unset is a valid, supported
-# state (emailer.send_email() logs a warning and no-ops instead of raising)
-# so local/dev runs without a real mail server don't hard-fail registration.
-SMTP_HOST = os.getenv("RADIO65_SMTP_HOST", "")
-SMTP_PORT = int(os.getenv("RADIO65_SMTP_PORT", "587"))
-SMTP_USER = os.getenv("RADIO65_SMTP_USER", "")
+# (project-description.md #10.2) - see server/emailer.py. Host/port/user/
+# from aren't secret, so (like FIREBASE_CRED_PATH/
+# TEMPORARY_CONTRIBUTOR_PASSWORD_PATH above) they get a real default here,
+# still overridable via env var if that ever changes. Only SMTP_PASSWORD is
+# a secret - that one has no default, set it via server/set_env.sh
+# (gitignored), same as RADIO65_DATABASE_URL above.
+#
+# mail.eccm.ee, port 465 = implicit TLS, not STARTTLS - see
+# emailer.py's send_email(), which branches on the port to pick the right
+# one. An empty SMTP_HOST is still a valid, supported state
+# (emailer.send_email() logs a warning and no-ops instead of raising) so
+# local/dev runs without a real mail server don't hard-fail registration.
+SMTP_HOST = os.getenv("RADIO65_SMTP_HOST", "mail.eccm.ee")
+SMTP_PORT = int(os.getenv("RADIO65_SMTP_PORT", "465"))
+SMTP_USER = os.getenv("RADIO65_SMTP_USER", "info@eccm.ee")
 SMTP_PASSWORD = os.getenv("RADIO65_SMTP_PASSWORD", "")
-SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "noreply@radio1965.ee")
+SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "no-reply@eccm.ee")
 
 # This server's own public base URL (no trailing slash) - used to build the
 # confirmation link embedded in that email, e.g.
