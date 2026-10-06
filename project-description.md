@@ -448,11 +448,15 @@ For production version:
 
 Only people with role "contributor", "temporaryContributor" and "manager" can broadcast and make new event -  BroadcastPage (also in TabBar) disabled if not contributor|manager. Add Popup "You must be contributor or manager to broadacst"
 
+TODO: Add login option to menu: "Become a contributor/Log in"
+- in registration, check if already registered, direct to login then.
+- add "Forgot password" to login page
+
 3) 
 TODO: rewrite editor page, that requires e-mail and password but can receive it also from URL 
 ? What about joomla?
 
-Add action "Share a gem"  in menu (if contributor|manager)-> opens editor page with email and (encoded) password in the URL. 
+4) Add action "Share a gem"  in menu (if contributor|manager)-> opens editor page with email and (encoded) password in the URL. 
 What is better to use -  internal webview or external browser?
 
 In app: store name, email, password in app settings. On startup, check and set for role and set it in settings. Add button "Reset role" to main menu.

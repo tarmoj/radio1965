@@ -5,6 +5,7 @@ import QtMultimedia
 import QtQuick.Dialogs
 import QtCore
 import QtQuick.Window
+import QtWebView
 
 
 ApplicationWindow {
@@ -42,6 +43,9 @@ ApplicationWindow {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
         property bool showInfoOnStartup: true
+        // contributor/index.html - register/login/forgot-password page
+        // embedded by contributorDialog's WebView below.
+        property string contributorWebUrl: "https://eccm.ee/radio1965/contributor/"
     }
 
     // "Become a Contributor" gate (project-description.md #10) - role is
@@ -197,12 +201,15 @@ ApplicationWindow {
 
 
                 MenuItem {
-                    text: qsTr("Become a Contributor")
+                    text: qsTr("Become a Contributor / Log in")
                     // Was `!== "contributor"` - now also hidden while
                     // "pending" (see the Label just below) and while
                     // already "manager". Still offered for
                     // temporaryContributor, so upgrading to a real account
-                    // is possible.
+                    // is possible. One entry covers both register and
+                    // login - contributor/index.html's own views handle
+                    // that split (project-description.md #10's "Become a
+                    // contributor/Log in" TODO).
                     visible: userSettings.role === "none" || userSettings.role === "temporaryContributor"
                     onTriggered: {
                         contributorDialog.open()
@@ -320,139 +327,65 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
 
     Dialog {
         id: contributorDialog
-        title: qsTr("Become a Contributor")
+        title: qsTr("Become a Contributor / Log in")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Cancel
         // Dialog doesn't auto-size itself from an explicit `width:` set on
-        // an inner child (that only ever controlled the ColumnLayout's own
-        // width, not the Dialog's actual content-area/frame) - without
-        // this, the ColumnLayout could render wider than the Dialog's
-        // frame, so the TextFields visibly stuck out past the popup.
-        width: Math.min(app.width - 40, 420)
+        // an inner child - same fix as infoDialog above. Taller than the
+        // other dialogs here since it now hosts a full web page rather
+        // than a few fields.
+        width: Math.min(app.width - 40, 480)
+        height: Math.min(app.height - 80, 640)
 
-        property string errorMessage: ""
-        property bool verifying: false
+        property bool loading: true
 
-        // Fields shouldn't leak a previous attempt's input (including the
-        // password) across opens.
+        // Reload the page fresh on every open - including after a
+        // previous attempt handed off a result - so it always starts back
+        // at the register view.
         onOpened: {
-            nameField.text = ""
-            emailField.text = ""
-            passwordField.text = ""
-            repeatPasswordField.text = ""
-            contributorDialog.errorMessage = ""
-            contributorDialog.verifying = false
+            contributorDialog.loading = true
+            contributorWebView.url = appSettings.contributorWebUrl
         }
 
-        // project-description.md #10.2: real, permanent contributor
-        // accounts - POSTs to the server (server/main.py's
-        // register_contributor()), which creates a 'pending' db.User row
-        // and emails a confirmation link. Same XMLHttpRequest pattern as
-        // temporaryContributorDialog's submit() below. Password matching
-        // is checked client-side first (no point round-tripping to the
-        // server for that); everything else is the server's call.
-        function submit() {
-            if (passwordField.text !== repeatPasswordField.text) {
-                contributorDialog.errorMessage = qsTr("Passwords do not match.");
-                return;
+        // contributor/index.html (register/login/forgot-password) embedded
+        // via WebView instead of native fields - project-description.md
+        // #10's "Become a contributor/Log in" TODO, plus "also on the web".
+        // QtWebView has no JS bridge (unlike WebEngine's WebChannel), so
+        // the page hands results back by setting its own URL fragment to
+        // "#result=<json>" instead of navigating - caught below via
+        // onUrlChanged, with no extra request/reload involved.
+        WebView {
+            id: contributorWebView
+            anchors.fill: parent
+            visible: !contributorDialog.loading
+
+            onLoadingChanged: function(loadRequest) {
+                if (loadRequest.status !== WebView.LoadStartedStatus)
+                    contributorDialog.loading = false
             }
-            contributorDialog.errorMessage = "";
-            contributorDialog.verifying = true;
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", appSettings.serverUrl + "/contributors/register");
-            xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState !== XMLHttpRequest.DONE)
+
+            onUrlChanged: {
+                const urlString = contributorWebView.url.toString();
+                const marker = "#result=";
+                const index = urlString.indexOf(marker);
+                if (index === -1)
                     return;
-                contributorDialog.verifying = false;
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    userSettings.role = response.role;
-                    userSettings.accessToken = response.access_token;
-                    userSettings.contributorName = nameField.text;
-                    userSettings.contributorEmail = emailField.text;
-                    contributorDialog.close();
-                } else if (xhr.status === 409) {
-                    contributorDialog.errorMessage = qsTr("That email is already registered.");
-                } else if (xhr.status === 403) {
-                    contributorDialog.errorMessage = qsTr("That email cannot register.");
-                } else {
-                    contributorDialog.errorMessage = qsTr("Could not reach the server. Try again later.");
-                }
-            };
-            xhr.send(JSON.stringify({ name: nameField.text, email: emailField.text, password: passwordField.text }));
+                const payload = JSON.parse(decodeURIComponent(urlString.substring(index + marker.length)));
+                userSettings.role = payload.role;
+                userSettings.accessToken = payload.token;
+                if (payload.name)
+                    userSettings.contributorName = payload.name;
+                if (payload.email)
+                    userSettings.contributorEmail = payload.email;
+                contributorDialog.close();
+            }
         }
 
-        ColumnLayout {
-            spacing: 8
-            width: contributorDialog.availableWidth
-
-            // Placeholder wording - replace with real rights/rules text
-            // whenever it's decided.
-            Label {
-                text: qsTr("By registering, you agree to be identified as the author of what you post and to follow the community's content guidelines.")
-                wrapMode: Text.Wrap
-                font.pointSize: 10
-                opacity: 0.8
-                Layout.fillWidth: true
-            }
-
-            TextField {
-                id: nameField
-                Layout.fillWidth: true
-                enabled: !contributorDialog.verifying
-                placeholderText: qsTr("Name")
-            }
-
-            TextField {
-                id: emailField
-                Layout.fillWidth: true
-                enabled: !contributorDialog.verifying
-                placeholderText: qsTr("Email")
-            }
-
-            TextField {
-                id: passwordField
-                Layout.fillWidth: true
-                enabled: !contributorDialog.verifying
-                placeholderText: qsTr("Password")
-                echoMode: TextInput.Password
-            }
-
-            TextField {
-                id: repeatPasswordField
-                Layout.fillWidth: true
-                enabled: !contributorDialog.verifying
-                placeholderText: qsTr("Repeat password")
-                echoMode: TextInput.Password
-            }
-
-            Label {
-                text: contributorDialog.errorMessage
-                color: "crimson"
-                wrapMode: Text.Wrap
-                Layout.fillWidth: true
-                visible: text !== ""
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 8
-
-                BusyIndicator {
-                    implicitWidth: 20
-                    implicitHeight: 20
-                    running: contributorDialog.verifying
-                    visible: running
-                }
-
-                Button {
-                    text: qsTr("Submit")
-                    enabled: !contributorDialog.verifying
-                    onClicked: contributorDialog.submit()
-                }
-            }
+        BusyIndicator {
+            anchors.centerIn: parent
+            running: contributorDialog.loading
+            visible: running
         }
     }
 

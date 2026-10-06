@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS users (
   role          ENUM('pending','contributor','manager','banned') NOT NULL DEFAULT 'pending',
   password_hash VARCHAR(255) NOT NULL,
   access_token  VARCHAR(64) NOT NULL UNIQUE,
+  reset_token   VARCHAR(64) NULL UNIQUE,
+  reset_token_expires_at DATETIME NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -86,3 +88,8 @@ CREATE TABLE IF NOT EXISTS tags (
 -- Either way, finish by converting author_id to match and re-adding the FK:
 --   ALTER TABLE events MODIFY COLUMN author_id INT NULL,
 --     ADD FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
+--
+-- If `users` already exists without reset_token/reset_token_expires_at
+-- (added for the login + forgot-password flow):
+--   ALTER TABLE users ADD COLUMN reset_token VARCHAR(64) NULL UNIQUE,
+--     ADD COLUMN reset_token_expires_at DATETIME NULL;
