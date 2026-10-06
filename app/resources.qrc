@@ -20,5 +20,6 @@
         <file>images/audio_file.svg</file>
         <file>images/refresh.svg</file>
         <file>images/search.svg</file>
+        <file>images/close.svg</file>
     </qresource>
 </RCC>

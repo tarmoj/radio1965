@@ -127,7 +127,8 @@ Rectangle {
                 }
 
                 ToolButton {
-                    text: "✕"
+                    //text: "✕"
+                    icon.source: "qrc:/images/close.svg"
                     onClicked: groupPopup.close()
                 }
             }
