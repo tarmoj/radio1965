@@ -20,6 +20,10 @@
 #include <algorithm>
 #include <cmath>
 
+#ifdef Q_OS_IOS
+#include "iosaudiosession.h"
+#endif
+
 namespace {
 
 const char *const ICECAST_HOST = "live.uuu.ee";
@@ -90,6 +94,14 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
         emit broadcastError(tr("Microphone permission was denied. Enable it in system settings."));
         return;
     }
+
+#ifdef Q_OS_IOS
+    // Must happen before QAudioSource opens the mic below - otherwise Qt
+    // Multimedia's iOS backend switches AVAudioSession to .playAndRecord on
+    // its own, which defaults to the quiet earpiece receiver instead of the
+    // loudspeaker.
+    iosAudioSessionActivateRecording();
+#endif
 
     QAudioFormat format;
     format.setSampleRate(SAMPLE_RATE);
@@ -325,6 +337,13 @@ void IcecastBroadcaster::teardown()
         m_audioSource = nullptr;
     }
     m_audioDevice = nullptr;
+
+#ifdef Q_OS_IOS
+    // Mic released - hand AVAudioSession back to .playback so normal
+    // listening resumes on the loudspeaker rather than staying on
+    // whatever route .playAndRecord left it on.
+    iosAudioSessionActivatePlayback();
+#endif
 
     if (m_lame) {
         lame_close(m_lame);
