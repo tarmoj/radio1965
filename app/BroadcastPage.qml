@@ -24,6 +24,10 @@ Item {
     // - project-description.md #10.1's per-session broadcast time limit +
     // cooldown only apply to this role, never to a full "contributor".
     property bool isTemporaryContributor: false
+    // Passed in from Main.qml (userSettings.accessToken) - forwarded into
+    // IcecastBroadcaster.startBroadcast() so the published event's
+    // author_id can be set server-side (see icecast_on_connect.sh).
+    property string accessToken: ""
     // "like 5 minutes" per project-description.md #10.1.
     readonly property int temporaryBroadcastLimitSeconds: 180 // 3 minutes
     // radio1965 (the always-on main channel) is deliberately excluded -
@@ -367,7 +371,7 @@ Item {
                         endTemporaryBroadcastSession();
                     } else {
                         root.errorMessage = "";
-                        icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked, saveStreamCheck.checked);
+                        icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked, saveStreamCheck.checked, root.accessToken);
                     }
                 }
             }

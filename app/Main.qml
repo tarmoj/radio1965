@@ -685,6 +685,11 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                     isContributor: userSettings.role === "contributor" || userSettings.role === "temporaryContributor"
                                    || userSettings.role === "manager"
                     isTemporaryContributor: userSettings.role === "temporaryContributor"
+                    // Threaded down into IcecastBroadcaster's ice-audio-info
+                    // header so server/icecast_on_connect.sh can set the
+                    // published event's author_id - empty for
+                    // temporaryContributor, which has no account/token.
+                    accessToken: userSettings.accessToken
                 }
 
 

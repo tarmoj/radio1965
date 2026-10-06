@@ -53,11 +53,10 @@ class Event(Base):
     )
     comments_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # Who posted this event - nullable, and not populated by
-    # POST /events/publish yet (project-description.md #10.2: that needs
-    # the editor to actually know who's submitting, which is #10.3's auth
-    # rework - out of scope for now). Column exists so it's ready once that
-    # lands, per the doc's explicit ask.
+    # Who posted this event - nullable. Populated by POST /events/publish
+    # (server/main.py's publish_event()) from whichever access_token the
+    # publisher sent - editor/index.html's logged-in session, or the app's
+    # broadcast flow via icecast_on_connect.sh's ice-audio-info carrier.
     author_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -67,6 +66,9 @@ class Event(Base):
     tags: Mapped[list["Tag"]] = relationship(
         back_populates="event", cascade="all, delete-orphan", lazy="joined"
     )
+    # lazy="joined" so to_dict() can resolve author_name without a second
+    # query per event.
+    author: Mapped["User | None"] = relationship(lazy="joined")
 
     def to_dict(self) -> dict:
         """JSON-safe dict matching the Event schema in project-description.md."""
@@ -82,6 +84,8 @@ class Event(Base):
             "comments_enabled": self.comments_enabled,
             "tags": [t.tag for t in self.tags],
             "payload": self.payload or {},
+            "author_id": self.author_id,
+            "author_name": self.author.name if self.author else None,
         }
 
 

@@ -71,7 +71,12 @@ public:
     // TODO(save-stream): server/icecast_on_connect.sh currently only reads
     // and logs this value; there's no recording pipeline behind it yet
     // (see TODOs.md "Save audio stream - if required").
-    Q_INVOKABLE void startBroadcast(const QString &channel, const QString &name, const QString &description, bool sendNotification, bool saveStream);
+    // accessToken: the broadcasting contributor's account token (empty for
+    // temporaryContributor, which has none) - carried the same way as
+    // sendNotification/saveStream above (see ice-audio-info comment) so
+    // server/icecast_on_connect.sh can set the published event's
+    // author_id.
+    Q_INVOKABLE void startBroadcast(const QString &channel, const QString &name, const QString &description, bool sendNotification, bool saveStream, const QString &accessToken = QString());
     Q_INVOKABLE void stopBroadcast();
 
     // Queries http://live.uuu.ee:8001/status-json.xsl and reports which
@@ -100,7 +105,7 @@ private slots:
     void onStatusJsonReply();
 
 private:
-    void sendIcecastHandshake(const QString &channel, const QString &name, const QString &description, bool sendNotification, bool saveStream);
+    void sendIcecastHandshake(const QString &channel, const QString &name, const QString &description, bool sendNotification, bool saveStream, const QString &accessToken);
     void encodeAndSend(const QByteArray &pcm);
     void teardown();
 

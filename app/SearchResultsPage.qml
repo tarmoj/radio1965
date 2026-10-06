@@ -74,6 +74,7 @@ Page {
             eventType: modelData.eventType
             title: modelData.title
             summary: modelData.summary
+            authorName: modelData.authorName
             url: modelData.url
             tags: modelData.tags
             status: modelData.status

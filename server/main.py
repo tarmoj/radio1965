@@ -179,6 +179,11 @@ class EventIn(BaseModel):
     # server/icecast_on_connect.sh, forwarding BroadcastPage.qml's "Send
     # notification" checkbox (see IcecastBroadcaster::startBroadcast()).
     send_notification: bool = True
+    # Identifies the publisher so publish_event() can set Event.author_id -
+    # editor/index.html's logged-in session, or the app's broadcast flow
+    # via icecast_on_connect.sh's ice-audio-info carrier. An unknown/absent
+    # token just leaves author_id null, same as before this field existed.
+    access_token: str | None = None
 
 
 @app.post("/notify/topic")
@@ -417,6 +422,11 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
         # once it's actually consumed.
         payload["_send_notification"] = event.send_notification
 
+    author = (
+        session.query(db.User).filter(db.User.access_token == event.access_token).one_or_none()
+        if event.access_token else None
+    )
+
     row = db.Event(
         id=event_id,
         type=event.type,
@@ -429,6 +439,7 @@ def publish_event(event: EventIn, session: Session = Depends(db.get_db)):
         comments_enabled=event.comments_enabled,
         payload=payload,
         tags=[db.Tag(tag=tag) for tag in event.tags],
+        author_id=author.id if author else None,
     )
     session.add(row)
     try:

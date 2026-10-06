@@ -24,6 +24,12 @@ ItemDelegate {
     required property string status
     required property var payload
 
+    // "Shared by: <name>" below - not required, unlike the properties
+    // above: only the "boxed" Collection/search contexts (Box.qml,
+    // SearchResultsPage.qml) set this explicitly, so EventListView.qml
+    // ("New Arrivals") just leaves it at its empty default.
+    property string authorName: ""
+
     // Joomla-sourced "article" events carry the numeric Joomla article id
     // in payload.article_id (see server/joomla_importer.py); "webcontent"
     // events have no such id and keep loading `url` directly.
@@ -183,6 +189,14 @@ ItemDelegate {
             // type to title-only by default, not just "text" - see the
             // expand ToolButton above.
             visible: root.showExpandToggle ? root.expanded : (root.eventType !== "text" || root.expanded)
+        }
+
+        Label {
+            text: qsTr("Shared by: ") + root.authorName
+            visible: root.authorName !== ""
+            font.pointSize: 10
+            opacity: 0.7
+            Layout.fillWidth: true
         }
 
         Flow {

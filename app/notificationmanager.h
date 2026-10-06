@@ -19,6 +19,10 @@ struct EventItem
     QStringList tags;
     QVariantMap payload;
     bool commentsEnabled = false;
+    // "Shared by: <name>" on Collection/search cards (project-description.md
+    // #10) - empty when the event has no author (nothing published it via
+    // a logged-in contributor, or predates this feature).
+    QString authorName;
 };
 
 // Holds the event feed (project-description.md #4), fed exclusively by
@@ -46,7 +50,8 @@ public:
         StatusRole,
         TagsRole,
         PayloadRole,
-        CommentsEnabledRole
+        CommentsEnabledRole,
+        AuthorNameRole
     };
 
     explicit NotificationManager(QObject *parent = nullptr);
