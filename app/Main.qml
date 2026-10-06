@@ -46,12 +46,15 @@ ApplicationWindow {
         // contributor/index.html - register/login/forgot-password page
         // embedded by contributorDialog's WebView below.
         property string contributorWebUrl: "https://eccm.ee/radio1965/contributor/"
+        // editor/index.html - opened externally by "Share a gem" below,
+        // with userSettings.accessToken appended so the user lands there
+        // already logged in (editor/index.html's ?token= handling).
+        property string editorWebUrl: "https://eccm.ee/radio1965/editor/"
     }
 
     // "Become a Contributor" gate (project-description.md #10) - role is
-    // "none"/"pending"/"contributor"/"temporaryContributor"/"manager".
-    // "banned" also exists server-side (db.USER_ROLES) but nothing acts on
-    // it in the app yet - see checkContributorStatus()'s own comment.
+    // "none"/"pending"/"contributor"/"temporaryContributor"/"manager", or
+    // "banned" - see bannedDialog below for that last one.
     Settings {
         id: userSettings
         category: "User"
@@ -76,14 +79,14 @@ ApplicationWindow {
     }
 
     // Polls GET /contributors/status (project-description.md #10.2) to
-    // notice a "pending" -> "contributor" transition once the user clicks
-    // the emailed confirmation link - the doc's own suggested sync point,
-    // "on Refresh events" (called from both here and the header's refresh
-    // button below), plus on startup. A no-op whenever there's nothing to
-    // check (no token, or role already settled as something other than
-    // "pending" - "banned" included, since nothing here acts on it yet).
+    // notice both a "pending" -> "contributor" transition (once the user
+    // clicks the emailed confirmation link) and a later ban - the doc's
+    // own suggested sync point, "on Refresh events" (called from both here
+    // and the header's refresh button below), plus on startup. A no-op
+    // whenever there's no account to check (no token - "none" and
+    // "temporaryContributor" never have one).
     function checkContributorStatus() {
-        if (userSettings.role !== "pending" || !userSettings.accessToken)
+        if (!userSettings.accessToken)
             return;
         const xhr = new XMLHttpRequest();
         xhr.open("GET", appSettings.serverUrl + "/contributors/status?token=" + encodeURIComponent(userSettings.accessToken));
@@ -226,6 +229,25 @@ ApplicationWindow {
                 }
 
                 MenuItem {
+                    text: qsTr("Share a gem")
+                    // project-description.md #10's "Share a gem" action -
+                    // opens editor/index.html in the system browser
+                    // (rather than the in-app WebView used by
+                    // contributorDialog) so the full editing form has a
+                    // real browser's room/affordances to work with, with
+                    // accessToken appended so the user lands there already
+                    // logged in (editor/index.html's ?token= handling).
+                    // Only contributor|manager per the doc - excludes
+                    // temporaryContributor, which has no account/token to
+                    // log the editor in with anyway.
+                    visible: userSettings.role === "contributor" || userSettings.role === "manager"
+                    onTriggered: {
+                        Qt.openUrlExternally(appSettings.editorWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
+                        drawer.close()
+                    }
+                }
+
+                MenuItem {
                     text: qsTr("Temporary contributor")
                     // Hidden once you're already either kind of contributor -
                     // "Become a Contributor" above stays offered even as a
@@ -264,6 +286,34 @@ ApplicationWindow {
             }
         }
 
+    }
+
+    // project-description.md #10: "If user is marked 'banned' - do not
+    // allow use of the app at all." Bound directly to userSettings.role
+    // rather than opened via open()/close(), so it reappears immediately
+    // (even across restarts) for as long as the server says "banned" -
+    // caught by checkContributorStatus() on startup and every refresh.
+    // No close button and closePolicy: NoAutoClose - modal already blocks
+    // clicks on everything behind it, and there's nothing to confirm/
+    // dismiss here.
+    Dialog {
+        id: bannedDialog
+        title: qsTr("Access revoked")
+        modal: true
+        anchors.centerIn: parent
+        closePolicy: Popup.NoAutoClose
+        visible: userSettings.role === "banned"
+        width: Math.min(app.width - 40, 420)
+
+        ColumnLayout {
+            width: bannedDialog.availableWidth
+
+            Label {
+                text: qsTr("You are exiled. Contact the administrators if it feels unjust.")
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+        }
     }
 
     Dialog {
