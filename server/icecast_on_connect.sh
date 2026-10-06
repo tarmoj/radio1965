@@ -89,6 +89,14 @@ if [ "$SAVE_STREAM_RAW" = "0" ]; then
 fi
 log "resolved save_stream='$SAVE_STREAM_RAW' -> save_stream=$SAVE_STREAM"
 
+# The broadcasting contributor's access_token (project-description.md
+# #10's author_id wiring), carried the same way as send_notification/
+# save_stream above. Empty for temporaryContributor and any non-app
+# source (ezstream/raw ffmpeg, the "radio1965" channel below) - the
+# server's own lookup just leaves author_id null in that case, same
+# fail-open posture as everywhere else here.
+ACCESS_TOKEN=$(echo "$SOURCE" | jq -r '.access_token // empty')
+
 # "radio1965" is the always-on main channel (also used by non-app sources
 # like ezstream/raw ffmpeg, which have no way to set send_notification/
 # save_stream via ice-audio-info at all - see BroadcastPage.qml/
@@ -145,6 +153,7 @@ BODY=$(jq -n \
   --arg desc "$DESCRIPTION" \
   --arg send_notification "$SEND_NOTIFICATION" \
   --argjson save_stream "$SAVE_STREAM" \
+  --arg access_token "$ACCESS_TOKEN" \
   '{
     type: "livestream",
     title: ($name + " on " + $ch),
@@ -153,7 +162,8 @@ BODY=$(jq -n \
     publish_now: true,
     send_notification: ($send_notification == "true"),
     tags: [],
-    payload: {save_stream: $save_stream}
+    payload: {save_stream: $save_stream},
+    access_token: $access_token
   }')
 
 RESPONSE=$(curl -s -w '\n%{http_code}' -X POST "$API_BASE/events/publish" \

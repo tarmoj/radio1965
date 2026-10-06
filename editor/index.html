@@ -373,6 +373,7 @@
         shelf_at: document.getElementById("shelfAt").value || null,
         tags,
         payload,
+        access_token: sessionStorage.getItem(ACCESS_TOKEN_SESSION_KEY) || null,
       };
 
       try {
