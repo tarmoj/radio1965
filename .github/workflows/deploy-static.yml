@@ -1,0 +1,35 @@
+name: Deploy static pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'editor/**'
+      - 'contributor/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add remote host key
+        run: ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy editor/
+        run: |
+          rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" \
+            editor/index.html \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_PATH }}/editor/index.html
+
+      - name: Deploy contributor/
+        run: |
+          rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" \
+            contributor/index.html \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_PATH }}/contributor/index.html

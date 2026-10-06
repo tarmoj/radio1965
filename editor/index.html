@@ -4,16 +4,58 @@
   <meta charset="utf-8" />
   <title>Radio 1965 - Editor</title>
   <style>
-    body { font-family: sans-serif; max-width: 640px; margin: 2em auto; }
+    :root {
+      color-scheme: dark;
+      --bg: #12100d;
+      --fg: #f0e6d2;
+      --accent: #42b649;
+      --error: crimson;
+      --field-bg: #201d18;
+      --field-border: #3a362e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      max-width: 640px;
+      margin: 2em auto;
+      padding: 0 1em;
+    }
     label { display: block; margin-top: 1em; font-weight: bold; }
-    input, textarea, select { width: 100%; box-sizing: border-box; font-size: 1em; padding: 0.3em; }
+    input, textarea, select {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 1em;
+      padding: 0.5em;
+      margin-top: 0.3em;
+      background: var(--field-bg);
+      border: 1px solid var(--field-border);
+      border-radius: 4px;
+      color: var(--fg);
+    }
     input[type="checkbox"] { width: auto; }
     .row { display: flex; gap: 1em; align-items: center; }
     .row > * { flex: 1; }
-    button { margin-top: 1.5em; padding: 0.6em 1.2em; }
-    pre { background: #f4f4f4; padding: 1em; white-space: pre-wrap; }
+    button {
+      margin-top: 1.5em;
+      padding: 0.6em 1.2em;
+      background: var(--accent);
+      color: #0a1a0b;
+      border: none;
+      border-radius: 4px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    pre {
+      background: var(--field-bg);
+      border: 1px solid var(--field-border);
+      padding: 1em;
+      white-space: pre-wrap;
+    }
     #lockScreen { max-width: 320px; margin: 4em auto; text-align: center; }
-    #lockError { color: #b00020; min-height: 1.2em; }
+    #lockError { color: var(--error); min-height: 1.2em; }
   </style>
 </head>
 <body>
@@ -36,10 +78,6 @@
 
   <div id="appContent" style="display: none">
   <h1>Radio 1965 - New Event</h1>
-  <p>
-    Notification server URL:
-    <input id="serverUrl" value="https://live.uuu.ee/radio1965/api" />
-  </p>
 
   <form id="eventForm">
     <label>Title
@@ -52,11 +90,11 @@
 
     <label>Type
       <select id="type">
-        <option value="text">text</option>
+        <option value="text" selected>text</option>
         <option value="audio">audio</option>
         <option value="video">video</option>
         <option value="livestream">livestream</option>
-        <option value="article" selected>article</option>
+        <option value="article">article</option>
         <option value="webcontent">webcontent</option>
       </select>
     </label>
@@ -113,12 +151,11 @@
   </div>
 
   <script>
-    // --- Lock screen: real login against server/main.py's
-    // POST /contributors/login - project-description.md #10's "rewrite
-    // editor page, that requires e-mail and password" TODO. Hardcoded
-    // (not read from the #serverUrl input below, which is inside the
-    // still-locked #appContent) - same default as that input.
-    const LOGIN_API_BASE = "https://live.uuu.ee/radio1965/api";
+    // Notification server base URL - was an editable #serverUrl input,
+    // now just a constant (nothing in practice ever pointed it anywhere
+    // else, and the lock screen needs it before #appContent even exists).
+    const SERVER_URL = "https://live.uuu.ee/radio1965/api";
+    const LOGIN_API_BASE = SERVER_URL;
     const ACCESS_TOKEN_SESSION_KEY = "radio65EditorAccessToken";
     const ROLE_SESSION_KEY = "radio65EditorRole";
     const APPROVED_ROLES = ["contributor", "manager"];
@@ -212,7 +249,7 @@
     }
 
     function serverUrl() {
-      return document.getElementById("serverUrl").value.replace(/\/$/, "");
+      return SERVER_URL;
     }
 
     // --- Type-dependent field visibility -------------------------------
@@ -242,12 +279,37 @@
     updateFieldsForType();
 
     // --- Announce at: "Now" checkbox toggles the date/time picker -------
+    // datetime-local inputs are local time, not UTC - toISOString() would
+    // have prefilled the field with the UTC wall-clock time mislabeled as
+    // local (e.g. an actual 14:00 local showing up as 12:00 for a UTC+2
+    // browser). Build the "YYYY-MM-DDTHH:MM" string from local
+    // getFullYear()/getMonth()/etc instead, matching what the input
+    // itself expects.
+    function toLocalDatetimeInputValue(date) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
     const publishNowEl = document.getElementById("publishNow");
     const publishAtEl = document.getElementById("publishAt");
-    publishNowEl.addEventListener("change", () => {
-      publishAtEl.disabled = publishNowEl.checked;
-      if (!publishNowEl.checked && !publishAtEl.value) {
-        publishAtEl.value = new Date().toISOString().slice(0, 16);
+    const noNotificationEl = document.getElementById("noNotification");
+
+    function setPublishNow(isNow) {
+      publishNowEl.checked = isNow;
+      publishAtEl.disabled = isNow;
+      if (!isNow && !publishAtEl.value) {
+        publishAtEl.value = toLocalDatetimeInputValue(new Date());
+      }
+    }
+
+    publishNowEl.addEventListener("change", () => setPublishNow(publishNowEl.checked));
+
+    // Checking "No notification" implies this isn't meant to go out right
+    // this second - uncheck "Now" so the Announce-at time picker opens up
+    // instead of staying disabled.
+    noNotificationEl.addEventListener("change", () => {
+      if (noNotificationEl.checked) {
+        setPublishNow(false);
       }
     });
 
