@@ -19,6 +19,7 @@
 
 #ifdef Q_OS_IOS
 #include "iospush.h"
+#include "iosaudiosession.h"
 #endif
 
 int main(int argc, char *argv[])
@@ -68,6 +69,11 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_IOS
     iosPushInit();
     iosPushSubscribeToTopic("radio65_event");
+    // Baseline route for a fresh launch - .playback always defaults to the
+    // loudspeaker, unlike .playAndRecord (only entered while broadcasting,
+    // see IcecastBroadcaster::startBroadcast()/teardown()), which otherwise
+    // defaults to the quiet earpiece receiver.
+    iosAudioSessionActivatePlayback();
 #endif
 
     QQmlApplicationEngine engine;

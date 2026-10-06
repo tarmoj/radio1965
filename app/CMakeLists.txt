@@ -140,7 +140,7 @@ if(ANDROID)
 endif()
 
 if(IOS)
-    target_sources(appradio65 PRIVATE iospush.mm "${CMAKE_CURRENT_SOURCE_DIR}/ios/Radio65SwiftSupport.swift")
+    target_sources(appradio65 PRIVATE iospush.mm iosaudiosession.mm "${CMAKE_CURRENT_SOURCE_DIR}/ios/Radio65SwiftSupport.swift")
 endif()
 
 
