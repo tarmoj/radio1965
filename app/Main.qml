@@ -690,6 +690,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                     // published event's author_id - empty for
                     // temporaryContributor, which has no account/token.
                     accessToken: userSettings.accessToken
+                    isManager: userSettings.role === "manager"
                 }
 
 

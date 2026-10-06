@@ -51,7 +51,9 @@ public:
     qreal gain() const { return m_gain; }
     void setGain(qreal gain);
 
-    // channel: one of "radio1965"/"user1".."user4" (no leading slash).
+    // channel: one of "radio1965"/"live"/"user1".."user4" (no leading
+    // slash) - "live" picks a different source password, see
+    // ICECAST_LIVE_PASSWORD in the .cpp.
     // name/description become the ice-name/ice-description headers.
     // sendNotification/saveStream: both forwarded packed into the
     // ice-audio-info header as "send_notification=<0|1>;save_stream=<0|1>"

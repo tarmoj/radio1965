@@ -28,6 +28,18 @@ const quint16 ICECAST_PORT = 8001;
 // #8.1's test commands show this value in one example and a <Password>
 // placeholder in another, so it isn't certain to still be current.
 const char *const ICECAST_PASSWORD = "Tesla100";
+// /live's icecast.xml <mount> block overrides the global source password
+// with this one (project-description.md's Channels section: "live - live
+// audio broadcast (by managers)") - keeps a non-manager who somehow still
+// picked "live" (or an external tool pointed at that mountpoint) from
+// authenticating with the regular user1-user4 password. Same caveat as
+// ICECAST_PASSWORD above: a hardcoded constant shipped in the app binary
+// isn't a secret from a determined attacker, just a soft gate consistent
+// with this app's existing security model - real protection is Icecast
+// itself rejecting the mismatched password.
+// TODO: replace with the actual password configured on /live's <mount>
+// block before relying on this.
+const char *const ICECAST_LIVE_PASSWORD = "Tesla200";
 const char *const ICE_GENRE = "avant-garde";
 
 constexpr int SAMPLE_RATE = 44100;
@@ -127,7 +139,8 @@ void IcecastBroadcaster::sendIcecastHandshake(const QString &channel, const QStr
     // PUT protocol treats the connection as a continuous stream once
     // headers end, matching ffmpeg's icecast:// muxer / libshout, and
     // matching Icecast's own "HTTP/1.0 200 OK"-style reply.
-    const QByteArray auth = QByteArray("source:") + ICECAST_PASSWORD;
+    const char *const password = (channel == QStringLiteral("live")) ? ICECAST_LIVE_PASSWORD : ICECAST_PASSWORD;
+    const QByteArray auth = QByteArray("source:") + password;
     QByteArray request;
     request += "PUT /" + channel.toUtf8() + " HTTP/1.0\r\n";
     request += "Authorization: Basic " + auth.toBase64() + "\r\n";

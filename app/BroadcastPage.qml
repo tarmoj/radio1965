@@ -28,13 +28,23 @@ Item {
     // IcecastBroadcaster.startBroadcast() so the published event's
     // author_id can be set server-side (see icecast_on_connect.sh).
     property string accessToken: ""
+    // Passed in from Main.qml (userSettings.role === "manager") - gates
+    // "live" below. project-description.md's Channels section: "live -
+    // live audio broadcast (by managers)". Icecast itself also protects
+    // /live with its own mount-specific password (see
+    // icecastbroadcaster.cpp's ICECAST_LIVE_PASSWORD) - this UI gate alone
+    // isn't the real enforcement, just keeps non-managers from seeing an
+    // option that would fail to connect anyway.
+    property bool isManager: false
     // "like 5 minutes" per project-description.md #10.1.
     readonly property int temporaryBroadcastLimitSeconds: 180 // 3 minutes
     // radio1965 (the always-on main channel) is deliberately excluded -
     // broadcast to it only by external tools (ezstream/raw ffmpeg directly
     // against Icecast, see icecastbroadcaster.cpp's own comments), never
     // picked here by an app user.
-    readonly property var channelNames: ["user1", "user2", "user3", "user4"]
+    readonly property var channelNames: root.isManager
+        ? ["live", "user1", "user2", "user3", "user4"]
+        : ["user1", "user2", "user3", "user4"]
     property var occupiedChannels: []
     property string errorMessage: ""
 
