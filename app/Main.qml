@@ -345,7 +345,11 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // at the register view.
         onOpened: {
             contributorDialog.loading = true
-            contributorWebView.url = appSettings.contributorWebUrl
+            // "?embed=app" tells contributor/index.html to hand its result
+            // back via the "#result=" URL-fragment trick below instead of
+            // redirecting to the editor page (which only makes sense for a
+            // standalone browser visit).
+            contributorWebView.url = appSettings.contributorWebUrl + "?embed=app"
         }
 
         // contributor/index.html (register/login/forgot-password) embedded

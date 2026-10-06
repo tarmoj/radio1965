@@ -133,6 +133,16 @@
       });
     }
 
+    // Sibling of this page under /radio1965/ on the same static host (see
+    // this repo's own contributor/ and editor/ directories) - where a
+    // successful standalone login sends the user next.
+    var EDITOR_URL = "../editor/";
+
+    // app/Main.qml's contributorDialog loads this page with "?embed=app"
+    // appended (see its onOpened) so it can tell apart being embedded in
+    // the app's WebView from a normal browser visit.
+    var isEmbeddedInApp = new URLSearchParams(window.location.search).get("embed") === "app";
+
     // Hands the logged-in/registered state back to the app's WebView
     // (QtWebView has no JS bridge) - app/Main.qml's contributorDialog
     // watches WebView.onUrlChanged for a "#result=" fragment instead of
@@ -159,7 +169,12 @@
           document.getElementById("registerButton").disabled = false;
           if (result.status === 200) {
             setMessage("registerMessage", "Check your email to confirm your account.", "info");
-            handOffToApp({ token: result.data.access_token, role: result.data.role, name: name, email: email });
+            // Still "pending" at this point either way - nothing to send
+            // the app/editor to yet, just hand off the token so the app
+            // can poll GET /contributors/status once confirmed.
+            if (isEmbeddedInApp) {
+              handOffToApp({ token: result.data.access_token, role: result.data.role, name: name, email: email });
+            }
           } else if (result.status === 409) {
             document.getElementById("loginEmail").value = email;
             showView("login");
@@ -187,7 +202,17 @@
         .then(function (result) {
           document.getElementById("loginButton").disabled = false;
           if (result.status === 200) {
-            handOffToApp({ token: result.data.access_token, role: result.data.role, name: "", email: email });
+            if (isEmbeddedInApp) {
+              handOffToApp({ token: result.data.access_token, role: result.data.role, name: "", email: email });
+            } else if (result.data.role === "contributor" || result.data.role === "manager") {
+              // project-description.md #10: logging in here takes an
+              // approved contributor straight into the editor, already
+              // logged in - editor/index.html verifies the token itself
+              // via GET /contributors/status before unlocking.
+              window.location.href = EDITOR_URL + "?token=" + encodeURIComponent(result.data.access_token);
+            } else {
+              setMessage("loginMessage", "Logged in, but your registration is still pending approval.", "info");
+            }
           } else if (result.status === 401) {
             setMessage("loginMessage", "Invalid email or password.", "error");
           } else if (result.status === 403) {

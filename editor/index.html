@@ -17,21 +17,21 @@
   </style>
 </head>
 <body>
-  <!-- Client-side gate only: good enough to keep the editor off casual/
-       search-engine stumbling, not a substitute for real server-side auth
-       (see project-description.md #7's "rewrite editor page, that requires
-       e-mail and password" TODO for that). The point of hashing here isn't
-       to withstand a targeted attacker (a 4-digit PIN's SHA-256 is
-       trivially brute-forceable offline once someone has this source) - a
-       plaintext password sitting directly in the page/view-source would
-       have been casually, instantly readable; this at least isn't that. -->
+  <!-- Real server-side auth (project-description.md #10's "rewrite editor
+       page, that requires e-mail and password" TODO) - logs in against
+       server/main.py's POST /contributors/login, the same endpoint
+       contributor/index.html uses. Only role "contributor"/"manager" is
+       let through; "pending"/"banned" see an explanatory error instead. -->
   <div id="lockScreen">
     <h1>Radio 1965 - Editor</h1>
+    <label>Email
+      <input id="lockEmail" type="email" autofocus />
+    </label>
     <label>Password
-      <input id="lockPassword" type="password" autofocus />
+      <input id="lockPassword" type="password" />
     </label>
     <div id="lockError"></div>
-    <button id="unlockButton" type="button">Unlock</button>
+    <button id="unlockButton" type="button">Log in</button>
   </div>
 
   <div id="appContent" style="display: none">
@@ -113,52 +113,98 @@
   </div>
 
   <script>
-    // --- Lock screen: SHA-256("1966") - see the comment above #lockScreen.
-    // Not the plaintext itself, so a casual look at this source (or a
-    // server-permissions file, if this were instead done via .htpasswd)
-    // doesn't hand over the actual password.
-    const EDITOR_PASSWORD_HASH =
-      "c00cf031587d12c309358e85de8876b2738d3ef2cadd88db6b07318ea0ba8973";
-    const UNLOCK_SESSION_KEY = "radio65EditorUnlocked";
-
-    async function sha256Hex(text) {
-      const bytes = new TextEncoder().encode(text);
-      const digest = await crypto.subtle.digest("SHA-256", bytes);
-      return Array.from(new Uint8Array(digest))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-    }
+    // --- Lock screen: real login against server/main.py's
+    // POST /contributors/login - project-description.md #10's "rewrite
+    // editor page, that requires e-mail and password" TODO. Hardcoded
+    // (not read from the #serverUrl input below, which is inside the
+    // still-locked #appContent) - same default as that input.
+    const LOGIN_API_BASE = "https://live.uuu.ee/radio1965/api";
+    const ACCESS_TOKEN_SESSION_KEY = "radio65EditorAccessToken";
+    const ROLE_SESSION_KEY = "radio65EditorRole";
+    const APPROVED_ROLES = ["contributor", "manager"];
 
     function unlockEditor() {
       document.getElementById("lockScreen").style.display = "none";
       document.getElementById("appContent").style.display = "";
     }
 
-    async function tryUnlock() {
+    function rejectAccess(errorEl, message) {
+      sessionStorage.removeItem(ACCESS_TOKEN_SESSION_KEY);
+      sessionStorage.removeItem(ROLE_SESSION_KEY);
+      errorEl.textContent = message;
+    }
+
+    async function tryLogin() {
+      const emailEl = document.getElementById("lockEmail");
       const passwordEl = document.getElementById("lockPassword");
       const errorEl = document.getElementById("lockError");
-      const hash = await sha256Hex(passwordEl.value);
-      if (hash === EDITOR_PASSWORD_HASH) {
-        errorEl.textContent = "";
-        // Session-only (not localStorage) - closing the tab/browser asks
-        // again, but repeated edits/reloads in one sitting don't re-prompt.
-        sessionStorage.setItem(UNLOCK_SESSION_KEY, "1");
-        unlockEditor();
-      } else {
-        errorEl.textContent = "Wrong password.";
-        passwordEl.value = "";
-        passwordEl.focus();
+      errorEl.textContent = "";
+      try {
+        const res = await fetch(`${LOGIN_API_BASE}/contributors/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailEl.value, password: passwordEl.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          rejectAccess(errorEl, "Invalid email or password.");
+        } else if (res.status === 403) {
+          rejectAccess(errorEl, "This account cannot access the editor.");
+        } else if (!res.ok) {
+          rejectAccess(errorEl, "Could not reach the server. Try again later.");
+        } else if (!APPROVED_ROLES.includes(data.role)) {
+          rejectAccess(errorEl, "Only approved contributors can use the editor. Your registration is pending approval.");
+        } else {
+          // Session-only (not localStorage) - closing the tab/browser asks
+          // again, but repeated edits/reloads in one sitting don't re-prompt.
+          sessionStorage.setItem(ACCESS_TOKEN_SESSION_KEY, data.access_token);
+          sessionStorage.setItem(ROLE_SESSION_KEY, data.role);
+          unlockEditor();
+        }
+      } catch (err) {
+        rejectAccess(errorEl, "Could not reach the server. Try again later.");
       }
+      passwordEl.value = "";
     }
 
-    document.getElementById("unlockButton").addEventListener("click", tryUnlock);
+    // Reached via contributor/index.html's post-login redirect
+    // (?token=<access_token>) - already logged in there, so just confirm
+    // the role is still approved via GET /contributors/status instead of
+    // asking for credentials again.
+    async function tryTokenFromUrl(token) {
+      const errorEl = document.getElementById("lockError");
+      try {
+        const res = await fetch(`${LOGIN_API_BASE}/contributors/status?token=${encodeURIComponent(token)}`);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && APPROVED_ROLES.includes(data.role)) {
+          sessionStorage.setItem(ACCESS_TOKEN_SESSION_KEY, token);
+          sessionStorage.setItem(ROLE_SESSION_KEY, data.role);
+          unlockEditor();
+        } else {
+          rejectAccess(errorEl, "Only approved contributors can use the editor. Your registration is pending approval.");
+        }
+      } catch (err) {
+        rejectAccess(errorEl, "Could not reach the server. Try again later.");
+      }
+      // Don't leave the token sitting in the visible/bookmarkable URL.
+      history.replaceState(null, "", window.location.pathname);
+    }
+
+    document.getElementById("unlockButton").addEventListener("click", tryLogin);
     document.getElementById("lockPassword").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") tryUnlock();
+      if (e.key === "Enter") tryLogin();
     });
 
-    if (sessionStorage.getItem(UNLOCK_SESSION_KEY) === "1") {
+    const urlToken = new URLSearchParams(window.location.search).get("token");
+    if (urlToken) {
+      tryTokenFromUrl(urlToken);
+    } else if (
+      sessionStorage.getItem(ACCESS_TOKEN_SESSION_KEY) &&
+      APPROVED_ROLES.includes(sessionStorage.getItem(ROLE_SESSION_KEY))
+    ) {
       unlockEditor();
     }
+
     const logEl = document.getElementById("log");
     function log(msg) {
       logEl.textContent += msg + "\n";
