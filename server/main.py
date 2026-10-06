@@ -133,6 +133,22 @@ class ContributorRegisterIn(BaseModel):
     password: str
 
 
+# Used by login_contributor()/request_password_reset()/reset_password() -
+# contributor/index.html's login/forgot-password/reset-password views.
+class ContributorLoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class ContributorForgotPasswordIn(BaseModel):
+    email: str
+
+
+class ContributorResetPasswordIn(BaseModel):
+    token: str
+    new_password: str
+
+
 # Used by finalize_recording() - server/icecast_on_disconnect.sh's POST once
 # a "Save stream" recording (project-description.md #8.2.1) has finished
 # uploading to eccm.ee.
@@ -299,6 +315,67 @@ def get_contributor_status(token: str, session: Session = Depends(db.get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Unknown token")
     return {"role": user.role}
+
+
+@app.post("/contributors/login")
+def login_contributor(req: ContributorLoginIn, session: Session = Depends(db.get_db)):
+    """
+    contributor/index.html's login view (project-description.md #10's
+    "Become a contributor/Log in" TODO). One generic 401 message for both
+    "no such email" and "wrong password" - same enumeration-avoidance
+    posture as register_contributor(). role='pending' is allowed to log in
+    too, so a not-yet-confirmed user can recover their access_token on a
+    new device.
+    """
+    user = session.query(db.User).filter(db.User.email == req.email).one_or_none()
+    if not user or not bcrypt.checkpw(req.password.encode(), user.password_hash.encode()):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if user.role == "banned":
+        raise HTTPException(status_code=403, detail="This account cannot log in")
+
+    return {"access_token": user.access_token, "role": user.role}
+
+
+@app.post("/contributors/forgot-password")
+def request_password_reset(req: ContributorForgotPasswordIn, session: Session = Depends(db.get_db)):
+    """
+    contributor/index.html's "Forgot password?" view. Always returns 200
+    with the same generic message regardless of whether the email is
+    registered, to avoid leaking that - same reasoning as
+    register_contributor()'s access_token scheme.
+    """
+    user = session.query(db.User).filter(db.User.email == req.email).one_or_none()
+    if user:
+        user.reset_token = secrets.token_urlsafe(32)
+        user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=1)
+        session.commit()
+
+        reset_url = f"{config.CONTRIBUTOR_WEB_URL}?view=reset&token={user.reset_token}"
+        emailer.send_email(
+            user.email,
+            "Reset your VÄIN contributor password",
+            f"Hi {user.name},\n\n"
+            f"Click the link below to choose a new password for VÄIN (Radio Tallinn 1965):\n\n"
+            f"{reset_url}\n\n"
+            f"This link expires in 1 hour. If you didn't request this, you can ignore this email.",
+        )
+
+    return {"detail": "If that email is registered, a reset link has been sent."}
+
+
+@app.post("/contributors/reset-password")
+def reset_password(req: ContributorResetPasswordIn, session: Session = Depends(db.get_db)):
+    """Visited from the email link request_password_reset() sends."""
+    user = session.query(db.User).filter(db.User.reset_token == req.token).one_or_none()
+    if not user or not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    user.password_hash = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    session.commit()
+
+    return {}
 
 
 @app.post("/events/publish")

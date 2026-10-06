@@ -67,3 +67,12 @@ SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "info@eccm.ee")
 # "https://live.uuu.ee/radio1965/api". Matches app/Main.qml's
 # appSettings.serverUrl default.
 PUBLIC_BASE_URL = os.getenv("RADIO65_PUBLIC_BASE_URL", "https://live.uuu.ee/radio1965/api")
+
+# Where the web-hosted register/login/forgot-password page (contributor/
+# index.html) lives - used to build the password-reset link emailed by
+# POST /contributors/forgot-password. Not this server's own URL (that's
+# PUBLIC_BASE_URL above) - a separate static host (see contributor/
+# index.html's deployment notes).
+CONTRIBUTOR_WEB_URL = os.getenv(
+    "RADIO65_CONTRIBUTOR_WEB_URL", "https://eccm.ee/radio1965/contributor/"
+)

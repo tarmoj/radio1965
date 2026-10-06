@@ -122,6 +122,12 @@ class User(Base):
     # a user up by email again (which would let anyone probe whether an
     # arbitrary email address is registered).
     access_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    # Set by POST /contributors/forgot-password, cleared by
+    # POST /contributors/reset-password (main.py) - separate from
+    # access_token so a leaked/scanned reset-email link can't also be used
+    # as an ongoing status-check credential.
+    reset_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
+    reset_token_expires_at: Mapped[object | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[object] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[object] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

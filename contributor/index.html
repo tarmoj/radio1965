@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VÄIN - Become a Contributor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #12100d;
+      --fg: #f0e6d2;
+      --accent: #42b649;
+      --error: crimson;
+      --field-bg: #201d18;
+      --field-border: #3a362e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      max-width: 420px;
+      margin: 2em auto;
+      padding: 0 1em;
+    }
+    h1 { font-size: 1.3em; }
+    p.hint { opacity: 0.8; font-size: 0.9em; }
+    label { display: block; margin-top: 1em; font-weight: bold; }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 1em;
+      padding: 0.5em;
+      margin-top: 0.3em;
+      background: var(--field-bg);
+      border: 1px solid var(--field-border);
+      border-radius: 4px;
+      color: var(--fg);
+    }
+    button {
+      margin-top: 1.5em;
+      padding: 0.6em 1.2em;
+      background: var(--accent);
+      color: #0a1a0b;
+      border: none;
+      border-radius: 4px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .message { margin-top: 1em; min-height: 1.2em; }
+    .message.error { color: var(--error); }
+    .message.info { color: var(--accent); }
+    .switch-link { margin-top: 1.5em; font-size: 0.9em; }
+    .switch-link a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .view { display: none; }
+    .view.active { display: block; }
+  </style>
+</head>
+<body>
+  <h1>VÄIN - Radio Tallinn 1965</h1>
+
+  <!-- register view -->
+  <div id="registerView" class="view">
+    <p class="hint">Become a contributor</p>
+    <p class="hint">By registering, you agree to be identified as the author of what you post and to follow the community's content guidelines.</p>
+    <label>Name<input id="registerName" /></label>
+    <label>Email<input id="registerEmail" type="email" /></label>
+    <label>Password<input id="registerPassword" type="password" /></label>
+    <label>Repeat password<input id="registerRepeatPassword" type="password" /></label>
+    <button id="registerButton" type="button">Register</button>
+    <div id="registerMessage" class="message"></div>
+    <div class="switch-link">Already registered? <a id="goToLogin">Log in</a></div>
+  </div>
+
+  <!-- login view -->
+  <div id="loginView" class="view">
+    <p class="hint">Log in</p>
+    <label>Email<input id="loginEmail" type="email" /></label>
+    <label>Password<input id="loginPassword" type="password" /></label>
+    <button id="loginButton" type="button">Log in</button>
+    <div id="loginMessage" class="message"></div>
+    <div class="switch-link"><a id="goToForgot">Forgot password?</a></div>
+    <div class="switch-link">New here? <a id="goToRegister">Register</a></div>
+  </div>
+
+  <!-- forgot-password view -->
+  <div id="forgotView" class="view">
+    <p class="hint">Reset your password</p>
+    <label>Email<input id="forgotEmail" type="email" /></label>
+    <button id="forgotButton" type="button">Send reset link</button>
+    <div id="forgotMessage" class="message"></div>
+    <div class="switch-link"><a id="backToLoginFromForgot">Back to login</a></div>
+  </div>
+
+  <!-- reset-password view (reached via the emailed link) -->
+  <div id="resetView" class="view">
+    <p class="hint">Choose a new password</p>
+    <label>New password<input id="resetPassword" type="password" /></label>
+    <label>Repeat new password<input id="resetRepeatPassword" type="password" /></label>
+    <button id="resetButton" type="button">Set new password</button>
+    <div id="resetMessage" class="message"></div>
+    <div class="switch-link"><a id="backToLoginFromReset">Back to login</a></div>
+  </div>
+
+  <script>
+    var API_BASE = "https://live.uuu.ee/radio1965/api";
+
+    var views = ["register", "login", "forgot", "reset"];
+
+    function showView(name) {
+      views.forEach(function (v) {
+        document.getElementById(v + "View").classList.toggle("active", v === name);
+      });
+    }
+
+    function setMessage(elementId, text, kind) {
+      var el = document.getElementById(elementId);
+      el.textContent = text || "";
+      el.className = "message" + (kind ? " " + kind : "");
+    }
+
+    function postJson(path, body) {
+      return fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          return { status: response.status, data: data };
+        });
+      });
+    }
+
+    // Hands the logged-in/registered state back to the app's WebView
+    // (QtWebView has no JS bridge) - app/Main.qml's contributorDialog
+    // watches WebView.onUrlChanged for a "#result=" fragment instead of
+    // a real navigation, so this doesn't reload the page.
+    function handOffToApp(payload) {
+      window.location.hash = "result=" + encodeURIComponent(JSON.stringify(payload));
+    }
+
+    function doRegister() {
+      var name = document.getElementById("registerName").value.trim();
+      var email = document.getElementById("registerEmail").value.trim();
+      var password = document.getElementById("registerPassword").value;
+      var repeat = document.getElementById("registerRepeatPassword").value;
+
+      if (password !== repeat) {
+        setMessage("registerMessage", "Passwords do not match.", "error");
+        return;
+      }
+      setMessage("registerMessage", "", "");
+      document.getElementById("registerButton").disabled = true;
+
+      postJson("/contributors/register", { name: name, email: email, password: password })
+        .then(function (result) {
+          document.getElementById("registerButton").disabled = false;
+          if (result.status === 200) {
+            setMessage("registerMessage", "Check your email to confirm your account.", "info");
+            handOffToApp({ token: result.data.access_token, role: result.data.role, name: name, email: email });
+          } else if (result.status === 409) {
+            document.getElementById("loginEmail").value = email;
+            showView("login");
+            setMessage("loginMessage", "This email is already registered - log in instead.", "error");
+          } else if (result.status === 403) {
+            setMessage("registerMessage", "This email cannot register.", "error");
+          } else {
+            setMessage("registerMessage", "Could not reach the server. Try again later.", "error");
+          }
+        })
+        .catch(function () {
+          document.getElementById("registerButton").disabled = false;
+          setMessage("registerMessage", "Could not reach the server. Try again later.", "error");
+        });
+    }
+
+    function doLogin() {
+      var email = document.getElementById("loginEmail").value.trim();
+      var password = document.getElementById("loginPassword").value;
+
+      setMessage("loginMessage", "", "");
+      document.getElementById("loginButton").disabled = true;
+
+      postJson("/contributors/login", { email: email, password: password })
+        .then(function (result) {
+          document.getElementById("loginButton").disabled = false;
+          if (result.status === 200) {
+            handOffToApp({ token: result.data.access_token, role: result.data.role, name: "", email: email });
+          } else if (result.status === 401) {
+            setMessage("loginMessage", "Invalid email or password.", "error");
+          } else if (result.status === 403) {
+            setMessage("loginMessage", "This account cannot log in.", "error");
+          } else {
+            setMessage("loginMessage", "Could not reach the server. Try again later.", "error");
+          }
+        })
+        .catch(function () {
+          document.getElementById("loginButton").disabled = false;
+          setMessage("loginMessage", "Could not reach the server. Try again later.", "error");
+        });
+    }
+
+    function doForgot() {
+      var email = document.getElementById("forgotEmail").value.trim();
+      setMessage("forgotMessage", "", "");
+      document.getElementById("forgotButton").disabled = true;
+
+      postJson("/contributors/forgot-password", { email: email })
+        .then(function () {
+          document.getElementById("forgotButton").disabled = false;
+          setMessage("forgotMessage", "If that email is registered, a reset link has been sent.", "info");
+        })
+        .catch(function () {
+          document.getElementById("forgotButton").disabled = false;
+          setMessage("forgotMessage", "Could not reach the server. Try again later.", "error");
+        });
+    }
+
+    function doReset(token) {
+      var password = document.getElementById("resetPassword").value;
+      var repeat = document.getElementById("resetRepeatPassword").value;
+
+      if (password !== repeat) {
+        setMessage("resetMessage", "Passwords do not match.", "error");
+        return;
+      }
+      setMessage("resetMessage", "", "");
+      document.getElementById("resetButton").disabled = true;
+
+      postJson("/contributors/reset-password", { token: token, new_password: password })
+        .then(function (result) {
+          document.getElementById("resetButton").disabled = false;
+          if (result.status === 200) {
+            setMessage("resetMessage", "Password updated. You can log in now.", "info");
+          } else {
+            setMessage("resetMessage", "Invalid or expired reset link.", "error");
+          }
+        })
+        .catch(function () {
+          document.getElementById("resetButton").disabled = false;
+          setMessage("resetMessage", "Could not reach the server. Try again later.", "error");
+        });
+    }
+
+    document.getElementById("registerButton").addEventListener("click", doRegister);
+    document.getElementById("loginButton").addEventListener("click", doLogin);
+    document.getElementById("forgotButton").addEventListener("click", doForgot);
+    document.getElementById("goToLogin").addEventListener("click", function () { showView("login"); });
+    document.getElementById("goToRegister").addEventListener("click", function () { showView("register"); });
+    document.getElementById("goToForgot").addEventListener("click", function () { showView("forgot"); });
+    document.getElementById("backToLoginFromForgot").addEventListener("click", function () { showView("login"); });
+    document.getElementById("backToLoginFromReset").addEventListener("click", function () { showView("login"); });
+
+    var params = new URLSearchParams(window.location.search);
+    var view = params.get("view");
+    if (view === "reset") {
+      var token = params.get("token") || "";
+      document.getElementById("resetButton").addEventListener("click", function () { doReset(token); });
+      showView("reset");
+    } else if (view === "login") {
+      showView("login");
+    } else {
+      showView("register");
+    }
+  </script>
+</body>
+</html>
