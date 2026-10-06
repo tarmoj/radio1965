@@ -25,11 +25,11 @@ jobs:
       - name: Deploy editor/
         run: |
           rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" \
-            editor/index.html \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_PATH }}/editor/index.html
+            "editor/index.html" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_PATH }}/editor/index.html"
 
       - name: Deploy contributor/
         run: |
           rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" \
-            contributor/index.html \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_PATH }}/contributor/index.html
+            "contributor/index.html" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_PATH }}/contributor/index.html"
