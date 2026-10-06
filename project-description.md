@@ -457,7 +457,6 @@ TODO: rewrite editor page, that requires e-mail and password but can receive it 
 ? What about joomla?
 
 4) Add action "Share a gem"  in menu (if contributor|manager)-> opens editor page with email and (encoded) password in the URL. 
-What is better to use -  internal webview or external browser?
 
 In app: store name, email, password in app settings. On startup, check and set for role and set it in settings. Add button "Reset role" to main menu.
 
