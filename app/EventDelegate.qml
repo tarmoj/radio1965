@@ -108,9 +108,13 @@ ItemDelegate {
         id: textDialog
         title: root.title
         modal: true
+        // Parented to the window overlay (as Box.qml's groupPopup is) -
+        // otherwise it's centered/sized against this card, which can be
+        // as narrow as a Shelf column.
+        parent: root.Overlay.overlay
         anchors.centerIn: parent
         standardButtons: Dialog.Close
-        width: Math.min(root.width - 40, 420)
+        width: Math.min((parent ? parent.width : root.width) - 40, 420)
 
         // ColumnLayout + Layout.fillWidth, not a bare Label with
         // `width: textDialog.availableWidth`: that direct reference to the

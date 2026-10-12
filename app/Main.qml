@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 import QtCore
 import QtQuick.Window
 import QtWebView
+import "DummyEvents.js" as DummyEvents
 
 
 ApplicationWindow {
@@ -39,6 +40,10 @@ ApplicationWindow {
     // temporarily hide the WebView itself while the drawer is open.
     property alias drawerOpened: drawer.opened
 
+    // Drawer or a PlayerBar combobox dropdown is open - anything that has to
+    // render above a native WebView, which is hidden while this is true.
+    readonly property bool overlayOpen: drawer.opened || playerBar.popupOpen
+
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
@@ -58,7 +63,8 @@ ApplicationWindow {
     Settings {
         id: userSettings
         category: "User"
-        property string role: "none"
+        // layout preview: start as temporaryContributor to expose the broadcast screen
+        property string role: layoutPreview ? "temporaryContributor" : "none"
         property string contributorName: ""
         property string contributorEmail: ""
         // Opaque per-account secret from POST /contributors/register -
@@ -70,8 +76,17 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        eventsApiClient.fetchEvents(appSettings.serverUrl);
-        checkContributorStatus();
+        // RADIO65_LAYOUT_PREVIEW build (app/CMakeLists.txt) - seed the real
+        // model with local dummy data instead of hitting a live server, so
+        // the UI has something to show on a simulator/emulator with no
+        // backend reachable. checkContributorStatus() is skipped too since
+        // there's no account behind the dummy accessToken (if any).
+        if (layoutPreview) {
+            notificationManager.upsertEvents(DummyEvents.events);
+        } else {
+            eventsApiClient.fetchEvents(appSettings.serverUrl);
+            checkContributorStatus();
+        }
         if (appSettings.showInfoOnStartup) {
             infoDialog.showDontShowCheckbox = true;
             infoDialog.open();
@@ -172,8 +187,12 @@ ApplicationWindow {
                 //text: "⟳"
                 icon.source: "qrc:/images/refresh.svg"
                 onClicked: {
-                    eventsApiClient.fetchEvents(appSettings.serverUrl);
-                    checkContributorStatus();
+                    if (layoutPreview) {
+                        notificationManager.upsertEvents(DummyEvents.events);
+                    } else {
+                        eventsApiClient.fetchEvents(appSettings.serverUrl);
+                        checkContributorStatus();
+                    }
                 }
             }
         }
@@ -559,6 +578,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         spacing: 0
 
         PlayerBar {
+            id: playerBar
             Layout.fillWidth: true
             controller: playbackController
             // Hidden (not just occluded) while VideoPage is fullscreen so
