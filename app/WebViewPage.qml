@@ -38,8 +38,10 @@ Page {
     // `drawer` id isn't reachable from this separate file - see Main.qml's
     // `property alias drawerOpened: drawer.opened`. Hiding the WebView
     // while the drawer is open is the only way to make the drawer usable
-    // on top of an open article, since it can't be layered above.
-    readonly property bool drawerOpen: ApplicationWindow.window ? ApplicationWindow.window.drawerOpened : false
+    // on top of an open article, since it can't be layered above. The same
+    // goes for PlayerBar's channel/recent-media dropdowns - Main.qml's
+    // `overlayOpen` covers both.
+    readonly property bool drawerOpen: ApplicationWindow.window ? ApplicationWindow.window.overlayOpen : false
 
     background: Rectangle { color: "transparent" }
 

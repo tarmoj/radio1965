@@ -40,6 +40,10 @@ ApplicationWindow {
     // temporarily hide the WebView itself while the drawer is open.
     property alias drawerOpened: drawer.opened
 
+    // Drawer or a PlayerBar combobox dropdown is open - anything that has to
+    // render above a native WebView, which is hidden while this is true.
+    readonly property bool overlayOpen: drawer.opened || playerBar.popupOpen
+
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
@@ -574,6 +578,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         spacing: 0
 
         PlayerBar {
+            id: playerBar
             Layout.fillWidth: true
             controller: playbackController
             // Hidden (not just occluded) while VideoPage is fullscreen so

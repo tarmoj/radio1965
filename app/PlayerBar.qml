@@ -13,6 +13,10 @@ Item {
     required property PlaybackController controller
     implicitHeight: contentColumn.implicitHeight + 12
 
+    // True while either combobox dropdown is open - Main.qml uses this to
+    // hide native WebView content, which would otherwise draw over the popup.
+    readonly property bool popupOpen: channelCombo.popup.visible || recentMediaCombo.popup.visible
+
     // Material's ToolButton pads ~12px each side of its 24px icon; tighter
     // here so play/stop/expand sit close together in the player strip.
     component CompactToolButton: ToolButton {
