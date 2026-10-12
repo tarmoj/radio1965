@@ -80,6 +80,12 @@ int main(int argc, char *argv[])
     iosAudioSessionActivatePlayback();
 #endif
 
+#if !defined(RADIO65_ENABLE_BROADCAST) && defined(RADIO65_LAYOUT_PREVIEW)
+    // Declared before the engine so it outlives it - otherwise the context
+    // property goes null during engine teardown and bindings error out.
+    FakeIcecastBroadcaster fakeBroadcaster;
+#endif
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("eventsApiClient", &eventsApiClient);
 #ifdef RADIO65_ENABLE_NOTIFICATIONS
@@ -89,7 +95,6 @@ int main(int argc, char *argv[])
 #ifdef RADIO65_ENABLE_BROADCAST
     engine.rootContext()->setContextProperty("icecastBroadcaster", &icecastBroadcaster);
 #elif defined(RADIO65_LAYOUT_PREVIEW)
-    FakeIcecastBroadcaster fakeBroadcaster;
     engine.rootContext()->setContextProperty("icecastBroadcaster", &fakeBroadcaster);
 #endif
     // Main.qml branches startup/refresh on this instead of hitting the
