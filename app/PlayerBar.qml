@@ -288,6 +288,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
+                Layout.rightMargin: 16
                 spacing: 8
                 visible: !root.controller.isLive
 
@@ -304,13 +305,20 @@ Item {
                 Label { text: root.formatTime(root.controller.player.duration) }
             }
 
-            ColumnLayout {
+            // Title and summary share one row in landscape, stacked in portrait.
+            GridLayout {
+                id: descriptionGrid
+                readonly property bool landscape: root.Window.width > root.Window.height
                 Layout.fillWidth: true
                 Layout.leftMargin: 12
-                spacing: 2
+                columns: landscape ? 2 : 1
+                columnSpacing: 12
+                rowSpacing: 2
 
                 Label {
-                    Layout.fillWidth: true
+                    Layout.fillWidth: false
+                    Layout.maximumWidth: descriptionGrid.landscape ? descriptionGrid.width * 0.4 : Number.POSITIVE_INFINITY
+                    Layout.alignment: Qt.AlignTop
                     wrapMode: Text.Wrap
                     font.bold: true
                     visible: root.controller.displayTitle.length > 0
@@ -319,6 +327,7 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
                     wrapMode: Text.Wrap
                     visible: root.controller.displaySummary.length > 0
                     text: root.controller.displaySummary
