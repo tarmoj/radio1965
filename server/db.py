@@ -34,8 +34,11 @@ class Base(DeclarativeBase):
 EVENT_TYPES = ("text", "audio", "video", "audiostream", "videostream", "article", "webcontent", "livestream", "streamrecording")
 EVENT_STATUSES = ("unpublished", "new", "shelved", "archived")
 # "none" (no row) isn't a stored value - it's what GET /contributors/status
-# (main.py) returns when a token isn't found at all.
-USER_ROLES = ("pending", "contributor", "manager", "banned")
+# (main.py) returns when a token isn't found at all. "deleted" is set by
+# POST /contributors/delete - the row (id/name) stays so already-published
+# events keep a valid author_id/author_name, but email/password_hash/
+# access_token are scrubbed, so the account can never log in/be found again.
+USER_ROLES = ("pending", "contributor", "manager", "banned", "deleted")
 
 
 class Event(Base):
@@ -116,16 +119,20 @@ class User(Base):
     # manually set someone to role='manager').
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    # Nullable - POST /contributors/delete scrubs these three (and sets
+    # role='deleted') while keeping id/name, so already-published events
+    # keep a valid author. Not dropping the row entirely for that same
+    # reason (events.author_id's FK would otherwise have to go NULL too).
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True, index=True)
     role: Mapped[str] = mapped_column(Enum(*USER_ROLES, name="user_role"), nullable=False, default="pending")
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Opaque per-user secret (see main.py's register/confirm/status
     # endpoints) - doubles as both the one-time email confirmation link's
     # token and the app's ongoing "am I confirmed yet" status-check
     # credential, so nothing after initial registration ever needs to look
     # a user up by email again (which would let anyone probe whether an
     # arbitrary email address is registered).
-    access_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    access_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
     # Set by POST /contributors/forgot-password, cleared by
     # POST /contributors/reset-password (main.py) - separate from
     # access_token so a leaked/scanned reset-email link can't also be used

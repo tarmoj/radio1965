@@ -149,6 +149,10 @@ class ContributorResetPasswordIn(BaseModel):
     new_password: str
 
 
+class ContributorDeleteIn(BaseModel):
+    access_token: str
+
+
 # Used by finalize_recording() - server/icecast_on_disconnect.sh's POST once
 # a "Save stream" recording (project-description.md #8.2.1) has finished
 # uploading to eccm.ee.
@@ -378,6 +382,32 @@ def reset_password(req: ContributorResetPasswordIn, session: Session = Depends(d
     user.password_hash = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
     user.reset_token = None
     user.reset_token_expires_at = None
+    session.commit()
+
+    return {}
+
+
+@app.post("/contributors/delete")
+def delete_contributor(req: ContributorDeleteIn, session: Session = Depends(db.get_db)):
+    """
+    app/Main.qml's "Leave contributor role" -> "Delete my data" prompt.
+    Scrubs email/password_hash/access_token (and reset_token, for good
+    measure) and sets role='deleted' - id/name stay, since
+    Event.author/author_id (db.py) still needs to resolve a name for
+    anything this user already published. Not deleting the row outright:
+    that would need events.author_id's FK to go NULL too, same situation
+    sql/schema.sql's migration notes already describe for other changes.
+    """
+    user = session.query(db.User).filter(db.User.access_token == req.access_token).one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Unknown token")
+
+    user.email = None
+    user.password_hash = None
+    user.access_token = None
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    user.role = "deleted"
     session.commit()
 
     return {}
