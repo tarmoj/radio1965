@@ -164,12 +164,12 @@ Page {
             clip: true
             // Pinned to the viewport width, horizontal scrolling off - we
             // never want the grid itself to scroll sideways, only down.
-            contentWidth: availableWidth - 24
+            contentWidth: availableWidth
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
             GridLayout {
                 id: shelvesGrid
-                width: shelvesScroll.availableWidth - 2 * rowSpacing
+                width: shelvesScroll.availableWidth
                 columnSpacing: 12
                 rowSpacing: 12
 
