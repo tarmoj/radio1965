@@ -13,6 +13,10 @@
 #include "icecastbroadcaster.h"
 #endif
 
+#ifdef RADIO65_LAYOUT_PREVIEW
+#include "fakeicecastbroadcaster.h"
+#endif
+
 #if defined(Q_OS_ANDROID) && defined(RADIO65_ENABLE_PUSH)
 #include <QJniObject>
 #endif
@@ -84,6 +88,9 @@ int main(int argc, char *argv[])
 #endif
 #ifdef RADIO65_ENABLE_BROADCAST
     engine.rootContext()->setContextProperty("icecastBroadcaster", &icecastBroadcaster);
+#elif defined(RADIO65_LAYOUT_PREVIEW)
+    FakeIcecastBroadcaster fakeBroadcaster;
+    engine.rootContext()->setContextProperty("icecastBroadcaster", &fakeBroadcaster);
 #endif
     // Main.qml branches startup/refresh on this instead of hitting the
     // real server - seeded from DummyEvents.js via

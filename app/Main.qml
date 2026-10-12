@@ -59,7 +59,8 @@ ApplicationWindow {
     Settings {
         id: userSettings
         category: "User"
-        property string role: "none"
+        // layout preview: start as temporaryContributor to expose the broadcast screen
+        property string role: layoutPreview ? "temporaryContributor" : "none"
         property string contributorName: ""
         property string contributorEmail: ""
         // Opaque per-account secret from POST /contributors/register -

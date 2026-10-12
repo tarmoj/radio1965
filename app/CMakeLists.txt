@@ -160,6 +160,10 @@ if(RADIO65_ENABLE_BROADCAST)
     target_compile_definitions(appradio65 PRIVATE RADIO65_ENABLE_BROADCAST)
 endif()
 
+if(RADIO65_LAYOUT_PREVIEW)
+    target_sources(appradio65 PRIVATE fakeicecastbroadcaster.h fakeicecastbroadcaster.cpp)
+endif()
+
 if(RADIO65_ENABLE_PUSH)
     target_compile_definitions(appradio65 PRIVATE RADIO65_ENABLE_PUSH)
 endif()
