@@ -13,6 +13,16 @@ Item {
     required property PlaybackController controller
     implicitHeight: contentColumn.implicitHeight + 12
 
+    // Material's ToolButton pads ~12px each side of its 24px icon; tighter
+    // here so play/stop/expand sit close together in the player strip.
+    component CompactToolButton: ToolButton {
+        padding: 0
+        leftPadding: 0
+        rightPadding: 0
+        implicitWidth: 34
+        implicitHeight: 36
+    }
+
     function formatTime(ms) {
         // Same duration-formatting approach as BroadcastPage.qml's
         // formatElapsed() - not Qt.formatTime(new Date(ms)), which renders
@@ -33,9 +43,26 @@ Item {
         anchors.margins: 6
         spacing: 6
 
-        RowLayout {
+        // Flow rather than one RowLayout: on narrow screens the volume +
+        // transport group wraps onto its own line under the channel picker
+        // instead of squeezing/overflowing. Each group is a RowLayout sized
+        // explicitly (a Flow doesn't stretch children): side by side when
+        // both fit, otherwise each takes the full width.
+        Flow {
             id: controlsRow
-            //Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            spacing: 2
+
+            // Free space when both groups fit on one line - shared equally
+            // so the slider grows along with the picker.
+            readonly property real extra: Math.max(0, width - spacing - selectorGroup.implicitWidth - volumeGroup.implicitWidth)
+
+            readonly property bool wrapped: selectorGroup.implicitWidth + volumeGroup.implicitWidth + spacing > width
+
+        RowLayout {
+            id: selectorGroup
+            width: controlsRow.wrapped ? controlsRow.width
+                                       : implicitWidth + controlsRow.extra / 2
             spacing: 2
 
             BusyIndicator {
@@ -64,6 +91,7 @@ Item {
             ComboBox {
                 id: channelCombo
                 Layout.minimumWidth: 110
+                Layout.preferredWidth: 130
                 Layout.fillWidth: true
                 Layout.maximumWidth: 250
 
@@ -106,6 +134,7 @@ Item {
             ComboBox {
                 id: recentMediaCombo
                 Layout.minimumWidth: 110
+                Layout.preferredWidth: 130
                 Layout.fillWidth: true
                 Layout.maximumWidth: 250
                 visible: root.controller.browsingRecentMedia
@@ -136,6 +165,13 @@ Item {
                 }
             }
 
+        }
+
+        RowLayout {
+            id: volumeGroup
+            width: controlsRow.wrapped ? controlsRow.width : implicitWidth + controlsRow.extra / 2
+            spacing: 0
+
             Image {
                 source: "qrc:/images/sound.svg"
                 // sourceSize.width: 18
@@ -145,7 +181,7 @@ Item {
             Slider {
                 Layout.preferredWidth: 80
                 Layout.minimumWidth: 40
-                Layout.maximumWidth: 200
+                Layout.maximumWidth: 400
                 Layout.fillWidth:  true
                 from: 0
                 to: 1
@@ -170,6 +206,7 @@ Item {
                 //text: root.controller.expanded ? "▴" : "▾"
                 onClicked: root.controller.expanded = !root.controller.expanded
             }
+        }
         }
 
         // Narrow "now playing" strip - single-pass marquee, since the
@@ -241,33 +278,13 @@ Item {
             }
         }
 
-        RowLayout {
+        // Stacked rows (seek bar, then description, then Reload) rather
+        // than side by side - the description wraps over the full width.
+        ColumnLayout {
 
             Layout.fillWidth: true
             spacing: 4
             visible: root.controller.expanded
-
-            Item { Layout.preferredWidth: 12} // spacer
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-
-                Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    font.bold: true
-                    visible: root.controller.displayTitle.length > 0
-                    text: root.controller.displayTitle
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    visible: root.controller.displaySummary.length > 0
-                    text: root.controller.displaySummary
-                }
-            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -285,6 +302,27 @@ Item {
                 }
 
                 Label { text: root.formatTime(root.controller.player.duration) }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 12
+                spacing: 2
+
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    font.bold: true
+                    visible: root.controller.displayTitle.length > 0
+                    text: root.controller.displayTitle
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    visible: root.controller.displaySummary.length > 0
+                    text: root.controller.displaySummary
+                }
             }
 
             Button {
