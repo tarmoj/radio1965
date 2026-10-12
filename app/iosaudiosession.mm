@@ -27,15 +27,27 @@ void iosAudioSessionActivateRecording()
 {
     AVAudioSession *session = [AVAudioSession sharedInstance];
     NSError *error = nil;
+    // No defaultToSpeaker: nothing plays audio back while broadcasting
+    // (see BroadcastPage.qml), so forcing the loudspeaker on at the same
+    // time as the mic serves no purpose here - it's a textbook acoustic-
+    // feedback setup, and the most likely cause of gate/limiter-like
+    // crackling reported on iPhone broadcasts.
     [session setCategory:AVAudioSessionCategoryPlayAndRecord
-              withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker |
-                          AVAudioSessionCategoryOptionAllowBluetooth |
+              withOptions:AVAudioSessionCategoryOptionAllowBluetooth |
                           AVAudioSessionCategoryOptionAllowBluetoothA2DP
                     error:&error];
     if (error) {
         qWarning() << "[iosaudiosession] setCategory(.playAndRecord) failed:"
                     << error.localizedDescription.UTF8String;
         return;
+    }
+    // .measurement minimizes iOS's own AGC/noise-suppression/echo-
+    // cancellation on the input signal - broadcasting wants the raw mic
+    // signal, not voice-call-optimized processing.
+    [session setMode:AVAudioSessionModeMeasurement error:&error];
+    if (error) {
+        qWarning() << "[iosaudiosession] setMode(.measurement) failed:"
+                    << error.localizedDescription.UTF8String;
     }
     [session setActive:YES error:&error];
     if (error) {
