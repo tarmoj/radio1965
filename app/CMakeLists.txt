@@ -37,7 +37,7 @@ option(RADIO65_ENABLE_PUSH "Build native push wiring (Firebase/FCM/APNs)" ON)
 # for checking the UI on a simulator/emulator without any of that set up,
 # seeded with dummy data (see Main.qml's layoutPreview branch) instead of
 # a live server.
-option(RADIO65_LAYOUT_PREVIEW "QML-layout-only variant: no broadcast/mic, no push/Firebase, seeded with dummy data" ON)
+option(RADIO65_LAYOUT_PREVIEW "QML-layout-only variant: no broadcast/mic, no push/Firebase, seeded with dummy data" OFF)
 if(RADIO65_LAYOUT_PREVIEW)
     set(RADIO65_ENABLE_PUSH OFF)
 endif()
