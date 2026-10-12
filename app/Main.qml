@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 import QtCore
 import QtQuick.Window
 import QtWebView
+import "DummyEvents.js" as DummyEvents
 
 
 ApplicationWindow {
@@ -70,8 +71,17 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        eventsApiClient.fetchEvents(appSettings.serverUrl);
-        checkContributorStatus();
+        // RADIO65_LAYOUT_PREVIEW build (app/CMakeLists.txt) - seed the real
+        // model with local dummy data instead of hitting a live server, so
+        // the UI has something to show on a simulator/emulator with no
+        // backend reachable. checkContributorStatus() is skipped too since
+        // there's no account behind the dummy accessToken (if any).
+        if (layoutPreview) {
+            notificationManager.upsertEvents(DummyEvents.events);
+        } else {
+            eventsApiClient.fetchEvents(appSettings.serverUrl);
+            checkContributorStatus();
+        }
         if (appSettings.showInfoOnStartup) {
             infoDialog.showDontShowCheckbox = true;
             infoDialog.open();
@@ -172,8 +182,12 @@ ApplicationWindow {
                 //text: "⟳"
                 icon.source: "qrc:/images/refresh.svg"
                 onClicked: {
-                    eventsApiClient.fetchEvents(appSettings.serverUrl);
-                    checkContributorStatus();
+                    if (layoutPreview) {
+                        notificationManager.upsertEvents(DummyEvents.events);
+                    } else {
+                        eventsApiClient.fetchEvents(appSettings.serverUrl);
+                        checkContributorStatus();
+                    }
                 }
             }
         }

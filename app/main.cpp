@@ -13,11 +13,11 @@
 #include "icecastbroadcaster.h"
 #endif
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) && defined(RADIO65_ENABLE_PUSH)
 #include <QJniObject>
 #endif
 
-#ifdef Q_OS_IOS
+#if defined(Q_OS_IOS) && defined(RADIO65_ENABLE_PUSH)
 #include "iospush.h"
 #include "iosaudiosession.h"
 #endif
@@ -59,14 +59,14 @@ int main(int argc, char *argv[])
     IcecastBroadcaster icecastBroadcaster;
 #endif
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) && defined(RADIO65_ENABLE_PUSH)
     QJniObject::callStaticMethod<void>(
         "org/eccm/radio65/PushMessagingService", "subscribeToTopic",
         "(Ljava/lang/String;)V",
         QJniObject::fromString("radio65_event").object<jstring>());
 #endif
 
-#ifdef Q_OS_IOS
+#if defined(Q_OS_IOS) && defined(RADIO65_ENABLE_PUSH)
     iosPushInit();
     iosPushSubscribeToTopic("radio65_event");
     // Baseline route for a fresh launch - .playback always defaults to the
@@ -84,6 +84,15 @@ int main(int argc, char *argv[])
 #endif
 #ifdef RADIO65_ENABLE_BROADCAST
     engine.rootContext()->setContextProperty("icecastBroadcaster", &icecastBroadcaster);
+#endif
+    // Main.qml branches startup/refresh on this instead of hitting the
+    // real server - seeded from DummyEvents.js via
+    // notificationManager.upsertEvents() (see app/CMakeLists.txt's
+    // RADIO65_LAYOUT_PREVIEW option).
+#ifdef RADIO65_LAYOUT_PREVIEW
+    engine.rootContext()->setContextProperty("layoutPreview", true);
+#else
+    engine.rootContext()->setContextProperty("layoutPreview", false);
 #endif
     QObject::connect(
         &engine,
