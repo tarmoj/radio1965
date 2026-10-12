@@ -37,12 +37,12 @@ Page {
     // call retypes it to "streamrecording" if it was saved, which does get
     // a shelf here; if it wasn't saved, it simply has nothing left to show.
     readonly property var shelfDefs: [
-        { types: ["streamrecording"], title: qsTr("Stream Recordings"), color: "#3a2a4a" },
+        { types: ["article"], title: qsTr("Article"), color: "#4a3416" },
+        { types: ["webcontent"], title: qsTr("Web Content"), color: "#16403c" },
+        { types: ["text"], title: qsTr("Message"), color: "#2c4a16" },
         { types: ["audio", "audiostream"], title: qsTr("Audio"), color: "#16304a" },
         { types: ["video", "videostream"], title: qsTr("Video"), color: "#2a1a4a" },
-        { types: ["webcontent"], title: qsTr("Web Content"), color: "#16403c" },
-        { types: ["article"], title: qsTr("Article"), color: "#4a3416" },
-        { types: ["text"], title: qsTr("Message"), color: "#2c4a16" }
+        { types: ["streamrecording"], title: qsTr("Stream Recordings"), color: "#3a2a4a" }
     ]
 
     property var events: notificationManager.shelvedEvents()
