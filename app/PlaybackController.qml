@@ -20,9 +20,11 @@ QtObject {
     // app/icecastbroadcaster.cpp) plays that instead, per start().
     readonly property string liveStreamUrl: "https://live.uuu.ee:4443/hls/stream.m3u8"
 
-    // Fixed mount list, same as BroadcastPage.qml's channelNames, plus
+    // Fixed mount list, same as BroadcastPage.qml's channelNames (plus
+    // "live", listenable by everyone even though only managers can
+    // broadcast to it - see BroadcastPage.qml's isManager gate), plus
     // "video" for the main HLS stream (liveStreamUrl).
-    readonly property var channelOptions: ["radio1965", "user1", "user2", "user3", "user4", "video"]
+    readonly property var channelOptions: ["radio1965", "live", "user1", "user2", "user3", "user4", "video"]
 
     // Which channels currently have a source connected - reuses
     // icecastBroadcaster's existing status-json.xsl fetch/parse

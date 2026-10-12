@@ -24,11 +24,12 @@ ItemDelegate {
     required property string status
     required property var payload
 
-    // "Shared by: <name>" below - not required, unlike the properties
-    // above: only the "boxed" Collection/search contexts (Box.qml,
-    // SearchResultsPage.qml) set this explicitly, so EventListView.qml
-    // ("New Arrivals") just leaves it at its empty default.
-    property string authorName: ""
+    // "Shared by: <name>" below - empty when the event has no author.
+    // Auto-populated in EventListView.qml ("New Arrivals") from
+    // NotificationManager's authorName role (same mechanism as
+    // eventId/eventType above); Box.qml/SearchResultsPage.qml set it
+    // explicitly from modelData.authorName.
+    required property string authorName
 
     // Joomla-sourced "article" events carry the numeric Joomla article id
     // in payload.article_id (see server/joomla_importer.py); "webcontent"
@@ -49,6 +50,12 @@ ItemDelegate {
     property bool showExpandToggle: false
 
     readonly property bool isLive: eventType === "livestream"
+
+    // Whether the summary/"Shared by" text is showing right now -
+    // showExpandToggle contexts (Collection/search) collapse every type to
+    // title-only until explicitly expanded; the plain EventListView.qml
+    // ("New Arrivals") context only collapses "text" events that way.
+    readonly property bool descriptionVisible: showExpandToggle ? expanded : (eventType !== "text" || expanded)
 
     // Distinct from publish_at (when the card/notification appears):
     // payload.startsAt is when the broadcast itself is scheduled to start,
@@ -101,9 +108,13 @@ ItemDelegate {
         id: textDialog
         title: root.title
         modal: true
+        // Parented to the window overlay (as Box.qml's groupPopup is) -
+        // otherwise it's centered/sized against this card, which can be
+        // as narrow as a Shelf column.
+        parent: root.Overlay.overlay
         anchors.centerIn: parent
         standardButtons: Dialog.Close
-        width: Math.min(root.width - 40, 420)
+        width: Math.min((parent ? parent.width : root.width) - 40, 420)
 
         // ColumnLayout + Layout.fillWidth, not a bare Label with
         // `width: textDialog.availableWidth`: that direct reference to the
@@ -188,15 +199,20 @@ ItemDelegate {
             // showExpandToggle contexts (Collection/search) collapse every
             // type to title-only by default, not just "text" - see the
             // expand ToolButton above.
-            visible: root.showExpandToggle ? root.expanded : (root.eventType !== "text" || root.expanded)
+            visible: root.descriptionVisible
         }
 
         Label {
             text: qsTr("Shared by: ") + root.authorName
-            visible: root.authorName !== ""
+            // Shown wherever/whenever the summary above is - never on its
+            // own, so collapsed "title-only" cards (Collection/search
+            // shelves, unexpanded "text" events) stay title-only.
+            visible: root.descriptionVisible && root.authorName !== ""
+            wrapMode: Text.Wrap
             font.pointSize: 10
             opacity: 0.7
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
         }
 
         Flow {

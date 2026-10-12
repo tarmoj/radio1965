@@ -362,11 +362,16 @@ Test send:
 ffmpeg -re -f lavfi -i "sine=frequency=440:duration=60"   -c:a libmp3lame -b:a 128k   -content_type audio/mpeg   -f mp3 icecast://source:<Password>@live.uuu.ee:8001/radio1965
 
 or as a looping file:
-ffmpeg -re -stream_loop -1 -i raba.mp3 -c:a copy -content_type audio/mpeg   -f mp3 icecast://source:Tesla100@185.169.69.8:8001/radio1965
+ffmpeg -re -stream_loop -1 -i raba.mp3 -c:a copy -content_type audio/mpeg   -f mp3 icecast://source:<Password>@185.169.69.8:8001/radio1965
 
 
 Listen:
 http://185.169.69.8:8001/radio1965
+
+Channels (streams): 
+- radio1965 -  continuos playlist/generated stream -- no recording, no notification
+- live -  live audio broadcast (by managers) -  save, notification (by default)
+- user1-user4 -  for broadcasting from the app (or elsewhere) for users
 
 
 Hooks on starting/stopping streams (in icecast.xml)
@@ -377,7 +382,7 @@ Hooks on starting/stopping streams (in icecast.xml)
     <on-disconnect>/usr/local/bin/stream-stopped.sh</on-disconnect>
 </mount>
 
-Predefine this way say 4 channels (user1, user2 etc)
+Predefine this way  4 channels (user1, user2 etc)
 
 To get info about a stream in the script:
 curl -s "http://localhost:8001/status-json.xsl"

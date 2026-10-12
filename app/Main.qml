@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 import QtCore
 import QtQuick.Window
 import QtWebView
+import "DummyEvents.js" as DummyEvents
 
 
 ApplicationWindow {
@@ -39,6 +40,10 @@ ApplicationWindow {
     // temporarily hide the WebView itself while the drawer is open.
     property alias drawerOpened: drawer.opened
 
+    // Drawer or a PlayerBar combobox dropdown is open - anything that has to
+    // render above a native WebView, which is hidden while this is true.
+    readonly property bool overlayOpen: drawer.opened || playerBar.popupOpen
+
     Settings {
         id: appSettings
         property string serverUrl: "https://live.uuu.ee/radio1965/api"
@@ -58,7 +63,8 @@ ApplicationWindow {
     Settings {
         id: userSettings
         category: "User"
-        property string role: "none"
+        // layout preview: start as temporaryContributor to expose the broadcast screen
+        property string role: layoutPreview ? "temporaryContributor" : "none"
         property string contributorName: ""
         property string contributorEmail: ""
         // Opaque per-account secret from POST /contributors/register -
@@ -70,8 +76,17 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        eventsApiClient.fetchEvents(appSettings.serverUrl);
-        checkContributorStatus();
+        // RADIO65_LAYOUT_PREVIEW build (app/CMakeLists.txt) - seed the real
+        // model with local dummy data instead of hitting a live server, so
+        // the UI has something to show on a simulator/emulator with no
+        // backend reachable. checkContributorStatus() is skipped too since
+        // there's no account behind the dummy accessToken (if any).
+        if (layoutPreview) {
+            notificationManager.upsertEvents(DummyEvents.events);
+        } else {
+            eventsApiClient.fetchEvents(appSettings.serverUrl);
+            checkContributorStatus();
+        }
         if (appSettings.showInfoOnStartup) {
             infoDialog.showDontShowCheckbox = true;
             infoDialog.open();
@@ -172,8 +187,12 @@ ApplicationWindow {
                 //text: "⟳"
                 icon.source: "qrc:/images/refresh.svg"
                 onClicked: {
-                    eventsApiClient.fetchEvents(appSettings.serverUrl);
-                    checkContributorStatus();
+                    if (layoutPreview) {
+                        notificationManager.upsertEvents(DummyEvents.events);
+                    } else {
+                        eventsApiClient.fetchEvents(appSettings.serverUrl);
+                        checkContributorStatus();
+                    }
                 }
             }
         }
@@ -264,13 +283,16 @@ ApplicationWindow {
                     text: qsTr("Leave contributor role")
                     visible: userSettings.role !== "none"
                     onTriggered: {
-                        userSettings.role = "none"
-                        // Stale otherwise - harmless (checkContributorStatus()
-                        // only ever fires while role === "pending"), but no
-                        // reason to keep it around once the account is
-                        // disowned locally.
-                        userSettings.accessToken = ""
                         drawer.close()
+                        // temporaryContributor has no account/token at all
+                        // (project-description.md #10.1 - password-only, no
+                        // DB row) - nothing server-side to offer deleting,
+                        // so skip straight to the local-only reset below.
+                        if (userSettings.accessToken) {
+                            leaveContributorDialog.open()
+                        } else {
+                            userSettings.role = "none"
+                        }
                     }
                 }
 
@@ -296,6 +318,87 @@ ApplicationWindow {
     // No close button and closePolicy: NoAutoClose - modal already blocks
     // clicks on everything behind it, and there's nothing to confirm/
     // dismiss here.
+    // Asked whenever "Leave contributor role" is triggered for an account
+    // that actually has a server-side row (pending/contributor/manager -
+    // temporaryContributor skips this entirely, see that MenuItem above).
+    // POST /contributors/delete scrubs email/password/access_token/role
+    // but keeps id and name, since already-published events still
+    // reference this user as their author (server/main.py's
+    // delete_contributor()).
+    Dialog {
+        id: leaveContributorDialog
+        title: qsTr("Leave contributor role")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        width: Math.min(app.width - 40, 420)
+
+        property bool deleting: false
+
+        function leaveLocally() {
+            userSettings.role = "none"
+            // Stale otherwise - harmless (checkContributorStatus() is a
+            // no-op without a token), but no reason to keep it around once
+            // the account is disowned locally.
+            userSettings.accessToken = ""
+            leaveContributorDialog.close()
+        }
+
+        onOpened: leaveContributorDialog.deleting = false
+
+        ColumnLayout {
+            width: leaveContributorDialog.availableWidth
+            spacing: 8
+
+            Label {
+                text: qsTr("Do you want to delete your registration data from the database? If you published any items, these will still carry your name.")
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 8
+
+                BusyIndicator {
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    running: leaveContributorDialog.deleting
+                    visible: running
+                }
+
+                Button {
+                    text: qsTr("Delete my data")
+                    enabled: !leaveContributorDialog.deleting
+                    onClicked: {
+                        leaveContributorDialog.deleting = true;
+                        const xhr = new XMLHttpRequest();
+                        xhr.open("POST", appSettings.serverUrl + "/contributors/delete");
+                        xhr.setRequestHeader("Content-Type", "application/json");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState !== XMLHttpRequest.DONE)
+                                return;
+                            // Best-effort either way - whether the delete
+                            // actually reached the server or not, there's
+                            // nothing more useful to do here than fall back
+                            // to the local-only reset (same as "Keep my
+                            // data"), so the role gate doesn't get stuck on
+                            // a network hiccup.
+                            leaveContributorDialog.leaveLocally();
+                        };
+                        xhr.send(JSON.stringify({ access_token: userSettings.accessToken }));
+                    }
+                }
+
+                Button {
+                    text: qsTr("Keep my data")
+                    enabled: !leaveContributorDialog.deleting
+                    onClicked: leaveContributorDialog.leaveLocally()
+                }
+            }
+        }
+    }
+
     Dialog {
         id: bannedDialog
         title: qsTr("Access revoked")
@@ -559,6 +662,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         spacing: 0
 
         PlayerBar {
+            id: playerBar
             Layout.fillWidth: true
             controller: playbackController
             // Hidden (not just occluded) while VideoPage is fullscreen so
@@ -690,6 +794,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                     // published event's author_id - empty for
                     // temporaryContributor, which has no account/token.
                     accessToken: userSettings.accessToken
+                    isManager: userSettings.role === "manager"
                 }
 
 

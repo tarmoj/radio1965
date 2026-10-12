@@ -53,7 +53,7 @@ Rectangle {
 
     function groupKeyFor(event) {
         if (root.groupMode === "author")
-            return (event.payload && event.payload.author) ? event.payload.author : qsTr("Unknown");
+            return event.authorName ? event.authorName : qsTr("Unknown");
         if (root.groupMode === "title") {
             const first = (event.title || "").trim().charAt(0).toUpperCase();
             return first || "#";

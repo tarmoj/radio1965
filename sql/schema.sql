@@ -17,13 +17,17 @@ USE radio65;
 -- exist before `events` below, since events.author_id references it.
 -- Plain auto-increment integer id (not Event's "evt_<ts>"-style string) -
 -- easier to hand-edit/cross-reference directly in the DB.
+-- email/password_hash/access_token are nullable - POST /contributors/delete
+-- ("Leave contributor role" -> "Delete my data") scrubs all three and sets
+-- role='deleted', keeping id/name so already-published events still
+-- resolve a valid author.
 CREATE TABLE IF NOT EXISTS users (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(255) NOT NULL,
-  email         VARCHAR(255) NOT NULL UNIQUE,
-  role          ENUM('pending','contributor','manager','banned') NOT NULL DEFAULT 'pending',
-  password_hash VARCHAR(255) NOT NULL,
-  access_token  VARCHAR(64) NOT NULL UNIQUE,
+  email         VARCHAR(255) NULL UNIQUE,
+  role          ENUM('pending','contributor','manager','banned','deleted') NOT NULL DEFAULT 'pending',
+  password_hash VARCHAR(255) NULL,
+  access_token  VARCHAR(64) NULL UNIQUE,
   reset_token   VARCHAR(64) NULL UNIQUE,
   reset_token_expires_at DATETIME NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -93,3 +97,13 @@ CREATE TABLE IF NOT EXISTS tags (
 -- (added for the login + forgot-password flow):
 --   ALTER TABLE users ADD COLUMN reset_token VARCHAR(64) NULL UNIQUE,
 --     ADD COLUMN reset_token_expires_at DATETIME NULL;
+--
+-- If `users`'s email/password_hash/access_token are still NOT NULL and
+-- its role enum doesn't have 'deleted' yet (added for POST
+-- /contributors/delete - "Leave contributor role" -> "Delete my data"):
+--   ALTER TABLE users
+--     MODIFY COLUMN email VARCHAR(255) NULL,
+--     MODIFY COLUMN password_hash VARCHAR(255) NULL,
+--     MODIFY COLUMN access_token VARCHAR(64) NULL,
+--     MODIFY COLUMN role ENUM('pending','contributor','manager','banned','deleted')
+--       NOT NULL DEFAULT 'pending';

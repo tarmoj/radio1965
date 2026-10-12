@@ -77,7 +77,7 @@
   </div>
 
   <div id="appContent" style="display: none">
-  <h1>Radio 1965 - New Event</h1>
+  <h1>VÄIN - Share Something Valuable</h1>
 
   <form id="eventForm">
     <label>Title
@@ -93,8 +93,6 @@
         <option value="text" selected>text</option>
         <option value="audio">audio</option>
         <option value="video">video</option>
-        <option value="livestream">livestream</option>
-        <option value="article">article</option>
         <option value="webcontent">webcontent</option>
       </select>
     </label>
@@ -302,7 +300,14 @@
       }
     }
 
-    publishNowEl.addEventListener("change", () => setPublishNow(publishNowEl.checked));
+    // "Now" and "No notification" are mutually exclusive - checking either
+    // one clears the other, in both directions.
+    publishNowEl.addEventListener("change", () => {
+      if (publishNowEl.checked) {
+        noNotificationEl.checked = false;
+      }
+      setPublishNow(publishNowEl.checked);
+    });
 
     // Checking "No notification" implies this isn't meant to go out right
     // this second - uncheck "Now" so the Announce-at time picker opens up

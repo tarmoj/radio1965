@@ -3,6 +3,21 @@
 
 ## TODOs
 
+Layout -  check in emulators different screens
+
+MacOS build (QML only)
+
+Database managing page
+
+Update Privacy statement
+
+Add "Delete from database" (dialog?) to contributor menu
+
+Store video stream as mp4 on eccm.ee
+
+? Csound based demo from stream recordings?
+
+---
 
 SSH connection keys to eccm.ee  DONE
 Location of recordings: 
@@ -24,23 +39,19 @@ PlayerBar
 
 Joomla articles -  how to delete? At the moment status "archived" works. "unpublised" brings them back. "trashed"?
 
-
-Webcontent -  what aout youtube and vimeo videos? embed them automatically?
-
 Box -  header title should be clickable the whole row, not only the label (problem when only letter, like "T" )  seems OK.
 
 BroadCast page -  not name (take it from settings now) but Title. DONE
 
-Think what the broadcast notification should be -> {name} on  {channel}
+Think what the broadcast notification should be -> {name} on  {channel} DONE.
 
-(perhaps) Change package name to org.eccm.vain -- does it break Firebase registration?
+(perhaps) Change package name to org.eccm.vain -- does it break Firebase registration?  NO
 
-"Contributor" role. Password to editor page.
-Checkbox "Notify -  never"  (editor)
+"Contributor" role. Password to editor page. DONE
+Temporary Contributor - DONE
+Checkbox "Notify -  never"  (editor) DONE
 
-Add name/author filed to events and where it is needed (connected to registration system)
-
-Database managing page
+Add name/author filed to events and where it is needed (connected to registration system) DONE
 
 On Video the seek bar should be below the video. How to do it if fullscreen? DONE
 

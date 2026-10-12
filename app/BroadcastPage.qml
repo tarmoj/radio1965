@@ -28,13 +28,23 @@ Item {
     // IcecastBroadcaster.startBroadcast() so the published event's
     // author_id can be set server-side (see icecast_on_connect.sh).
     property string accessToken: ""
+    // Passed in from Main.qml (userSettings.role === "manager") - gates
+    // "live" below. project-description.md's Channels section: "live -
+    // live audio broadcast (by managers)". Icecast itself also protects
+    // /live with its own mount-specific password (see
+    // icecastbroadcaster.cpp's ICECAST_LIVE_PASSWORD) - this UI gate alone
+    // isn't the real enforcement, just keeps non-managers from seeing an
+    // option that would fail to connect anyway.
+    property bool isManager: false
     // "like 5 minutes" per project-description.md #10.1.
     readonly property int temporaryBroadcastLimitSeconds: 180 // 3 minutes
     // radio1965 (the always-on main channel) is deliberately excluded -
     // broadcast to it only by external tools (ezstream/raw ffmpeg directly
     // against Icecast, see icecastbroadcaster.cpp's own comments), never
     // picked here by an app user.
-    readonly property var channelNames: ["user1", "user2", "user3", "user4"]
+    readonly property var channelNames: root.isManager
+        ? ["live", "user1", "user2", "user3", "user4"]
+        : ["user1", "user2", "user3", "user4"]
     property var occupiedChannels: []
     property string errorMessage: ""
 
@@ -96,7 +106,17 @@ Item {
         anchors.fill: parent
         anchors.margins: 16
         active: root.broadcastAvailable && root.isContributor
-        sourceComponent: ColumnLayout {
+        // ScrollView so the Start button stays reachable when the content is
+        // taller than the page (e.g. a small phone in landscape).
+        sourceComponent: ScrollView {
+            id: scroll
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+          ColumnLayout {
+            id: form
+            width: scroll.availableWidth
             spacing: 12
 
             // Persisted across app restarts, same QtCore Settings pattern as
@@ -169,7 +189,7 @@ Item {
                     if (root.isTemporaryContributor && icecastBroadcaster.broadcasting
                             && icecastBroadcaster.elapsedSeconds >= root.temporaryBroadcastLimitSeconds) {
                         icecastBroadcaster.stopBroadcast();
-                        endTemporaryBroadcastSession();
+                        form.endTemporaryBroadcastSession();
                     }
                 }
             }
@@ -287,12 +307,19 @@ Item {
             // QAudioSource is actually capturing (i.e. while broadcasting),
             // so tucked away here rather than shown alongside the
             // pre-broadcast form controls above.
-            RowLayout {
+            // In landscape (little vertical room) both become horizontal bars
+            // (still side by side) instead.
+            GridLayout {
+                id: strip
                 Layout.alignment: Qt.AlignHCenter
                 visible: icecastBroadcaster.broadcasting
-                spacing: 24
+                columns: 2
+                columnSpacing: 24
+                rowSpacing: 8
 
+                readonly property bool landscape: root.Window.width > root.Window.height
                 readonly property int meterHeight: 120
+                readonly property int meterWidth: 200
 
                 ColumnLayout {
                     spacing: 4
@@ -305,22 +332,23 @@ Item {
                     // the raw mic input.
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 20
-                        Layout.preferredHeight: parent.parent.meterHeight
+                        Layout.preferredWidth: strip.landscape ? strip.meterWidth : 20
+                        Layout.preferredHeight: strip.landscape ? 20 : strip.meterHeight
                         radius: 4
                         color: Material.dividerColor
                         clip: true
 
                         Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
+                            x: 0
+                            y: strip.landscape ? 0 : parent.height - height
                             radius: 4
-                            height: parent.height * icecastBroadcaster.inputLevel
+                            width: strip.landscape ? parent.width * icecastBroadcaster.inputLevel : parent.width
+                            height: strip.landscape ? parent.height : parent.height * icecastBroadcaster.inputLevel
                             color: icecastBroadcaster.inputLevel > 0.9 ? "crimson"
                                    : icecastBroadcaster.inputLevel > 0.7 ? "orange" : "limegreen"
 
                             Behavior on height { NumberAnimation { duration: 80 } }
+                            Behavior on width { NumberAnimation { duration: 80 } }
                         }
                     }
                 }
@@ -335,9 +363,10 @@ Item {
 
                     Slider {
                         id: gainSlider
-                        orientation: Qt.Vertical
+                        orientation: strip.landscape ? Qt.Horizontal : Qt.Vertical
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: parent.parent.meterHeight
+                        Layout.preferredWidth: strip.landscape ? strip.meterWidth : implicitWidth
+                        Layout.preferredHeight: strip.landscape ? implicitHeight : strip.meterHeight
                         from: 0.0
                         to: 2.0
                         value: broadcastSettings.gain
@@ -364,11 +393,11 @@ Item {
                 // still running - same reasoning as the busy-channel gate
                 // above, just a second independent condition.
                 enabled: icecastBroadcaster.broadcasting
-                         || (!root.isChannelOccupied(channelCombo.currentText) && temporaryCooldownRemainingSeconds <= 0)
+                         || (!root.isChannelOccupied(channelCombo.currentText) && form.temporaryCooldownRemainingSeconds <= 0)
                 onClicked: {
                     if (icecastBroadcaster.broadcasting) {
                         icecastBroadcaster.stopBroadcast();
-                        endTemporaryBroadcastSession();
+                        form.endTemporaryBroadcastSession();
                     } else {
                         root.errorMessage = "";
                         icecastBroadcaster.startBroadcast(channelCombo.currentText, nameField.text, descriptionField.text, sendNotificationCheck.checked, saveStreamCheck.checked, root.accessToken);
@@ -385,8 +414,8 @@ Item {
 
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                visible: !icecastBroadcaster.broadcasting && temporaryCooldownRemainingSeconds > 0
-                text: qsTr("Broadcasting limit reached - try again in %1").arg(root.formatElapsed(temporaryCooldownRemainingSeconds))
+                visible: !icecastBroadcaster.broadcasting && form.temporaryCooldownRemainingSeconds > 0
+                text: qsTr("Broadcasting limit reached - try again in %1").arg(root.formatElapsed(form.temporaryCooldownRemainingSeconds))
                 color: "crimson"
             }
 
@@ -416,6 +445,7 @@ Item {
             }
 
             Item { Layout.fillHeight: true }
+          }
         }
     }
 }
