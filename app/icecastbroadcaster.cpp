@@ -100,11 +100,19 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
     // Multimedia's iOS backend switches AVAudioSession to .playAndRecord on
     // its own, which defaults to the quiet earpiece receiver instead of the
     // loudspeaker.
-    iosAudioSessionActivateRecording();
+    // Capture at the hardware rate instead of SAMPLE_RATE: when they differ
+    // (e.g. iPhone mic at 48 kHz), Qt's iOS input resamples and its buffer
+    // size is off by a frame now and then ("expected 2030-byte buffer ...
+    // AudioUnitRender failed -50") - each failed render drops a chunk of
+    // audio, heard as crackling. LAME is fed the same rate below.
+    const double hwRate = iosAudioSessionActivateRecording();
+    const int sampleRate = hwRate > 0 ? static_cast<int>(hwRate) : SAMPLE_RATE;
+#else
+    const int sampleRate = SAMPLE_RATE;
 #endif
 
     QAudioFormat format;
-    format.setSampleRate(SAMPLE_RATE);
+    format.setSampleRate(sampleRate);
     format.setChannelCount(1);
     format.setSampleFormat(QAudioFormat::Int16);
 
@@ -114,7 +122,7 @@ void IcecastBroadcaster::startBroadcast(const QString &channel, const QString &n
         connect(m_audioDevice, &QIODevice::readyRead, this, &IcecastBroadcaster::onAudioReadyRead);
 
     m_lame = lame_init();
-    lame_set_in_samplerate(m_lame, SAMPLE_RATE);
+    lame_set_in_samplerate(m_lame, sampleRate);
     lame_set_num_channels(m_lame, 1);
     lame_set_brate(m_lame, MP3_BITRATE_KBPS);
     lame_init_params(m_lame);
