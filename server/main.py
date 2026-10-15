@@ -7,6 +7,8 @@ Run from the repo root with:
 """
 
 import logging
+import logging.handlers
+import os
 import re
 import secrets
 import time
@@ -61,7 +63,29 @@ def _parse_datetime(value: str) -> datetime:
     """
     return datetime.fromisoformat(value)
 
-logging.basicConfig(level=logging.INFO)
+# File logging, rotated at 5MB x5 backups. Attached directly to
+# "uvicorn"/"uvicorn.access" (not just root/our own "server.main" logger)
+# since uvicorn configures both of those with propagate=False by default -
+# a plain logging.basicConfig() on the root logger alone never sees
+# uvicorn's own request-access lines (the "INFO: ... POST
+# /contributors/login HTTP/1.1 200 OK" lines), only ours. "uvicorn.error"
+# is deliberately NOT included separately here - per uvicorn's own
+# logging.config.LOGGING_CONFIG it has no handlers of its own and
+# propagate defaults to True, so its records already flow into "uvicorn"
+# on their own; adding this handler there *too* would double-write every
+# uvicorn.error message. Added on top of whatever handler(s) each logger
+# already has, not instead of - console output (wherever that currently
+# goes) is unaffected.
+os.makedirs(os.path.dirname(config.LOG_FILE), exist_ok=True)
+_file_handler = logging.handlers.RotatingFileHandler(
+    config.LOG_FILE, maxBytes=5_000_000, backupCount=5
+)
+_file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+for _logger_name in ("", "uvicorn", "uvicorn.access"):
+    _logger = logging.getLogger(_logger_name)
+    _logger.addHandler(_file_handler)
+    _logger.setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Radio 1965 Notification Service")
@@ -338,10 +362,13 @@ def login_contributor(req: ContributorLoginIn, session: Session = Depends(db.get
     """
     user = session.query(db.User).filter(db.User.email == req.email).one_or_none()
     if not user or not bcrypt.checkpw(req.password.encode(), user.password_hash.encode()):
+        logger.info("login failed for '%s': %s", req.email, "unknown email" if not user else "wrong password")
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if user.role == "banned":
+        logger.info("login rejected for '%s': banned", req.email)
         raise HTTPException(status_code=403, detail="This account cannot log in")
 
+    logger.info("login ok for '%s' (id=%s, role=%s)", req.email, user.id, user.role)
     return {"access_token": user.access_token, "role": user.role}
 
 

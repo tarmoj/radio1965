@@ -76,3 +76,12 @@ PUBLIC_BASE_URL = os.getenv("RADIO65_PUBLIC_BASE_URL", "https://live.uuu.ee/radi
 CONTRIBUTOR_WEB_URL = os.getenv(
     "RADIO65_CONTRIBUTOR_WEB_URL", "https://eccm.ee/radio1965/contributor/"
 )
+
+# Where request/app logs go (see main.py's logging setup) - rotated to
+# keep it from growing unbounded. start.sh runs uvicorn in the background
+# with no stdout/stderr redirection of its own, so without this, both our
+# own logger.*() calls and uvicorn's own request-access lines (the
+# "INFO: ... POST /contributors/login HTTP/1.1 200 OK" lines) only ever
+# went wherever that backgrounded shell's stderr happened to be connected
+# - nowhere durable to look at after the fact.
+LOG_FILE = os.getenv("RADIO65_LOG_FILE", "server/logs/server.log")
