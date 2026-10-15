@@ -155,13 +155,14 @@
     // plain assignment, so this reload doesn't leave a bogus back-history
     // entry.
     //
-    // Also kept in window.appResult: on iOS, Qt's WKWebView backend reports
-    // no event at all for this navigation, so the app instead polls
-    // window.appResult via WebView.runJavaScript() (see contributorDialog).
-    // Set before navigating, and restored from the URL on the result page
-    // below, so whichever page the app reads it from has it.
+    // Also mirrored into document.title ("radio65-result:<json>"): on iOS
+    // the app never sees this navigation, but Qt's WKWebView backend does
+    // report every title change (KVO on WKWebView.title) - app/Main.qml's
+    // contributorDialog watches WebView.title for it. Set here and again
+    // on the result page below, so the title ends up holding it either way.
+    var APP_RESULT_TITLE_PREFIX = "radio65-result:";
     function handOffToApp(payload) {
-      window.appResult = payload;
+      document.title = APP_RESULT_TITLE_PREFIX + JSON.stringify(payload);
       window.location.replace(window.location.pathname + "?embed=app&action=result&data=" + encodeURIComponent(JSON.stringify(payload)));
     }
 
@@ -293,8 +294,8 @@
     document.getElementById("backToLoginFromReset").addEventListener("click", function () { showView("login"); });
 
     var params = new URLSearchParams(window.location.search);
-    if (params.get("action") === "result") {
-      try { window.appResult = JSON.parse(params.get("data")); } catch (e) {}
+    if (params.get("action") === "result" && params.get("data")) {
+      document.title = APP_RESULT_TITLE_PREFIX + params.get("data");
     }
     var view = params.get("view");
     if (view === "reset") {

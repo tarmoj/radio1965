@@ -557,26 +557,22 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                 contributorDialog.close();
             }
 
-            // iOS fallback: Qt's WKWebView backend reports no loadingChanged/
-            // urlChanged at all for the page's result navigation, so also
-            // read the result directly - contributor/index.html keeps it in
-            // window.appResult. Returned as a JSON string to sidestep
-            // per-backend JS->QML object conversion differences.
-            Timer {
-                interval: 500
-                repeat: true
-                running: contributorDialog.opened && !contributorDialog.loading
-                onTriggered: contributorWebView.runJavaScript(
-                    "window.appResult ? JSON.stringify(window.appResult) : ''",
-                    function(result) {
-                        if (!result)
-                            return;
-                        try {
-                            contributorWebView.handleResultPayload(JSON.parse(result));
-                        } catch (e) {
-                            console.warn("[contributorDialog] bad appResult:", e, result);
-                        }
-                    })
+            // iOS path: Qt's WKWebView backend reports no loadingChanged/
+            // urlChanged for the page's result navigation, but does report
+            // every title change - contributor/index.html also puts the
+            // result into document.title as "radio65-result:<json>".
+            // (runJavaScript() polling was tried first and crashed on iOS.)
+            onTitleChanged: {
+                const marker = "radio65-result:";
+                const t = contributorWebView.title;
+                if (!t || !t.startsWith(marker))
+                    return;
+                console.log("[contributorDialog] result title received");
+                try {
+                    handleResultPayload(JSON.parse(t.substring(marker.length)));
+                } catch (e) {
+                    console.warn("[contributorDialog] bad result title:", e, t);
+                }
             }
 
             onLoadingChanged: function(loadRequest) {
