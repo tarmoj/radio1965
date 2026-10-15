@@ -509,22 +509,30 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // via WebView instead of native fields - project-description.md
         // #10's "Become a contributor/Log in" TODO, plus "also on the web".
         // QtWebView has no JS bridge (unlike WebEngine's WebChannel), so
-        // the page hands results back by setting its own URL fragment to
-        // "#result=<json>" instead of navigating - caught below via
-        // onUrlChanged, with no extra request/reload involved.
+        // the page hands results back via a real navigation to
+        // "?action=result&data=<json>" on itself, caught below via
+        // onLoadingChanged's LoadStartedStatus (loadRequest.url, not
+        // contributorWebView.url - the request is observed as it starts,
+        // before the new page even loads). Was a same-document
+        // "#result=..." hash change instead, with no real navigation at
+        // all - worked on Android/desktop but never reliably reached
+        // onUrlChanged on iOS's WKWebView backend (confirmed: login
+        // worked on Android/Linux, silently did nothing on iOS). A real
+        // navigation forces every backend's navigation-lifecycle
+        // callbacks to fire, which is what onLoadingChanged already
+        // depends on for the loading indicator below regardless.
         WebView {
             id: contributorWebView
             anchors.fill: parent
             visible: !contributorDialog.loading
 
             onLoadingChanged: function(loadRequest) {
-                if (loadRequest.status !== WebView.LoadStartedStatus)
+                if (loadRequest.status !== WebView.LoadStartedStatus) {
                     contributorDialog.loading = false
-            }
-
-            onUrlChanged: {
-                const urlString = contributorWebView.url.toString();
-                const marker = "#result=";
+                    return
+                }
+                const urlString = loadRequest.url.toString();
+                const marker = "action=result&data=";
                 const index = urlString.indexOf(marker);
                 if (index === -1)
                     return;

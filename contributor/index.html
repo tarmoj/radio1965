@@ -145,10 +145,17 @@
 
     // Hands the logged-in/registered state back to the app's WebView
     // (QtWebView has no JS bridge) - app/Main.qml's contributorDialog
-    // watches WebView.onUrlChanged for a "#result=" fragment instead of
-    // a real navigation, so this doesn't reload the page.
+    // watches WebView.onLoadingChanged for a "?action=result&data=..."
+    // navigation. A real navigation (location.replace, not just a
+    // same-document location.hash change) on purpose: a hash-only change
+    // never reliably reached onUrlChanged on iOS's WKWebView backend
+    // (confirmed - login worked on Android/Linux, silently did nothing on
+    // iOS), while every WebView backend has to fire real navigation-
+    // lifecycle callbacks for the page to load at all. replace(), not a
+    // plain assignment, so this reload doesn't leave a bogus back-history
+    // entry.
     function handOffToApp(payload) {
-      window.location.hash = "result=" + encodeURIComponent(JSON.stringify(payload));
+      window.location.replace(window.location.pathname + "?embed=app&action=result&data=" + encodeURIComponent(JSON.stringify(payload)));
     }
 
     function doRegister() {
