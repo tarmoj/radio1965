@@ -154,7 +154,14 @@
     // lifecycle callbacks for the page to load at all. replace(), not a
     // plain assignment, so this reload doesn't leave a bogus back-history
     // entry.
+    //
+    // Also kept in window.appResult: on iOS, Qt's WKWebView backend reports
+    // no event at all for this navigation, so the app instead polls
+    // window.appResult via WebView.runJavaScript() (see contributorDialog).
+    // Set before navigating, and restored from the URL on the result page
+    // below, so whichever page the app reads it from has it.
     function handOffToApp(payload) {
+      window.appResult = payload;
       window.location.replace(window.location.pathname + "?embed=app&action=result&data=" + encodeURIComponent(JSON.stringify(payload)));
     }
 
@@ -286,6 +293,9 @@
     document.getElementById("backToLoginFromReset").addEventListener("click", function () { showView("login"); });
 
     var params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "result") {
+      try { window.appResult = JSON.parse(params.get("data")); } catch (e) {}
+    }
     var view = params.get("view");
     if (view === "reset") {
       var token = params.get("token") || "";

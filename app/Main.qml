@@ -499,7 +499,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         onOpened: {
             contributorDialog.loading = true
             // "?embed=app" tells contributor/index.html to hand its result
-            // back via the "#result=" URL-fragment trick below instead of
+            // back via the "?action=result&data=" navigation below instead of
             // redirecting to the editor page (which only makes sense for a
             // standalone browser visit).
             contributorWebView.url = appSettings.contributorWebUrl + "?embed=app"
@@ -526,17 +526,28 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             anchors.fill: parent
             visible: !contributorDialog.loading
 
-            onLoadingChanged: function(loadRequest) {
-                if (loadRequest.status !== WebView.LoadStartedStatus) {
-                    contributorDialog.loading = false
-                    return
-                }
-                const urlString = loadRequest.url.toString();
+            // Checked on every loading status and on urlChanged, not just
+            // LoadStartedStatus: which callback carries the result URL
+            // differs per backend - on iOS (WKWebView) LoadStarted can still
+            // report the previous URL, while LoadSucceeded and urlChanged
+            // only fire once the result page has committed.
+            function handleResultUrl(url) {
+                const urlString = url.toString();
                 const marker = "action=result&data=";
                 const index = urlString.indexOf(marker);
                 if (index === -1)
                     return;
-                const payload = JSON.parse(decodeURIComponent(urlString.substring(index + marker.length)));
+                try {
+                    handleResultPayload(JSON.parse(decodeURIComponent(urlString.substring(index + marker.length))));
+                } catch (e) {
+                    console.warn("[contributorDialog] bad result payload:", e, urlString);
+                }
+            }
+
+            function handleResultPayload(payload) {
+                if (!payload || !contributorDialog.opened)
+                    return;
+                console.log("[contributorDialog] result received, role:", payload.role);
                 userSettings.role = payload.role;
                 userSettings.accessToken = payload.token;
                 if (payload.name)
@@ -544,6 +555,41 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                 if (payload.email)
                     userSettings.contributorEmail = payload.email;
                 contributorDialog.close();
+            }
+
+            // iOS fallback: Qt's WKWebView backend reports no loadingChanged/
+            // urlChanged at all for the page's result navigation, so also
+            // read the result directly - contributor/index.html keeps it in
+            // window.appResult. Returned as a JSON string to sidestep
+            // per-backend JS->QML object conversion differences.
+            Timer {
+                interval: 500
+                repeat: true
+                running: contributorDialog.opened && !contributorDialog.loading
+                onTriggered: contributorWebView.runJavaScript(
+                    "window.appResult ? JSON.stringify(window.appResult) : ''",
+                    function(result) {
+                        if (!result)
+                            return;
+                        try {
+                            contributorWebView.handleResultPayload(JSON.parse(result));
+                        } catch (e) {
+                            console.warn("[contributorDialog] bad appResult:", e, result);
+                        }
+                    })
+            }
+
+            onLoadingChanged: function(loadRequest) {
+                console.log("[contributorDialog] loadingChanged status:", loadRequest.status,
+                            "url:", loadRequest.url, "errorString:", loadRequest.errorString);
+                if (loadRequest.status !== WebView.LoadStartedStatus)
+                    contributorDialog.loading = false
+                handleResultUrl(loadRequest.url)
+            }
+
+            onUrlChanged: {
+                console.log("[contributorDialog] urlChanged:", contributorWebView.url)
+                handleResultUrl(contributorWebView.url)
             }
         }
 
