@@ -565,6 +565,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             onTitleChanged: {
                 const marker = "radio65-result:";
                 const t = contributorWebView.title;
+                console.log("[contributorDialog] titleChanged:", t);
                 if (!t || !t.startsWith(marker))
                     return;
                 console.log("[contributorDialog] result title received");
