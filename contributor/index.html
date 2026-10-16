@@ -161,13 +161,6 @@
     // contributorDialog watches WebView.title for it. Set here and again
     // on the result page below, so the title ends up holding it either way.
     var APP_RESULT_TITLE_PREFIX = "radio65-result:";
-
-    // TEMP debugging (iOS login): progress messages via the same title
-    // channel - app/Main.qml's contributorDialog logs every title change.
-    function appDebug(msg) {
-      if (isEmbeddedInApp)
-        document.title = "radio65-debug:" + msg;
-    }
     function handOffToApp(payload) {
       document.title = APP_RESULT_TITLE_PREFIX + JSON.stringify(payload);
       window.location.replace(window.location.pathname + "?embed=app&action=result&data=" + encodeURIComponent(JSON.stringify(payload)));
@@ -219,11 +212,9 @@
 
       setMessage("loginMessage", "", "");
       document.getElementById("loginButton").disabled = true;
-      appDebug("login clicked");
 
       postJson("/contributors/login", { email: email, password: password })
         .then(function (result) {
-          appDebug("login response status=" + result.status + " role=" + (result.data && result.data.role));
           document.getElementById("loginButton").disabled = false;
           if (result.status === 200) {
             if (isEmbeddedInApp) {
@@ -245,10 +236,9 @@
             setMessage("loginMessage", "Could not reach the server. Try again later.", "error");
           }
         })
-        .catch(function (e) {
-          appDebug("login error: " + e);
+        .catch(function () {
           document.getElementById("loginButton").disabled = false;
-          setMessage("loginMessage", "Could not reach the server. Try again later. (" + e + ")", "error");
+          setMessage("loginMessage", "Could not reach the server. Try again later.", "error");
         });
     }
 
@@ -304,8 +294,6 @@
     document.getElementById("backToLoginFromReset").addEventListener("click", function () { showView("login"); });
 
     var params = new URLSearchParams(window.location.search);
-    // Before the result-title line below, so it can't overwrite it.
-    appDebug("page ready");
     if (params.get("action") === "result" && params.get("data")) {
       document.title = APP_RESULT_TITLE_PREFIX + params.get("data");
     }

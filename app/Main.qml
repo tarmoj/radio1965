@@ -550,7 +550,6 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             function handleResultPayload(payload) {
                 if (!payload || !contributorDialog.opened)
                     return;
-                console.log("[contributorDialog] result received, role:", payload.role);
                 userSettings.role = payload.role;
                 userSettings.accessToken = payload.token;
                 if (payload.name)
@@ -560,18 +559,16 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                 contributorDialog.close();
             }
 
-            // iOS path: Qt's WKWebView backend reports no loadingChanged/
-            // urlChanged for the page's result navigation, but does report
-            // every title change - contributor/index.html also puts the
-            // result into document.title as "radio65-result:<json>".
-            // (runJavaScript() polling was tried first and crashed on iOS.)
+            // Extra channel alongside the URL checks: contributor/index.html
+            // also puts the result into document.title as
+            // "radio65-result:<json>", and Qt's iOS (WKWebView) backend
+            // reliably reports every title change. (runJavaScript() polling
+            // was tried first and crashed on iOS.)
             onTitleChanged: {
                 const marker = "radio65-result:";
                 const t = contributorWebView.title;
-                console.log("[contributorDialog] titleChanged:", t);
                 if (!t || !t.startsWith(marker))
                     return;
-                console.log("[contributorDialog] result title received");
                 try {
                     handleResultPayload(JSON.parse(t.substring(marker.length)));
                 } catch (e) {
@@ -580,15 +577,12 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             }
 
             onLoadingChanged: function(loadRequest) {
-                console.log("[contributorDialog] loadingChanged status:", loadRequest.status,
-                            "url:", loadRequest.url, "errorString:", loadRequest.errorString);
                 if (loadRequest.status !== WebView.LoadStartedStatus)
                     contributorDialog.loading = false
                 handleResultUrl(loadRequest.url)
             }
 
             onUrlChanged: {
-                console.log("[contributorDialog] urlChanged:", contributorWebView.url)
                 handleResultUrl(contributorWebView.url)
             }
         }
