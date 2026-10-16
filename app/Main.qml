@@ -502,7 +502,10 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             // back via the "?action=result&data=" navigation below instead of
             // redirecting to the editor page (which only makes sense for a
             // standalone browser visit).
-            contributorWebView.url = appSettings.contributorWebUrl + "?embed=app"
+            // "&t=" cache-buster: eccm.ee sends no Cache-Control, so iOS's
+            // WKWebView could keep serving an older cached copy of the page
+            // (heuristic caching off Last-Modified) after it's redeployed.
+            contributorWebView.url = appSettings.contributorWebUrl + "?embed=app&t=" + Date.now()
         }
 
         // contributor/index.html (register/login/forgot-password) embedded

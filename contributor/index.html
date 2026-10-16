@@ -304,6 +304,8 @@
     document.getElementById("backToLoginFromReset").addEventListener("click", function () { showView("login"); });
 
     var params = new URLSearchParams(window.location.search);
+    // Before the result-title line below, so it can't overwrite it.
+    appDebug("page ready");
     if (params.get("action") === "result" && params.get("data")) {
       document.title = APP_RESULT_TITLE_PREFIX + params.get("data");
     }
