@@ -40,9 +40,10 @@ ApplicationWindow {
     // temporarily hide the WebView itself while the drawer is open.
     property alias drawerOpened: drawer.opened
 
-    // Drawer or a PlayerBar combobox dropdown is open - anything that has to
-    // render above a native WebView, which is hidden while this is true.
-    readonly property bool overlayOpen: drawer.opened || playerBar.popupOpen
+    // Drawer, a PlayerBar combobox dropdown or the feedback dialog is open -
+    // anything that has to render above a native WebView, which is hidden
+    // while this is true.
+    readonly property bool overlayOpen: drawer.opened || playerBar.popupOpen || feedbackDialog.opened
 
     Settings {
         id: appSettings
@@ -195,6 +196,15 @@ ApplicationWindow {
                     }
                 }
             }
+
+            ToolButton {
+                id: feedbackButton
+
+                anchors.right: refreshButton.left
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: "qrc:/images/send.svg"
+                onClicked: feedbackDialog.open()
+            }
         }
     }
 
@@ -293,6 +303,14 @@ ApplicationWindow {
                         } else {
                             userSettings.role = "none"
                         }
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Send feedback")
+                    onTriggered: {
+                        feedbackDialog.open()
+                        drawer.close()
                     }
                 }
 
@@ -691,6 +709,133 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                     onClicked: temporaryContributorDialog.submit()
                 }
             }
+        }
+    }
+
+    // Tester feedback, emailed by the server's POST /feedback.
+    Dialog {
+        id: feedbackDialog
+        title: qsTr("Send Feedback")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        // Same reasoning as contributorDialog above - width has to go on
+        // the Dialog itself, not an inner child.
+        width: Math.min(app.width - 40, 420)
+
+        property string errorMessage: ""
+        property bool sending: false
+
+        // Keeps any unsent text (e.g. after an accidental Cancel), only
+        // the error state is reset.
+        onOpened: {
+            feedbackDialog.errorMessage = ""
+            if (!feedbackEmailField.text)
+                feedbackEmailField.text = userSettings.contributorEmail
+        }
+
+        function submit() {
+            feedbackDialog.errorMessage = "";
+            feedbackDialog.sending = true;
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", appSettings.serverUrl + "/feedback");
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== XMLHttpRequest.DONE)
+                    return;
+                feedbackDialog.sending = false;
+                if (xhr.status === 200) {
+                    feedbackTextArea.text = "";
+                    feedbackDialog.close();
+                    feedbackThanks.open();
+                } else if (xhr.status === 429) {
+                    feedbackDialog.errorMessage = qsTr("Too many messages, try again later.");
+                } else {
+                    feedbackDialog.errorMessage = qsTr("Could not send feedback. Try again later.");
+                }
+            };
+            xhr.send(JSON.stringify({
+                text: feedbackTextArea.text,
+                email: feedbackEmailField.text.trim(),
+                name: userSettings.contributorName,
+                role: userSettings.role,
+                app_version: Qt.application.version,
+                platform: Qt.platform.os + " / " + systemInfo
+            }));
+        }
+
+        ColumnLayout {
+            spacing: 8
+            width: feedbackDialog.availableWidth
+
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: qsTr("What did you like or dislike? If there was a problem, describe what you did, what happened and what would you expect to happen")
+            }
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 150
+
+                TextArea {
+                    id: feedbackTextArea
+                    wrapMode: TextEdit.Wrap
+                    enabled: !feedbackDialog.sending
+                    placeholderText: qsTr("Your feedback")
+                }
+            }
+
+            TextField {
+                id: feedbackEmailField
+                Layout.fillWidth: true
+                enabled: !feedbackDialog.sending
+                placeholderText: qsTr("Your email (optional, for replies)")
+                inputMethodHints: Qt.ImhEmailCharactersOnly | Qt.ImhNoAutoUppercase
+            }
+
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: feedbackDialog.errorMessage
+                color: "crimson"
+                visible: text !== ""
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 8
+
+                BusyIndicator {
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    running: feedbackDialog.sending
+                    visible: running
+                }
+
+                Button {
+                    text: qsTr("Send")
+                    enabled: !feedbackDialog.sending && feedbackTextArea.text.trim() !== ""
+                    onClicked: feedbackDialog.submit()
+                }
+            }
+        }
+    }
+
+    // Short auto-hiding confirmation after feedback was sent.
+    Popup {
+        id: feedbackThanks
+        anchors.centerIn: parent
+        modal: false
+        closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+        onOpened: feedbackThanksTimer.restart()
+
+        Label { text: qsTr("Thanks for your feedback!") }
+
+        Timer {
+            id: feedbackThanksTimer
+            interval: 2500
+            onTriggered: feedbackThanks.close()
         }
     }
 

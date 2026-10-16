@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QSortFilterProxyModel>
+#include <QSysInfo>
 
 #include "eventsapiclient.h"
 
@@ -97,6 +98,8 @@ int main(int argc, char *argv[])
 #elif defined(RADIO65_LAYOUT_PREVIEW)
     engine.rootContext()->setContextProperty("icecastBroadcaster", &fakeBroadcaster);
 #endif
+    // OS name/version for the "Send Feedback" email (Main.qml's feedbackDialog).
+    engine.rootContext()->setContextProperty("systemInfo", QSysInfo::prettyProductName());
     // Main.qml branches startup/refresh on this instead of hitting the
     // real server - seeded from DummyEvents.js via
     // notificationManager.upsertEvents() (see app/CMakeLists.txt's

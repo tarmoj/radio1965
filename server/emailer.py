@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 _IMPLICIT_TLS_PORT = 465
 
 
-def send_email(to: str, subject: str, body: str) -> None:
+def send_email(to: str, subject: str, body: str, reply_to: str | None = None) -> None:
     """
     Best-effort: if config.SMTP_HOST isn't set (e.g. local/dev runs with no
     real mail server configured), logs a warning and returns instead of
@@ -40,6 +40,8 @@ def send_email(to: str, subject: str, body: str) -> None:
     message["Subject"] = subject
     message["From"] = config.SMTP_FROM
     message["To"] = to
+    if reply_to:
+        message["Reply-To"] = reply_to
     message.set_content(body)
 
     if config.SMTP_PORT == _IMPLICIT_TLS_PORT:

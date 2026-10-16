@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 
 import bcrypt
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -177,6 +177,17 @@ class ContributorDeleteIn(BaseModel):
     access_token: str
 
 
+# Used by send_feedback() - app/Main.qml's "Send Feedback" dialog. Everything
+# but text is optional context for the email.
+class FeedbackIn(BaseModel):
+    text: str
+    email: str = ""  # optional, used as Reply-To
+    name: str = ""
+    role: str = ""
+    app_version: str = ""
+    platform: str = ""
+
+
 # Used by finalize_recording() - server/icecast_on_disconnect.sh's POST once
 # a "Save stream" recording (project-description.md #8.2.1) has finished
 # uploading to eccm.ee.
@@ -258,6 +269,62 @@ def verify_temporary_contributor_password(req: TemporaryContributorVerifyIn):
 
     if not expected_password or req.password != expected_password:
         raise HTTPException(status_code=403, detail="Incorrect password")
+
+    return {"ok": True}
+
+
+FEEDBACK_MAX_LENGTH = 5000
+FEEDBACK_RATE_LIMIT = 5  # messages per client IP...
+FEEDBACK_RATE_WINDOW_SECONDS = 600  # ...per this many seconds
+# In-memory only (resets on restart) - just enough to stop a stuck client
+# or casual abuse from flooding the inbox.
+_feedback_times_by_ip: dict[str, list[float]] = {}
+
+
+@app.post("/feedback")
+def send_feedback(req: FeedbackIn, request: Request):
+    """
+    The app's "Send Feedback" dialog - emails tester feedback to
+    config.FEEDBACK_EMAIL, with the sender's email (if given) as Reply-To.
+    """
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Feedback text is empty")
+    if len(text) > FEEDBACK_MAX_LENGTH:
+        raise HTTPException(status_code=413, detail="Feedback text is too long")
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    recent = [t for t in _feedback_times_by_ip.get(client_ip, []) if now - t < FEEDBACK_RATE_WINDOW_SECONDS]
+    if len(recent) >= FEEDBACK_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many feedback messages")
+    recent.append(now)
+    _feedback_times_by_ip[client_ip] = recent
+
+    # Only a plausible single address goes into the Reply-To header.
+    email = req.email.strip()
+    reply_to = email if re.fullmatch(r"[^@\s]+@[^@\s]+", email) else None
+
+    body = (
+        f"{text}\n\n"
+        f"---\n"
+        f"Name: {req.name or '-'}\n"
+        f"Email: {email or '-'}\n"
+        f"Role: {req.role or '-'}\n"
+        f"App version: {req.app_version or '-'}\n"
+        f"Platform: {req.platform or '-'}\n"
+    )
+    logger.info("feedback received from %s (%s, %s)", email or client_ip, req.app_version, req.platform)
+    try:
+        emailer.send_email(
+            config.FEEDBACK_EMAIL,
+            f"VÄIN feedback ({req.app_version or '?'}, {req.platform or '?'})",
+            body,
+            reply_to=reply_to,
+        )
+    except Exception:
+        logger.exception("Sending feedback email failed")
+        raise HTTPException(status_code=502, detail="Could not send feedback") from None
 
     return {"ok": True}
 

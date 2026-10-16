@@ -62,6 +62,10 @@ SMTP_USER = os.getenv("RADIO65_SMTP_USER", "info@eccm.ee")
 SMTP_PASSWORD = os.getenv("RADIO65_SMTP_PASSWORD", "")
 SMTP_FROM = os.getenv("RADIO65_SMTP_FROM", "info@eccm.ee")
 
+# Where POST /feedback (the app's "Send Feedback" dialog) emails tester
+# feedback to.
+FEEDBACK_EMAIL = os.getenv("RADIO65_FEEDBACK_EMAIL", "trmjhnns@gmail.com")
+
 # This server's own public base URL (no trailing slash) - used to build the
 # confirmation link embedded in that email, e.g.
 # "https://live.uuu.ee/radio1965/api". Matches app/Main.qml's
