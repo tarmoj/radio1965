@@ -722,6 +722,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // Same reasoning as contributorDialog above - width has to go on
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
+        // Capped to the window so the Send button stays on screen on a
+        // phone in landscape - the text area below shrinks to fit.
+        height: Math.min(implicitHeight, app.height - 20)
 
         property string errorMessage: ""
         property bool sending: false
@@ -767,6 +770,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         ColumnLayout {
             spacing: 8
             width: feedbackDialog.availableWidth
+            height: feedbackDialog.availableHeight
 
             Label {
                 Layout.fillWidth: true
@@ -776,7 +780,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
 
             ScrollView {
                 Layout.fillWidth: true
+                Layout.fillHeight: true
                 Layout.preferredHeight: 150
+                Layout.minimumHeight: 50
 
                 TextArea {
                     id: feedbackTextArea
