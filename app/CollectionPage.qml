@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -18,6 +19,12 @@ Page {
     property string groupMode: "month"
     property bool searchVisible: false
     property bool showEvents: true
+
+    // Remembers the "Show events" checkbox across app restarts.
+    Settings {
+        category: "Collection"
+        property alias showEvents: root.showEvents
+    }
 
     background: Rectangle { color: "transparent" }
 
