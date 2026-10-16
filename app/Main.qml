@@ -722,14 +722,12 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
 
-        // Kept clear of the on-screen keyboard (which would otherwise cover
-        // the Send button on a phone): moved to the top and capped to the
-        // space above the keyboard while it's up, centered otherwise. The
-        // content scrolls (contentItem below) when it doesn't fit.
-        readonly property real keyboardHeight: Qt.inputMethod.visible ? Qt.inputMethod.keyboardRectangle.height : 0
-        x: (parent.width - width) / 2
-        y: keyboardHeight > 0 ? 10 : (parent.height - height) / 2
-        height: Math.min(implicitHeight, parent.height - keyboardHeight - 20)
+        // Capped to the window; the content scrolls (contentItem below) when
+        // it doesn't fit, e.g. on a phone in landscape. No manual keyboard
+        // handling - the platform already shifts the window for the
+        // on-screen keyboard, and doing it here too broke the dialog apart.
+        anchors.centerIn: parent
+        height: Math.min(implicitHeight, parent.height - 20)
 
         property string errorMessage: ""
         property bool sending: false
