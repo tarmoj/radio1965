@@ -6,16 +6,18 @@
 (aftter test session)
 
 ### Editor
-Editor - check for necessary fields before publishing (URL in webcontent and similar).
+Editor - check for necessary fields before publishing (URL in webcontent and similar). DONE
 
-Editor -  check and warn if the event with title and summary is already published
+Editor -  check and warn if the event with title and summary is already published. DONE 
 
-Audio/Video links -  shared from google drive does not work. 1) check if proper audio/video file and warn; 2) OR: find a way hot to deal with Drive/Soundcloud/Bandcamp -> maybe: "Do you want to share it as a web content instead?"
+Audio/Video links -  shared from google drive does not work. 1) check if proper audio/video file and warn; 2) OR: find a way hot to deal with Drive/Soundcloud/Bandcamp -> maybe: "Do you want to share it as a web content instead?" DONE.
 
 
 ### App
 
 Play when screen is closed (or provide a lock screen).
+
+When a Box is open and user clicks on webcontent, close the box (otherwise webview covers it). In other cases leave the box open.
 
 Store Volume level.
 
