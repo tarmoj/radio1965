@@ -8,10 +8,9 @@
 ### Editor
 Editor - check for necessary fields before publishing (URL in webcontent and similar).
 
-Editor -  check and war if the event with title and summary is already published
+Editor -  check and warn if the event with title and summary is already published
 
-Sort box entries -  newest first.
-
+Audio/Video links -  shared from google drive does not work. 1) check if proper audio/video file and warn; 2) OR: find a way hot to deal with Drive/Soundcloud/Bandcamp -> maybe: "Do you want to share it as a web content instead?"
 
 
 ### App
@@ -22,7 +21,7 @@ Store Volume level.
 
 Temporary Contributor popup -  do not close when user clicks outside (only by buttons) - the same with other dialogs from menu.
 
-Audio/Video links -  shared from google drive does not work. 1) check if proper audio/video file and warn; 2) OR: find a way hot to deal with Drive/Soundcloud/Bandcamp -> maybe: "Do you want to share it as a web content instead?"
+Sort box entries -  newest first.
 
 Add time when event was created to the Card (next to Shared by).
 

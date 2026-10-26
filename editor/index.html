@@ -355,11 +355,47 @@
     }
     tagsEl.addEventListener("input", refreshTagSuggestions);
 
+    // --- Double-publish protection ---------------------------------------
+    // GET /events only filters by status (no title/type search), so fetch
+    // every status and compare client-side - good enough to catch an
+    // accidental resubmit without needing a new server endpoint.
+    async function findDuplicateEvent(title, summary, type) {
+      const statuses = ["new", "shelved", "unpublished", "archived"];
+      const qs = statuses.map((s) => `status=${s}`).join("&");
+      const res = await fetch(`${serverUrl()}/events?${qs}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const norm = (s) => (s || "").trim().toLowerCase();
+      return (data.events || []).find(
+        (ev) =>
+          ev.type === type &&
+          norm(ev.title) === norm(title) &&
+          norm(ev.summary) === norm(summary)
+      ) || null;
+    }
+
     // --- Submit -----------------------------------------------------------
     document.getElementById("eventForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const type = typeEl.value;
+      const titleValue = document.getElementById("title").value;
+      const summaryValue = document.getElementById("summary").value;
+
+      try {
+        const duplicate = await findDuplicateEvent(titleValue, summaryValue, type);
+        if (duplicate) {
+          const proceed = confirm(
+            `An event with the same title, summary and type already exists ` +
+            `(id: ${duplicate.id}, status: ${duplicate.status}).\n\n` +
+            `Publish this one anyway?`
+          );
+          if (!proceed) return;
+        }
+      } catch (err) {
+        // Best-effort check - a failed lookup shouldn't block publishing.
+      }
+
       const payload = {};
 
       if (type === "text") {
@@ -376,8 +412,8 @@
         .filter(Boolean);
 
       const body = {
-        title: document.getElementById("title").value,
-        summary: document.getElementById("summary").value,
+        title: titleValue,
+        summary: summaryValue,
         type,
         url: type === "text" ? "" : document.getElementById("url").value,
         publish_now: publishNowEl.checked,
