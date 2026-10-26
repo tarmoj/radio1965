@@ -3,6 +3,44 @@
 
 ## TODOs
 
+(aftter test session)
+
+### Editor
+Editor - check for necessary fields before publishing (URL in webcontent and similar).
+
+Editor -  check and war if the event with title and summary is already published
+
+Sort box entries -  newest first.
+
+
+
+### App
+
+Play when screen is closed (or provide a lock screen).
+
+Store Volume level.
+
+Temporary Contributor popup -  do not close when user clicks outside (only by buttons) - the same with other dialogs from menu.
+
+Audio/Video links -  shared from google drive does not work. 1) check if proper audio/video file and warn; 2) OR: find a way hot to deal with Drive/Soundcloud/Bandcamp -> maybe: "Do you want to share it as a web content instead?"
+
+Add time when event was created to the Card (next to Shared by).
+
+### Broadcasting
+
+Video conversion and storing in streams/video. Startup hook notificationn.
+
+### Manager
+
+Contributors and managers can log in. Contributors can edit only see and edit their events. Managers everything.
+
+When deleting streamrecording, dialog "Do you want to delete tha audio file, too?"
+
+
+
+### OLD (mostly done)
+
+
 Layout -  check in emulators different screens
 
 MacOS build (QML only)
