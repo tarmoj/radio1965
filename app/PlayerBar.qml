@@ -190,7 +190,7 @@ Item {
                 from: 0
                 to: 1
                 value: root.controller.player.audioOutput.volume
-                onMoved: root.controller.player.audioOutput.volume = value
+                onMoved: root.controller.setVolume(value)
             }
 
             ToolButton {

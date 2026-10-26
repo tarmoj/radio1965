@@ -82,6 +82,7 @@ Rectangle {
                     tags: modelData.tags
                     status: modelData.status
                     payload: modelData.payload
+                    publishAt: modelData.publishAt
                     cardColor: root.cardColor
                     cardBorderColor: root.cardBorderColor
 
@@ -154,20 +155,29 @@ Rectangle {
                             eventType: modelData.eventType
                             title: modelData.title
                             summary: modelData.summary
+                            authorName: modelData.authorName
                             url: modelData.url
                             tags: modelData.tags
                             status: modelData.status
                             payload: modelData.payload
+                            publishAt: modelData.publishAt
                             cardColor: root.cardColor
                             cardBorderColor: root.cardBorderColor
 
-                            onArticleRequested: (url, title, articleId, isJoomlaArticle) =>
+                            onArticleRequested: (url, title, articleId, isJoomlaArticle) => {
+                                // Close the floating Box popup first - left
+                                // open, it sits on top of the pushed
+                                // WebViewPage and covers it. Other item types
+                                // (audio/video below) don't push a page over
+                                // the popup, so they leave it open.
+                                groupPopup.close()
                                 root.navigationStack.push(Qt.resolvedUrl("WebViewPage.qml"), {
                                     pageUrl: url,
                                     pageTitle: title,
                                     articleId: isJoomlaArticle ? articleId : 0,
                                     serverBaseUrl: root.serverBaseUrl
                                 })
+                            }
 
                             onPlayerRequested: (url, title, summary, isLive) =>
                                 root.controller.playMedia(url, title, summary, isLive)

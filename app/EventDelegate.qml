@@ -23,6 +23,7 @@ ItemDelegate {
     required property var tags
     required property string status
     required property var payload
+    required property string publishAt
 
     // "Shared by: <name>" below - empty when the event has no author.
     // Auto-populated in EventListView.qml ("New Arrivals") from
@@ -65,6 +66,10 @@ ItemDelegate {
         if (!startsAt)
             return "";
         const parsed = new Date(startsAt);
+        return isNaN(parsed.getTime()) ? "" : Qt.formatDateTime(parsed, "d MMM yyyy, HH:mm");
+    }
+    readonly property string publishAtDisplay: {
+        const parsed = new Date(publishAt);
         return isNaN(parsed.getTime()) ? "" : Qt.formatDateTime(parsed, "d MMM yyyy, HH:mm");
     }
     readonly property string typeIcon: {
@@ -202,17 +207,33 @@ ItemDelegate {
             visible: root.descriptionVisible
         }
 
-        Label {
-            text: qsTr("Shared by: ") + root.authorName
+        RowLayout {
             // Shown wherever/whenever the summary above is - never on its
             // own, so collapsed "title-only" cards (Collection/search
             // shelves, unexpanded "text" events) stay title-only.
-            visible: root.descriptionVisible && root.authorName !== ""
-            wrapMode: Text.Wrap
-            font.pointSize: 10
-            opacity: 0.7
+            visible: root.descriptionVisible
             Layout.fillWidth: true
-            Layout.minimumWidth: 0
+            spacing: 6
+
+            Label {
+                text: qsTr("Shared by: ") + root.authorName
+                visible: root.authorName !== ""
+                wrapMode: Text.Wrap
+                font.pointSize: 10
+                opacity: 0.7
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+            }
+
+            // Publish time - next to "Shared by" when that's shown, but
+            // still shown on its own when there's no author (e.g. the
+            // broadcast/icecast flow publishes with no author_id).
+            Label {
+                text: root.publishAtDisplay
+                visible: root.publishAtDisplay !== ""
+                font.pointSize: 10
+                opacity: 0.7
+            }
         }
 
         Flow {

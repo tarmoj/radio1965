@@ -95,7 +95,7 @@ Rectangle {
 
         return keys.map(key => ({
             headerText: key,
-            items: buckets[key].items.slice().sort((a, b) => (a.title || "").localeCompare(b.title || ""))
+            items: buckets[key].items.slice().sort((a, b) => new Date(b.publishAt) - new Date(a.publishAt))
         }));
     }
 

@@ -18,7 +18,7 @@ Page {
 
     property string groupMode: "month"
     property bool searchVisible: false
-    property bool showEvents: true
+    property bool showEvents: false
 
     // Remembers the "Show events" checkbox across app restarts.
     Settings {

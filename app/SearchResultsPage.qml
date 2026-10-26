@@ -79,6 +79,7 @@ Page {
             tags: modelData.tags
             status: modelData.status
             payload: modelData.payload
+            publishAt: modelData.publishAt
 
             onArticleRequested: (url, title, articleId, isJoomlaArticle) =>
                 root.navigationStack.push(Qt.resolvedUrl("WebViewPage.qml"), {

@@ -106,6 +106,19 @@ QtObject {
     property var recentMedia: []
     readonly property int maxRecentMedia: 15
 
+    // Persists PlayerBar.qml's volume slider across launches, same Settings
+    // pattern as recentMediaSettings above.
+    property Settings playbackSettings: Settings {
+        id: playbackSettings
+        category: "Playback"
+        property real volume: 1.0
+    }
+
+    function setVolume(volume) {
+        player.audioOutput.volume = volume;
+        playbackSettings.volume = volume;
+    }
+
     function _loadRecentMedia() {
         try {
             root.recentMedia = JSON.parse(recentMediaSettings.itemsJson);
@@ -282,7 +295,7 @@ QtObject {
 
     property MediaPlayer player: MediaPlayer {
         id: player
-        audioOutput: AudioOutput {}
+        audioOutput: AudioOutput { volume: root.playbackSettings.volume }
 
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.BufferedMedia)
