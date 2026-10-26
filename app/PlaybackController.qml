@@ -302,6 +302,11 @@ QtObject {
                 root.loading = false;
         }
 
+        // Keeps the display from timing out while something is actively
+        // playing - the single biggest cause of accidental backgrounding
+        // for a radio app. No-op on desktop (screenkeeper_noop.cpp).
+        onPlaybackStateChanged: screenKeeper.setEnabled(playbackState === MediaPlayer.PlayingState)
+
         onErrorOccurred: (error, errorString) => {
             root.loading = false;
             if (root.isLive && error === MediaPlayer.ResourceError) {

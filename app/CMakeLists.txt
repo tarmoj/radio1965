@@ -180,6 +180,18 @@ if(IOS AND RADIO65_ENABLE_PUSH)
     target_sources(appradio65 PRIVATE iospush.mm iosaudiosession.mm "${CMAKE_CURRENT_SOURCE_DIR}/ios/Radio65SwiftSupport.swift")
 endif()
 
+# ScreenKeeper - keeps the display from timing out while media is actively
+# playing (Android FLAG_KEEP_SCREEN_ON / iOS idleTimerDisabled), see
+# screenkeeper.h. Unrelated to RADIO65_ENABLE_PUSH, so not gated behind it.
+target_sources(appradio65 PRIVATE screenkeeper.h)
+if(ANDROID)
+    target_sources(appradio65 PRIVATE androidscreenkeeper.cpp)
+elseif(IOS)
+    target_sources(appradio65 PRIVATE iosscreenkeeper.mm)
+else()
+    target_sources(appradio65 PRIVATE screenkeeper_noop.cpp)
+endif()
+
 
 qt_add_qml_module(appradio65
     URI radio65

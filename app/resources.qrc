@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>images/menu.svg</file>
+        <file>images/lock.svg</file>
         <file>images/info.svg</file>
         <file>images/VS.png</file>
         <file>images/fullscreen.svg</file>
