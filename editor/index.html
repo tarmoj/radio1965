@@ -263,6 +263,8 @@
     // knowing/typing it.
     const DEFAULT_LIVESTREAM_URL = "https://live.uuu.ee:4443/hls/stream.m3u8";
 
+    const textEl = document.getElementById("text");
+
     function updateFieldsForType() {
       const type = typeEl.value;
       const isText = type === "text";
@@ -273,6 +275,11 @@
       if (isLivestream && !urlEl.value) {
         urlEl.value = DEFAULT_LIVESTREAM_URL;
       }
+      // Required-ness follows visibility - hidden fields are skipped by
+      // constraint validation automatically, so this is enough to stop
+      // e.g. publishing a webcontent event with no Content URL.
+      textEl.required = isText;
+      urlEl.required = !isText;
     }
     typeEl.addEventListener("change", updateFieldsForType);
     updateFieldsForType();
