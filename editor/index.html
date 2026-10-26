@@ -355,6 +355,47 @@
     }
     tagsEl.addEventListener("input", refreshTagSuggestions);
 
+    // --- Audio/video URL sanity check --------------------------------------
+    // TODOs.md: a Google Drive/SoundCloud/Bandcamp share link isn't a direct
+    // media file, so VideoPlayerPage/PlaybackController can't play it - nudge
+    // towards "webcontent" (opened in a WebView) instead of silently failing.
+    // Not limited to a fixed host list - any http(s) link without a
+    // recognized audio/video extension gets the same offer.
+    const AUDIO_EXTENSIONS = ["mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus", "wma"];
+    const VIDEO_EXTENSIONS = ["mp4", "mov", "webm", "mkv", "avi", "m4v", "flv", "wmv"];
+
+    function urlLooksLikeMediaFile(url, type) {
+      let pathname;
+      try {
+        pathname = new URL(url).pathname.toLowerCase();
+      } catch (err) {
+        return true; // not a parseable URL - not this check's job to flag that
+      }
+      const ext = pathname.split(".").pop();
+      const exts = type === "audio" ? AUDIO_EXTENSIONS : VIDEO_EXTENSIONS;
+      return exts.includes(ext);
+    }
+
+    // Returns false if the submit should be aborted (either the user
+    // cancelled, or chose to switch to webcontent instead).
+    function confirmAudioVideoUrl(type, url) {
+      if ((type !== "audio" && type !== "video") || !url || urlLooksLikeMediaFile(url, type)) {
+        return true;
+      }
+      if (/^https?:\/\//i.test(url)) {
+        const switchToWebcontent = confirm(
+          "The URL does not look like a valid audio or video file.\n\n" +
+          "Do you want to share it as web content instead?"
+        );
+        if (switchToWebcontent) {
+          typeEl.value = "webcontent";
+          updateFieldsForType();
+        }
+        return false;
+      }
+      return confirm("The URL does not look like a valid audio or video file. Publish anyway?");
+    }
+
     // --- Double-publish protection ---------------------------------------
     // GET /events only filters by status (no title/type search), so fetch
     // every status and compare client-side - good enough to catch an
@@ -381,6 +422,8 @@
       const type = typeEl.value;
       const titleValue = document.getElementById("title").value;
       const summaryValue = document.getElementById("summary").value;
+
+      if (!confirmAudioVideoUrl(type, urlEl.value)) return;
 
       try {
         const duplicate = await findDuplicateEvent(titleValue, summaryValue, type);
