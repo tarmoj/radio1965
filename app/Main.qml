@@ -502,6 +502,10 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Cancel
+        // A mid-register/login tap on the surrounding dimmed area is easy to
+        // trigger by accident on a phone - only the Cancel button (or the
+        // embedded page completing) should close this, not an outside tap.
+        closePolicy: Popup.NoAutoClose
         // Dialog doesn't auto-size itself from an explicit `width:` set on
         // an inner child - same fix as infoDialog above. Taller than the
         // other dialogs here since it now hosts a full web page rather
@@ -621,6 +625,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // Same reasoning as contributorDialog above - width has to go on
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
+        // Same reasoning as contributorDialog above - an accidental outside
+        // tap while typing a name/password shouldn't dismiss this.
+        closePolicy: Popup.NoAutoClose
 
         property string errorMessage: ""
         property bool verifying: false
@@ -721,6 +728,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // Same reasoning as contributorDialog above - width has to go on
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
+        // Same reasoning as contributorDialog above - an accidental outside
+        // tap while typing feedback shouldn't dismiss (and discard) it.
+        closePolicy: Popup.NoAutoClose
 
         // Capped to the window; the content scrolls (contentItem below) when
         // it doesn't fit, e.g. on a phone in landscape. No manual keyboard

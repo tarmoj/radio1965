@@ -15,17 +15,18 @@ Audio/Video links -  shared from google drive does not work. 1) check if proper 
 
 ### App
 
-Play when screen is closed (or provide a lock screen).
-
-When a Box is open and user clicks on webcontent, close the box (otherwise webview covers it). In other cases leave the box open.
-
-Store Volume level.
 
 Temporary Contributor popup -  do not close when user clicks outside (only by buttons) - the same with other dialogs from menu.
 
-Sort box entries -  newest first.
+Play when screen is closed (or provide a lock screen).
 
-Add time when event was created to the Card (next to Shared by).
+When a Box is open and user clicks on webcontent, close the box (otherwise webview covers it). In other cases leave the box open. DONE
+
+Store Volume level. DONE
+
+Sort box entries -  newest first. DONE
+
+Add time when event was created to the Card (next to Shared by). DONE
 
 ### Broadcasting
 
