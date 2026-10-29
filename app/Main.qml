@@ -147,6 +147,9 @@ ApplicationWindow {
     header: ToolBar {
         id: toolBar
         width: parent.width
+        // Covered by lockOverlay while locked anyway, but belt-and-
+        // suspenders: input events can't reach menu/refresh either.
+        enabled: !lockOverlay.opened
 
         implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
 
@@ -197,13 +200,25 @@ ApplicationWindow {
                 }
             }
 
+            // Android only: without a foreground service, Android's Doze/
+            // App Standby can suspend playback once the screen sleeps or
+            // the app is backgrounded - this (combined with ScreenKeeper,
+            // see PlaybackController.qml, which keeps the display on while
+            // playing) lets a user who's about to pocket the phone
+            // deliberately lock the UI instead, without risking a stray tap
+            // on play/stop/menu. Not needed on iOS, which already has a
+            // working background-audio setup (UIBackgroundModes: audio +
+            // AVAudioSession .playback, see iosaudiosession.mm). Replaces
+            // the old "Send Feedback" shortcut here - still reachable from
+            // the drawer menu below.
             ToolButton {
-                id: feedbackButton
+                id: lockButton
 
                 anchors.right: refreshButton.left
                 anchors.verticalCenter: parent.verticalCenter
-                icon.source: "qrc:/images/send.svg"
-                onClicked: feedbackDialog.open()
+                visible: Qt.platform.os === "android"
+                icon.source: "qrc:/images/lock.svg"
+                onClicked: lockOverlay.open()
             }
         }
     }
@@ -863,6 +878,60 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         }
     }
 
+    // Android-only "pocket lock" (see lockButton in the header above) - a
+    // dark, control-free overlay covering the whole window (via
+    // Overlay.overlay, same window-covering-popup pattern Box.qml's
+    // groupPopup already uses - sits above the header too) so accidental
+    // taps/swipes don't do anything. Playback itself is untouched - this
+    // only blocks input/visuals. closePolicy: NoAutoClose - only the
+    // triple-tap below closes it (plus toolBar/the main ColumnLayout above
+    // are both explicitly disabled while this is open, as a second layer of
+    // protection against any swipe reaching the SwipeView underneath).
+    Popup {
+        id: lockOverlay
+        parent: Overlay.overlay
+        x: 0
+        y: 0
+        width: parent ? parent.width : app.width
+        height: parent ? parent.height : app.height
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        background: Rectangle { color: "black" }
+
+        // All 3 taps must land within this window (measured from the
+        // first tap, not just consecutive-pair gaps - a slow 3-tap
+        // shouldn't unlock it) or the count restarts from the next tap.
+        readonly property int tapWindowMs: 1000
+        property int tapCount: 0
+        property real firstTapTime: 0
+
+        onOpened: lockOverlay.tapCount = 0
+
+        contentItem: MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                const now = Date.now();
+                if (lockOverlay.tapCount === 0 || now - lockOverlay.firstTapTime > lockOverlay.tapWindowMs) {
+                    lockOverlay.tapCount = 1;
+                    lockOverlay.firstTapTime = now;
+                } else {
+                    lockOverlay.tapCount += 1;
+                }
+                if (lockOverlay.tapCount >= 3)
+                    lockOverlay.close();
+            }
+
+            Label {
+                anchors.centerIn: parent
+                text: qsTr("Locked - tap 3 times quickly to unlock")
+                color: "white"
+                opacity: 0.6
+                font.pointSize: 12
+            }
+        }
+    }
+
     // Instantiated exactly once here and threaded down explicitly to
     // PlayerBar, VideoPage (as a pushed initial property) and both
     // EventListView instances - see PlaybackController.qml for why this is
@@ -877,6 +946,11 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
+        // Belt-and-suspenders alongside lockOverlay's own modal/
+        // NoAutoClose blocking: disabling this outright means the
+        // SwipeView/TabBar/PlayerBar underneath can't receive so much as a
+        // swipe gesture while locked, regardless of z-order subtleties.
+        enabled: !lockOverlay.opened
 
         PlayerBar {
             id: playerBar

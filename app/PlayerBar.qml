@@ -204,21 +204,6 @@ Item {
                 onClicked: root.controller.stop()
             }
 
-            // Android only: without a foreground service, Android's Doze/
-            // App Standby can suspend playback once the screen sleeps or
-            // the app is backgrounded - this (combined with ScreenKeeper
-            // above keeping the display on while playing) lets a user who's
-            // about to pocket the phone deliberately dim/lock the UI
-            // instead, without risking a stray tap on play/stop/menu.
-            // Not needed on iOS, which already has a working background-
-            // audio setup (UIBackgroundModes: audio + AVAudioSession
-            // .playback, see iosaudiosession.mm).
-            ToolButton {
-                visible: Qt.platform.os === "android"
-                icon.source: "qrc:/images/lock.svg"
-                onClicked: lockOverlay.open()
-            }
-
             ToolButton {
                 icon.source: root.controller.expanded ? "qrc:/images/arrow_drop_up.svg" :
                                                         "qrc:/images/arrow_drop_down.svg"
@@ -383,54 +368,6 @@ Item {
             padding: 6
             color: "white"
             text: root.controller.errorMessage
-        }
-    }
-
-    // Android-only "pocket lock" (see the ToolButton above) - a dark,
-    // control-free overlay covering the whole window (including the
-    // ApplicationWindow header's menu/refresh/feedback buttons, via
-    // Overlay.overlay - same window-covering-popup pattern Box.qml's
-    // groupPopup already uses) so accidental taps don't do anything.
-    // Playback itself is untouched - this only blocks input/visuals.
-    // closePolicy: NoAutoClose - only the triple-tap below closes it.
-    Popup {
-        id: lockOverlay
-        parent: Overlay.overlay
-        x: 0
-        y: 0
-        width: parent ? parent.width : root.width
-        height: parent ? parent.height : root.height
-        modal: true
-        focus: true
-        closePolicy: Popup.NoAutoClose
-        background: Rectangle { color: "black" }
-
-        property int tapCount: 0
-
-        onOpened: lockOverlay.tapCount = 0
-
-        contentItem: MouseArea {
-            anchors.fill: parent
-            onClicked: {
-                lockOverlay.tapCount += 1;
-                tapResetTimer.restart();
-                if (lockOverlay.tapCount >= 3)
-                    lockOverlay.close();
-            }
-
-            Label {
-                anchors.centerIn: parent
-                text: qsTr("Locked - tap 3 times to unlock")
-                color: "white"
-                opacity: 0.6
-                font.pointSize: 12
-            }
-
-            Timer {
-                id: tapResetTimer
-                interval: 1500
-                onTriggered: lockOverlay.tapCount = 0
-            }
         }
     }
 }

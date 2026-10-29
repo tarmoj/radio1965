@@ -15,10 +15,13 @@ Audio/Video links -  shared from google drive does not work. 1) check if proper 
 
 ### App
 
+Test: on Android -  Back button
 
-Temporary Contributor popup -  do not close when user clicks outside (only by buttons) - the same with other dialogs from menu.
+Android (16) deal with system gestures (like swipe to go back)
 
 Play when screen is closed (or provide a lock screen).
+
+Temporary Contributor popup -  do not close when user clicks outside (only by buttons) - the same with other dialogs from menu. DONE
 
 When a Box is open and user clicks on webcontent, close the box (otherwise webview covers it). In other cases leave the box open. DONE
 
