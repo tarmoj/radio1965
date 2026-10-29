@@ -484,7 +484,13 @@ Login:  users with type 'contributor' and 'manager' can log with their credentia
 
 3) Tags -  do not show for now.
 
-Add a filter bar (similar to Beekeeprs tudio) to search for itmes
+Add a filter bar (similar to Beekeeprs tudio) to find/filter rows.
+
+Like Beekeeper - when something in a line is changed, mark it with a color (light green or similar), when a line is to be deleted (light red or similar) and Have a "Apply" button somehwere to make the changes to database.
+
+When a row with streamrecording is being deleted, ask if also audiofile (on eccm.ee) should be deleted.
+
+Create a crontab c
 
 
 ## 99. Ideas.
