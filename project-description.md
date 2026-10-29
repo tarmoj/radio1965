@@ -424,9 +424,8 @@ Capture PCM via QAudioSource
 Encode to AAC via libavcodec (or Android's native MediaCodec AAC encoder if you want to skip FFmpeg's audio encoder)
 Mux + push via libavformat to Icecast.
 
+
 ## 10. Registration
-
-
 
 1) 1) Temporary contributor  
 - user can become a temporay contributor (role "temporaryContributor") by entering name and password
@@ -468,6 +467,24 @@ In app: store name, email, password in app settings. On startup, check and set f
 If user is marked 'banned' -  do not allow use of the app at all. (Show popup "You exiled. Contact the admistrators if it feels unjust.")
 
 In table 'events' add column 'author_id' - user who enetered the event.  
+
+## 11. Manager page
+
+Create a web page for managing the database (manager/index.html), will be hosted on eccm.ee
+
+Add pushing the page to eccm.ee to github actions.
+
+Login:  users with type 'contributor' and 'manager' can log with their credentials.
+
+'contributor' can edit only their events, 'manager' everything.
+
+1) Table "Events"  - enum fields as Selction, others as text. What is good editing mean for date/time fields?
+
+2) Users -  show ownly for managers.
+
+3) Tags -  do not show for now.
+
+Add a filter bar (similar to Beekeeprs tudio) to search for itmes
 
 
 ## 99. Ideas.

@@ -518,9 +518,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         anchors.centerIn: parent
         standardButtons: Dialog.Cancel
         // A mid-register/login tap on the surrounding dimmed area is easy to
-        // trigger by accident on a phone - only the Cancel button (or the
-        // embedded page completing) should close this, not an outside tap.
-        closePolicy: Popup.NoAutoClose
+        // trigger by accident on a phone - only Cancel/Back (or the embedded
+        // page completing) should close this, not an outside tap.
+        closePolicy: Popup.CloseOnEscape
         // Dialog doesn't auto-size itself from an explicit `width:` set on
         // an inner child - same fix as infoDialog above. Taller than the
         // other dialogs here since it now hosts a full web page rather
@@ -641,8 +641,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
         // Same reasoning as contributorDialog above - an accidental outside
-        // tap while typing a name/password shouldn't dismiss this.
-        closePolicy: Popup.NoAutoClose
+        // tap while typing a name/password shouldn't dismiss this, but
+        // Cancel/Back still should.
+        closePolicy: Popup.CloseOnEscape
 
         property string errorMessage: ""
         property bool verifying: false
@@ -744,8 +745,9 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // the Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
         // Same reasoning as contributorDialog above - an accidental outside
-        // tap while typing feedback shouldn't dismiss (and discard) it.
-        closePolicy: Popup.NoAutoClose
+        // tap while typing feedback shouldn't dismiss (and discard) it, but
+        // Cancel/Back still should.
+        closePolicy: Popup.CloseOnEscape
 
         // Capped to the window; the content scrolls (contentItem below) when
         // it doesn't fit, e.g. on a phone in landscape. No manual keyboard
@@ -878,6 +880,38 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         }
     }
 
+    // Shown by the Keys.onBackPressed handler above instead of immediately
+    // backgrounding/exiting the app while a broadcast is live - an
+    // accidental Back press shouldn't silently cut a live broadcast.
+    Dialog {
+        id: leaveBroadcastConfirmDialog
+        title: qsTr("Leave while broadcasting?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Cancel
+        width: Math.min(app.width - 40, 420)
+
+        ColumnLayout {
+            width: leaveBroadcastConfirmDialog.availableWidth
+            spacing: 8
+
+            Label {
+                text: qsTr("You're currently broadcasting live. Leaving now may end the broadcast.")
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Leave anyway")
+                onClicked: {
+                    leaveBroadcastConfirmDialog.close();
+                    Qt.quit();
+                }
+            }
+        }
+    }
+
     // Android-only "pocket lock" (see lockButton in the header above) - a
     // dark, control-free overlay covering the whole window (via
     // Overlay.overlay, same window-covering-popup pattern Box.qml's
@@ -898,6 +932,12 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         focus: true
         closePolicy: Popup.NoAutoClose
         background: Rectangle { color: "black" }
+
+        // Explicitly swallow Back while locked - a predictive-back/Key_Back
+        // event reaching the outer ColumnLayout's Keys.onBackPressed would
+        // pop the StackView or background the app, bypassing the lock
+        // entirely. Only the triple-tap above should ever close this.
+        Keys.onBackPressed: (event) => event.accepted = true
 
         // All 3 taps must land within this window (measured from the
         // first tap, not just consecutive-pair gaps - a slow 3-tap
@@ -949,8 +989,34 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // Belt-and-suspenders alongside lockOverlay's own modal/
         // NoAutoClose blocking: disabling this outright means the
         // SwipeView/TabBar/PlayerBar underneath can't receive so much as a
-        // swipe gesture while locked, regardless of z-order subtleties.
+        // swipe gesture while locked, regardless of z-order subtleties. As a
+        // side effect this also means this Item (and its Keys.onBackPressed
+        // below) can't hold focus/receive the Back key at all while locked -
+        // lockOverlay's own Keys.onBackPressed handles that case instead.
         enabled: !lockOverlay.opened
+        focus: true
+
+        // Android targetSdkVersion 36 routes Back through Qt Quick as a key
+        // event (see android/AndroidManifest.xml's enableOnBackInvokedCallback
+        // comment) rather than finishing the Activity outright - this is
+        // where that gets turned into in-app navigation instead of exiting
+        // from any sub-screen. WebViewPage.qml/VideoPage.qml both already
+        // implement their own back button as a plain stackView.pop(), so
+        // popping the StackView here covers both uniformly.
+        Keys.onBackPressed: (event) => {
+            if (drawer.opened) {
+                drawer.close();
+                event.accepted = true;
+            } else if (app.broadcastAvailable && icecastBroadcaster.broadcasting && stackView.depth === 1) {
+                leaveBroadcastConfirmDialog.open();
+                event.accepted = true;
+            } else if (stackView.depth > 1) {
+                stackView.pop();
+                event.accepted = true;
+            } else {
+                event.accepted = false; // nothing left to pop - let Android background/exit
+            }
+        }
 
         PlayerBar {
             id: playerBar
