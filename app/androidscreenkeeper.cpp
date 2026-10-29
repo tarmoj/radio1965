@@ -3,7 +3,6 @@
 #ifdef Q_OS_ANDROID
 
 #include <QJniObject>
-#include <QNativeInterface/QAndroidApplication>
 
 namespace {
 // android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON - doesn't
@@ -13,7 +12,15 @@ constexpr int FLAG_KEEP_SCREEN_ON = 0x00000080;
 
 void ScreenKeeper::setEnabled(bool enabled)
 {
-    QJniObject activity = QNativeInterface::QAndroidApplication::context();
+    // QNativeInterface::QAndroidApplication::context() would be the
+    // "proper" Qt 6 way to get the Activity, but its header isn't reliably
+    // found across Qt 6.9's packaging - QtNative.activity() is the same
+    // Activity instance, reached directly via the Java side Qt itself
+    // installs on every Android build (org.qtproject.qt.android.QtNative),
+    // same approach as main.cpp's existing QJniObject::callStaticMethod use
+    // for PushMessagingService.
+    QJniObject activity = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity", "()Landroid/app/Activity;");
     if (!activity.isValid())
         return;
     QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
