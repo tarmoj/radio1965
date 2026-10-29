@@ -880,6 +880,19 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         }
     }
 
+    // "Press back again to exit" hint - shown by the Keys.onBackPressed
+    // handler above on the first Back press at the true root (home tab, no
+    // pages pushed, not broadcasting), same auto-hide pattern as
+    // feedbackThanks above.
+    Popup {
+        id: exitHintToast
+        anchors.centerIn: parent
+        modal: false
+        closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+
+        Label { text: qsTr("Press Back again to exit") }
+    }
+
     // Shown by the Keys.onBackPressed handler above instead of immediately
     // backgrounding/exiting the app while a broadcast is live - an
     // accidental Back press shouldn't silently cut a live broadcast.
@@ -984,6 +997,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
     // stays visible across tab switches and over pushed pages (WebViewPage,
     // VideoPage).
     ColumnLayout {
+        id: mainColumn
         anchors.fill: parent
         spacing: 0
         // Belt-and-suspenders alongside lockOverlay's own modal/
@@ -1003,18 +1017,58 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // from any sub-screen. WebViewPage.qml/VideoPage.qml both already
         // implement their own back button as a plain stackView.pop(), so
         // popping the StackView here covers both uniformly.
+
+        // True for ~2s after a Back press at the true root (home tab, no
+        // pages pushed, not broadcasting) - a second Back press within that
+        // window actually exits; otherwise it's just re-armed and a hint is
+        // shown. Standard Android "press back again to exit" pattern, so a
+        // single accidental Back from the root screen can't silently close
+        // the app.
+        property bool backExitArmed: false
+
         Keys.onBackPressed: (event) => {
             if (drawer.opened) {
                 drawer.close();
                 event.accepted = true;
-            } else if (app.broadcastAvailable && icecastBroadcaster.broadcasting && stackView.depth === 1) {
-                leaveBroadcastConfirmDialog.open();
-                event.accepted = true;
             } else if (stackView.depth > 1) {
+                // A WebViewPage/VideoPage is pushed - pop it, same as their
+                // own back buttons already do.
                 stackView.pop();
                 event.accepted = true;
+            } else if (stackView.currentItem && stackView.currentItem.currentTabIndex !== 0) {
+                // On the Collection/Broadcast tab - go back to the home
+                // ("New Arrivals") tab first, same as navigating back a
+                // level, rather than exiting straight from a non-home tab.
+                stackView.currentItem.currentTabIndex = 0;
+                event.accepted = true;
+            } else if (app.broadcastAvailable && icecastBroadcaster.broadcasting) {
+                leaveBroadcastConfirmDialog.open();
+                event.accepted = true;
+            } else if (!backExitArmed) {
+                backExitArmed = true;
+                backExitTimer.restart();
+                exitHintToast.open();
+                event.accepted = true;
             } else {
-                event.accepted = false; // nothing left to pop - let Android background/exit
+                // Second Back press within the window above, at the true
+                // root - exit. Deliberately NOT event.accepted = false:
+                // leaving it to Android's native fallback (finish the
+                // Activity on an unaccepted Back key) worked right after
+                // launch but produced a black screen once a SwipeView tab
+                // had been touched/focused first - calling Qt.quit()
+                // ourselves sidesteps that native pass-through path
+                // entirely and exits deterministically.
+                event.accepted = true;
+                Qt.quit();
+            }
+        }
+
+        Timer {
+            id: backExitTimer
+            interval: 2000
+            onTriggered: {
+                mainColumn.backExitArmed = false;
+                exitHintToast.close();
             }
         }
 
@@ -1076,6 +1130,12 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
 
         ColumnLayout {
             spacing: 0
+
+            // Exposed so the app-level Keys.onBackPressed handler (Main.qml,
+            // on the ColumnLayout wrapping PlayerBar+StackView) can send
+            // Back to the home tab before it considers exiting - this
+            // ColumnLayout is stackView.currentItem while viewing any tab.
+            property alias currentTabIndex: tabBar.currentIndex
 
             TabBar {
                 id: tabBar
