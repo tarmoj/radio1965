@@ -80,6 +80,24 @@ Page {
             // always visible (see topBar.visible below), nothing to reveal.
             onTapped: if (root.fullscreenActive) root.controlsVisible = true
         }
+
+        // iOS-style "swipe from the left edge to go back" - matches the
+        // platform convention (UINavigationController's interactive pop
+        // gesture) that this Page otherwise lacks, having only the explicit
+        // "←" button above. Unlike WebViewPage.qml, there's no native
+        // composited content here to work around - a plain DragHandler over
+        // the whole VideoOutput works, since it only ever acts on drags that
+        // started within the edge threshold below.
+        DragHandler {
+            id: edgeSwipeHandler
+            target: null
+            yAxis.enabled: false
+            onActiveChanged: {
+                if (!active && centroid.pressPosition.x < 24 && centroid.position.x - centroid.pressPosition.x > 80) {
+                    root.StackView.view.pop();
+                }
+            }
+        }
     }
 
     Rectangle {

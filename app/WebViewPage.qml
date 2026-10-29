@@ -66,6 +66,15 @@ Page {
 
     WebView {
         id: webView
+        // Reserves a thin strip at the left edge outside the native
+        // WebView's own bounds - like any native-composited content, it
+        // always wins touch arbitration within its own rectangle (same
+        // limitation as the drawerOpen handling below), so an edge-swipe
+        // gesture detector placed on `root` would never see a touch that
+        // starts over the WebView itself. edgeSwipeHandler below only ever
+        // needs to see presses starting in this gutter anyway.
+        readonly property int edgeGutter: 16
+        x: edgeGutter
         // Collapsing width/height to 0 (not just toggling `visible`) while
         // the drawer is open: QtWebView's native content is embedded via
         // QQuickWindowContainer, and on iOS specifically the container's
@@ -76,9 +85,26 @@ Page {
         // setWidth/setHeight though, so a zero-sized WebView reliably has
         // nothing left to render/hit-test even when `visible` alone
         // wouldn't have hidden it.
-        width: root.drawerOpen ? 0 : parent.width
+        width: root.drawerOpen ? 0 : parent.width - edgeGutter
         height: root.drawerOpen ? 0 : parent.height
         visible: !root.loading && root.errorMessage === "" && !root.drawerOpen
+    }
+
+    // iOS-style "swipe from the left edge to go back" - matches the
+    // platform convention (UINavigationController's interactive pop
+    // gesture) that this Page otherwise lacks, having only the explicit "←"
+    // button above. Only needs to watch the webView.edgeGutter strip left
+    // uncovered above; a touch starting further right lands on the native
+    // WebView content instead and never reaches this handler.
+    DragHandler {
+        id: edgeSwipeHandler
+        target: null
+        yAxis.enabled: false
+        onActiveChanged: {
+            if (!active && centroid.pressPosition.x < 24 && centroid.position.x - centroid.pressPosition.x > 80) {
+                root.StackView.view.pop();
+            }
+        }
     }
 
     BusyIndicator {
