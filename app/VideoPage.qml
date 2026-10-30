@@ -51,6 +51,24 @@ Page {
         root.controlsVisible = true;
     }
 
+    // User-initiated close (the "←" button and the edge-swipe gesture
+    // below) - unlike Main.qml's own reactive pop when hasVideo goes false
+    // on its own (e.g. switching to a different, video-less item, where
+    // playback is already moving on to something else and must NOT be
+    // stopped here), the user explicitly closing this page means they're
+    // actually done with it: stop playback for real (not just stop
+    // rendering it - root.controller.stop() per PlaybackController.qml's
+    // own stop() still leaves it resumable, same as the player strip's own
+    // Stop button), and restore the window out of fullscreen first so
+    // PlayerBar (hidden only while Window.FullScreen, see Main.qml) reliably
+    // reappears instead of staying hidden behind the now-popped page.
+    function closeVideoPage() {
+        if (root.fullscreenActive)
+            root.toggleFullscreen();
+        root.controller.stop();
+        root.StackView.view.pop();
+    }
+
     // Same small independent duplicate as PlayerBar.qml's formatTime()/
     // BroadcastPage.qml's formatElapsed() - established convention in this
     // codebase for this exact helper rather than a shared utility import.
@@ -94,7 +112,7 @@ Page {
             yAxis.enabled: false
             onActiveChanged: {
                 if (!active && centroid.pressPosition.x < 24 && centroid.position.x - centroid.pressPosition.x > 80) {
-                    root.StackView.view.pop();
+                    root.closeVideoPage();
                 }
             }
         }
@@ -116,7 +134,7 @@ Page {
 
             ToolButton {
                 text: "←"
-                onClicked: root.StackView.view.pop()
+                onClicked: root.closeVideoPage()
             }
 
             Label {

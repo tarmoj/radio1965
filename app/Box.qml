@@ -179,8 +179,17 @@ Rectangle {
                                 })
                             }
 
-                            onPlayerRequested: (url, title, summary, isLive) =>
+                            onPlayerRequested: (url, title, summary, isLive) => {
+                                // Same reasoning as onArticleRequested above -
+                                // a video pushes VideoPage.qml (Main.qml's
+                                // reactive hasVideo handling), which this
+                                // popup would otherwise sit on top of and
+                                // cover. Audio/livestream don't push a page,
+                                // so they leave the popup open.
+                                if (modelData.eventType === "video")
+                                    groupPopup.close()
                                 root.controller.playMedia(url, title, summary, isLive)
+                            }
                         }
                     }
                 }

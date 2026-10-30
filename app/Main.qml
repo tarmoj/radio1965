@@ -1032,8 +1032,14 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                 event.accepted = true;
             } else if (stackView.depth > 1) {
                 // A WebViewPage/VideoPage is pushed - pop it, same as their
-                // own back buttons already do.
-                stackView.pop();
+                // own back buttons already do. VideoPage specifically needs
+                // its closeVideoPage() (stop playback + restore out of
+                // fullscreen), not a bare pop - duck-typed via the function
+                // check since Main.qml can't import VideoPage.qml's type.
+                if (stackView.currentItem && stackView.currentItem.closeVideoPage)
+                    stackView.currentItem.closeVideoPage();
+                else
+                    stackView.pop();
                 event.accepted = true;
             } else if (stackView.currentItem && stackView.currentItem.currentTabIndex !== 0) {
                 // On the Collection/Broadcast tab - go back to the home
