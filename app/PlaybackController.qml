@@ -1,6 +1,7 @@
 import QtCore
 import QtQuick
 import QtMultimedia
+import "DummyEvents.js" as DummyEvents
 
 // Global playback state, replacing the per-page MediaPlayer that used to
 // live inside PlayerPage.qml. Instantiated exactly once in Main.qml (id:
@@ -30,10 +31,12 @@ QtObject {
     // live), so a channel added there needs no app release; none until the first answer, which chooses its first
     // channel when none of its channels is chosen. The same answer
     // says what each one plays now (title, by, a date; who is live; silent during an air-raid alert in Kyiv), read
-    // every 10 s while one plays and every minute otherwise, never while the app is in the background. A tapped
-    // livestream card still plays its own url (playMedia), wherever it is.
+    // every 10 s while the app is open, since the Home tab's cards (ChannelList.qml) show it, never while the app is
+    // in the background. A tapped livestream card still plays its own url (playMedia), wherever it is.
     readonly property string v2inBaseUrl: "https://v2in.stream"
     property var v2inNow: null
+    // true after a failed GET /api/now, false after the next good one (ChannelList.qml's error line)
+    property bool v2inError: false
     // A channel of several streamers (its live a list in GET /api/now's channels, e.g. community) is listed as v2in's
     // front page shows it, by name and never by its slots (community-1, ...): mixed and playing (it has a stream), the
     // channel itself, playing its mix; unmixed with someone live, one entry per show, "<name>: <show>", each playing its
@@ -87,30 +90,44 @@ QtObject {
         return line ? c.name + ": " + line : c.name;
     }
     function refreshV2inNow() {
+        // the RADIO65_LAYOUT_PREVIEW build has no backend: DummyEvents.js's answer, so the cards show
+        if (layoutPreview) {
+            root._takeV2inNow(DummyEvents.now);
+            return;
+        }
         const xhr = new XMLHttpRequest();
         xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+            if (xhr.readyState !== XMLHttpRequest.DONE)
                 return;
-            const before = root._poolEntry(root.selectedChannel, root.v2inNow);
-            try { root.v2inNow = JSON.parse(xhr.responseText); } catch (e) { return; }
-            if (root.channelOptions.indexOf(root.selectedChannel) === -1) {
-                const pool = before ? root.v2inNow.channels.find(p => p.id === before.pool.id && root._isSeveral(p)) : null;
-                if (pool)
-                    root._poolChanged(pool);
-                else
-                    root.selectedChannel = root.channelOptions[0] || "";
+            if (xhr.status !== 200) {
+                root.v2inError = true;
+                return;
             }
-            root.refreshLiveInfo();
+            let now;
+            try { now = JSON.parse(xhr.responseText); } catch (e) { root.v2inError = true; return; }
+            root.v2inError = false;
+            root._takeV2inNow(now);
         };
         xhr.open("GET", root.v2inBaseUrl + "/api/now");
         xhr.send();
+    }
+    function _takeV2inNow(now) {
+        const before = root._poolEntry(root.selectedChannel, root.v2inNow);
+        root.v2inNow = now;
+        if (root.channelOptions.indexOf(root.selectedChannel) === -1) {
+            const pool = before ? root.v2inNow.channels.find(p => p.id === before.pool.id && root._isSeveral(p)) : null;
+            if (pool)
+                root._poolChanged(pool);
+            else
+                root.selectedChannel = root.channelOptions[0] || "";
+        }
+        root.refreshLiveInfo();
     }
     // The chosen entry of a channel of several is gone: its show ended, someone went live on an idle one, or its mix
     // began or ended. Its mix is chosen while it plays, else its first live show, else the channel itself; one that was
     // playing goes on with that, or stops when nothing is left.
     function _poolChanged(pool) {
-        const playing = root.isLive && !root.mediaUrl
-            && (player.playbackState !== MediaPlayer.StoppedState || root.liveStreamOffline || root.loading);
+        const playing = root.playingLive;
         const next = !pool.stream && pool.live.length ? pool.live[0].channel : pool.id;
         root.selectedChannel = next;
         if (!playing)
@@ -120,8 +137,35 @@ QtObject {
         else
             root.start();
     }
+    // A live channel is playing, tuning in or being tuned in again (_retryTimer), not stopped
+    readonly property bool playingLive: root.isLive && !root.mediaUrl
+        && (player.playbackState !== MediaPlayer.StoppedState || root.liveStreamOffline || root.loading)
+    // The card of `channel` (a channel or one of its slots) shows stop while this is true, a busy ring while tuning
+    function isPlayingChannel(channel) {
+        return root.playingLive && root.selectedChannel === channel;
+    }
+    function isTuning(channel) {
+        return root.isPlayingChannel(channel) && root.loading;
+    }
+    // A channel's slots open or folded under its card, kept across launches as v2in.stream keeps them in its
+    // browser; folded by default
+    property Settings channelSettings: Settings {
+        category: "Channels"
+        property string foldOpenJson: "{}"
+    }
+    property var foldOpen: ({})
+    function setFoldOpen(channel, open) {
+        const next = Object.assign({}, root.foldOpen);
+        if (open)
+            next[channel] = true;
+        else
+            delete next[channel];
+        root.foldOpen = next;
+        root.channelSettings.foldOpenJson = JSON.stringify(next);
+    }
+
     property Timer _v2inTimer: Timer {
-        interval: root.isLive && root.isV2inChannel(root.selectedChannel) ? 10000 : 60000
+        interval: 10000
         repeat: true
         triggeredOnStart: true
         running: Qt.application.state === Qt.ApplicationActive
@@ -202,6 +246,7 @@ QtObject {
     Component.onCompleted: {
         root.refreshChannelAvailability();
         root._loadRecentMedia();
+        try { root.foldOpen = JSON.parse(root.channelSettings.foldOpenJson); } catch (e) { root.foldOpen = {}; }
     }
 
     property string mediaUrl: ""
@@ -215,16 +260,8 @@ QtObject {
     property bool isLive: true
     property string selectedChannel: ""   // v2in's first channel once /api/now answers
 
-    // Purely which combobox PlayerBar.qml shows (live channels vs recent
-    // media) - independent of isLive/mediaUrl so toggling this in the UI
-    // never touches actual playback, only which picker is visible.
-    property bool browsingRecentMedia: false
-
-    function toggleSelectorMode() {
-        root.browsingRecentMedia = !root.browsingRecentMedia;
-    }
-
-    // Local playback history (project-description.md #8.2.1's "Save
+    // Local playback history, kept though PlayerBar's recent-media picker
+    // that listed it is gone (project-description.md #8.2.1's "Save
     // stream" recordings included - anything played via playMedia() with
     // isLive=false), persisted via QtCore.Settings same as
     // BroadcastPage.qml's broadcastSettings. Settings can't natively store
@@ -309,6 +346,12 @@ QtObject {
             root.liveInfo = { title: v2in.name, summary: v2in.silence || qsTr("Nobody live now") };
             return;
         }
+        // a mix plays who is live in it, named as its card names them
+        if (v2in && v2in.pool && Array.isArray(v2in.live) && v2in.live.length && !v2in.title && !v2in.by) {
+            root.liveInfo = { title: v2in.live.map(l => l.title || l.artist).filter(Boolean).join(", ") || qsTr("Live"),
+                              summary: qsTr("Live on v2in") };
+            return;
+        }
         if (v2in && v2in.status !== "offline" && (v2in.title || v2in.by)) {
             root.liveInfo = { title: [v2in.by, v2in.title].filter(Boolean).join(" - "),
                               summary: v2in.status === "silent" ? qsTr("Silent until the alert ends")
@@ -331,9 +374,9 @@ QtObject {
         return root.v2inBaseUrl + "/stream/" + channel;
     }
 
-    // Called by PlayerBar's channel ComboBox onActivated (a real user pick,
-    // not merely opening the popup) - starts playback immediately so the
-    // user doesn't need a separate Play press after picking a channel.
+    // Called by a channel card's play (ChannelCard.qml) - starts playback
+    // immediately, switching from whatever played before (one stream at a
+    // time).
     function selectChannel(channel) {
         root.selectedChannel = channel;
         root.isLive = true;
@@ -349,18 +392,11 @@ QtObject {
         root.mediaUrl = url;
         root.mediaTitle = title;
         root.mediaSummary = summary;
-        // Keep PlayerBar's channel ComboBox (bound to selectedChannel) in
-        // sync with whatever's actually playing - e.g. tapping a
-        // "livestream" Card/notification for "user1" while selectedChannel
-        // was still "radio1965" from a previous session left the ComboBox
-        // showing the wrong channel even though the right one was playing.
-        // Only PlayerBar's own onActivated calls selectChannel() directly
-        // (a real user pick), so updating selectedChannel here - a plain
-        // property write, not a call to selectChannel()/start() - can't
-        // cause a double-trigger: it neither re-enters start() itself (the
-        // call below already covers that) nor fires onActivated, which only
-        // reacts to actual popup interaction, not a currentIndex binding
-        // update.
+        // Keep selectedChannel in sync with whatever's actually playing -
+        // e.g. tapping a "livestream" Card/notification for "user1" while
+        // selectedChannel was still "radio1965" from a previous session.
+        // A plain property write, not a call to selectChannel()/start(), so
+        // it can't re-enter start() (the call below already covers that).
         if (isLive) {
             const matched = root.channelOptions.find(channel => root.channelUrl(channel) === url);
             if (matched)
@@ -420,13 +456,9 @@ QtObject {
         }
     }
 
-    // Just stops playback - does NOT touch mediaUrl/isLive/title, so the
-    // strip keeps showing what was loaded (e.g. an audio file's title, with
-    // Play available to resume it) instead of jumping back to the channel
-    // picker on its own. Previously this reset straight to radio mode,
-    // which looked wrong when Stop was pressed on a fixed-media item (the
-    // combobox would appear even though the file was still the loaded
-    // item) - use backToChannels() for an explicit return to radio mode.
+    // Just stops playback - does NOT touch mediaUrl/isLive/title (PlayerBar
+    // hides once stopped) - use backToChannels() for an explicit return to
+    // radio mode.
     function stop() {
         player.stop();
         root.errorMessage = "";
@@ -435,9 +467,7 @@ QtObject {
 
     // Explicit "done listening to this file, back to radio" action - stops
     // playback and resets isLive/mediaUrl/liveInfo. Not currently wired to
-    // any PlayerBar.qml control (the old media-icon tap that used to call
-    // this now calls toggleSelectorMode() instead, which is a pure view
-    // toggle that never touches playback) - left available for whatever
+    // any PlayerBar.qml control - left available for whatever
     // future control needs a full reset back to live/idle.
     function backToChannels() {
         player.stop();
