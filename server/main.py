@@ -449,7 +449,9 @@ def get_contributor_status(token: str, session: Session = Depends(db.get_db)):
     user = session.query(db.User).filter(db.User.access_token == token).one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Unknown token")
-    return {"role": user.role}
+    # id is for manager/index.html's ?token= login (from the app's "Edit
+    # entries"), which needs it to tell the contributor's own rows apart.
+    return {"role": user.role, "id": user.id}
 
 
 @app.post("/contributors/login")

@@ -61,6 +61,9 @@ ApplicationWindow {
         // with userSettings.accessToken appended so the user lands there
         // already logged in (editor/index.html's ?token= handling).
         property string editorWebUrl: "https://v2in.stream/radio1965/editor/"
+        // manager/index.html - opened externally by "Edit entries" below,
+        // logged in the same way (manager/index.html's ?token= handling).
+        property string managerWebUrl: "https://v2in.stream/radio1965/manager/"
     }
 
     // "Become a Contributor" gate (project-description.md #10) - role is
@@ -300,6 +303,17 @@ ApplicationWindow {
                     visible: userSettings.role === "contributor" || userSettings.role === "manager"
                     onTriggered: {
                         Qt.openUrlExternally(appSettings.editorWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
+                        drawer.close()
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Manage entries")
+                    // manager/index.html in the system browser, logged in
+                    // via ?token= like "Share a gem" above - same roles.
+                    visible: userSettings.role === "contributor" || userSettings.role === "manager"
+                    onTriggered: {
+                        Qt.openUrlExternally(appSettings.managerWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
                         drawer.close()
                     }
                 }

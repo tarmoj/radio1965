@@ -699,7 +699,34 @@
       }
     }
 
-    if (accessToken() && APPROVED_ROLES.includes(currentRole())) {
+    // Reached via the app's "Edit entries" (?token=<access_token>) -
+    // already logged in there, so just confirm the role via
+    // GET /contributors/status instead of asking for credentials again.
+    async function tryTokenFromUrl(token) {
+      const errorEl = document.getElementById("lockError");
+      try {
+        const res = await fetch(`${serverUrl()}/contributors/status?token=${encodeURIComponent(token)}`);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && APPROVED_ROLES.includes(data.role)) {
+          sessionStorage.setItem(ACCESS_TOKEN_SESSION_KEY, token);
+          sessionStorage.setItem(ROLE_SESSION_KEY, data.role);
+          sessionStorage.setItem(USER_ID_SESSION_KEY, String(data.id));
+          unlockManager();
+          initApp();
+        } else {
+          rejectAccess(errorEl, "Only contributors/managers can use this page.");
+        }
+      } catch (err) {
+        rejectAccess(errorEl, "Could not reach the server. Try again later.");
+      }
+      // Don't leave the token sitting in the visible/bookmarkable URL.
+      history.replaceState(null, "", window.location.pathname);
+    }
+
+    const urlToken = new URLSearchParams(window.location.search).get("token");
+    if (urlToken) {
+      tryTokenFromUrl(urlToken);
+    } else if (accessToken() && APPROVED_ROLES.includes(currentRole())) {
       unlockManager();
       initApp();
     }
