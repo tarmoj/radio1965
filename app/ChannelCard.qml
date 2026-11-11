@@ -187,6 +187,26 @@ Rectangle {
                     }
                 }
             }
+
+            // the playing card's channel (its playing slot, or a member of its mix) sends video: a tap opens it on
+            // VideoPage.qml, picture and sound from the one stream, while the channel's own stream stops
+            ToolButton {
+                id: videoButton
+                visible: (root.playing || root.held) && root.controller.videoUrl !== ""
+                implicitWidth: 44
+                implicitHeight: 44
+                padding: 0
+                icon.source: "qrc:/images/videocam.svg"
+                icon.color: Material.accentColor
+                Accessible.name: qsTr("Video")
+                background: Rectangle {
+                    radius: 4
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Material.accentColor
+                }
+                onClicked: root.controller.videoPageRequested()
+            }
         }
 
         // the slots of an unmixed channel of several, every one in its place: a live one plays, a free one is greyed
