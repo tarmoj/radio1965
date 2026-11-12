@@ -51,6 +51,8 @@
     <string>Väin does not access your photo library.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Väin does not save photos to your photo library.</string>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSExceptionDomains</key>
