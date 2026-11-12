@@ -159,7 +159,7 @@ Page {
             Item { Layout.fillWidth: true }
 
             CheckBox {
-                text: qsTr("Show events")
+                text: qsTr("Show entries")
                 checked: root.showEvents
                 onToggled: root.showEvents = checked
             }
