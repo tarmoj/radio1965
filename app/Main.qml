@@ -529,7 +529,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             }
 
             Label {
-                text: qsTr("© Tarmo Johannes\ntrmjhnns@gmail.com")
+                text: qsTr("© Tarmo Johannes\ntrmjhnns@gmail.com, Kristjan Jansen")
                 font.pointSize: 10
             }
 
