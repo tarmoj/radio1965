@@ -28,7 +28,7 @@ title/description/channel are stored locally on your device. This
 information never leaves your device.
 
 ### Becoming a Contributor
-The App, and the companion web page at eccm.ee/radio1965/contributor, let
+The App, and the companion web page at v2in.stream/radio1965/contributor, let
 you register as a permanent "Contributor" in order to publish content or
 broadcast audio under your own name. Registering asks for a name, an
 e-mail address, and a password, each used for a specific, limited purpose:

@@ -52,18 +52,27 @@ ApplicationWindow {
 
     Settings {
         id: appSettings
-        property string serverUrl: "https://live.uuu.ee/radio1965/api"
         property bool showInfoOnStartup: true
+    }
+
+    // Server and web page addresses - deliberately NOT in a Settings block:
+    // Settings saves every property on first run, so a changed default here
+    // would never reach an existing install (the eccm.ee -> v2in.stream move
+    // left old installs on eccm.ee). Stale keys from older builds stay in
+    // the settings file but are no longer read.
+    QtObject {
+        id: appConfig
+        readonly property string serverUrl: "https://live.uuu.ee/radio1965/api"
         // contributor/index.html - register/login/forgot-password page
         // embedded by contributorDialog's WebView below.
-        property string contributorWebUrl: "https://v2in.stream/radio1965/contributor/"
+        readonly property string contributorWebUrl: "https://v2in.stream/radio1965/contributor/"
         // editor/index.html - opened externally by "Share a gem" below,
         // with userSettings.accessToken appended so the user lands there
         // already logged in (editor/index.html's ?token= handling).
-        property string editorWebUrl: "https://v2in.stream/radio1965/editor/"
+        readonly property string editorWebUrl: "https://v2in.stream/radio1965/editor/"
         // manager/index.html - opened externally by "Edit entries" below,
         // logged in the same way (manager/index.html's ?token= handling).
-        property string managerWebUrl: "https://v2in.stream/radio1965/manager/"
+        readonly property string managerWebUrl: "https://v2in.stream/radio1965/manager/"
     }
 
     // "Become a Contributor" gate (project-description.md #10) - role is
@@ -98,7 +107,7 @@ ApplicationWindow {
         if (layoutPreview) {
             notificationManager.upsertEvents(DummyEvents.events);
         } else {
-            eventsApiClient.fetchEvents(appSettings.serverUrl);
+            eventsApiClient.fetchEvents(appConfig.serverUrl);
             checkContributorStatus();
         }
         if (appSettings.showInfoOnStartup) {
@@ -118,7 +127,7 @@ ApplicationWindow {
         if (!userSettings.accessToken)
             return;
         const xhr = new XMLHttpRequest();
-        xhr.open("GET", appSettings.serverUrl + "/contributors/status?token=" + encodeURIComponent(userSettings.accessToken));
+        xhr.open("GET", appConfig.serverUrl + "/contributors/status?token=" + encodeURIComponent(userSettings.accessToken));
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE)
                 return;
@@ -142,7 +151,7 @@ ApplicationWindow {
     Connections {
         target: notificationManager
         function onRefreshRequested() {
-            eventsApiClient.fetchEvents(appSettings.serverUrl);
+            eventsApiClient.fetchEvents(appConfig.serverUrl);
         }
     }
 
@@ -210,7 +219,7 @@ ApplicationWindow {
                     if (layoutPreview) {
                         notificationManager.upsertEvents(DummyEvents.events);
                     } else {
-                        eventsApiClient.fetchEvents(appSettings.serverUrl);
+                        eventsApiClient.fetchEvents(appConfig.serverUrl);
                         checkContributorStatus();
                     }
                 }
@@ -302,7 +311,7 @@ ApplicationWindow {
                     // log the editor in with anyway.
                     visible: userSettings.role === "contributor" || userSettings.role === "manager"
                     onTriggered: {
-                        Qt.openUrlExternally(appSettings.editorWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
+                        Qt.openUrlExternally(appConfig.editorWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
                         drawer.close()
                     }
                 }
@@ -313,7 +322,7 @@ ApplicationWindow {
                     // via ?token= like "Share a gem" above - same roles.
                     visible: userSettings.role === "contributor" || userSettings.role === "manager"
                     onTriggered: {
-                        Qt.openUrlExternally(appSettings.managerWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
+                        Qt.openUrlExternally(appConfig.managerWebUrl + "?token=" + encodeURIComponent(userSettings.accessToken))
                         drawer.close()
                     }
                 }
@@ -437,7 +446,7 @@ ApplicationWindow {
                     onClicked: {
                         leaveContributorDialog.deleting = true;
                         const xhr = new XMLHttpRequest();
-                        xhr.open("POST", appSettings.serverUrl + "/contributors/delete");
+                        xhr.open("POST", appConfig.serverUrl + "/contributors/delete");
                         xhr.setRequestHeader("Content-Type", "application/json");
                         xhr.onreadystatechange = function() {
                             if (xhr.readyState !== XMLHttpRequest.DONE)
@@ -574,7 +583,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             // Cache-Control: no-cache, so iOS's WKWebView asks again each
             // time; the cache-buster also skips a copy it may still hold
             // from eccm.ee, which sent no Cache-Control at all.
-            contributorWebView.url = appSettings.contributorWebUrl + "?embed=app&t=" + Date.now()
+            contributorWebView.url = appConfig.contributorWebUrl + "?embed=app&t=" + Date.now()
         }
 
         // contributor/index.html (register/login/forgot-password) embedded
@@ -701,7 +710,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             temporaryContributorDialog.errorMessage = "";
             temporaryContributorDialog.verifying = true;
             const xhr = new XMLHttpRequest();
-            xhr.open("POST", appSettings.serverUrl + "/temporary-contributor/verify");
+            xhr.open("POST", appConfig.serverUrl + "/temporary-contributor/verify");
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.onreadystatechange = function() {
                 if (xhr.readyState !== XMLHttpRequest.DONE)
@@ -804,7 +813,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             feedbackDialog.errorMessage = "";
             feedbackDialog.sending = true;
             const xhr = new XMLHttpRequest();
-            xhr.open("POST", appSettings.serverUrl + "/feedback");
+            xhr.open("POST", appConfig.serverUrl + "/feedback");
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.onreadystatechange = function() {
                 if (xhr.readyState !== XMLHttpRequest.DONE)
@@ -1231,7 +1240,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                     id: homeList
                     eventsModel: newEventsModel;
                     navigationStack: stackView;
-                    serverBaseUrl: appSettings.serverUrl;
+                    serverBaseUrl: appConfig.serverUrl;
                     controller: playbackController
                     gap: app.gap
                     // v2in's channels as cards over the new events (ChannelList.qml)
@@ -1248,7 +1257,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                 CollectionPage {
                     clip: true // this did the tric of overflowing to next page
                     navigationStack: stackView;
-                    serverBaseUrl: appSettings.serverUrl;
+                    serverBaseUrl: appConfig.serverUrl;
                     controller: playbackController
                     gap: app.gap
                 }
