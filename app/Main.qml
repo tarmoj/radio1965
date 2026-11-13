@@ -171,7 +171,9 @@ ApplicationWindow {
         width: parent.width
         // Covered by lockOverlay while locked anyway, but belt-and-
         // suspenders: input events can't reach menu/refresh either.
-        enabled: !lockOverlay.opened
+        // Also off while the login panel covers the screen - the drawer
+        // would open underneath its native WebView.
+        enabled: !lockOverlay.opened && !contributorDialog.opened
 
         implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
 
@@ -500,8 +502,8 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         // Dialog doesn't auto-size itself from an explicit `width:` set on
         // an inner child (that only ever controls the ColumnLayout's own
-        // width, not the Dialog's actual content-area/frame) - same fix as
-        // contributorDialog below: the width has to go on the Dialog itself.
+        // width, not the Dialog's actual content-area/frame) - the width has
+        // to go on the Dialog itself.
         width: Math.min(app.width - 40, 420)
 
         // Only true when this dialog was auto-opened at startup (see
@@ -551,30 +553,35 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         }
     }
 
-    Dialog {
+    // Not a Dialog/Popup: the WebView inside is a native Android/iOS view,
+    // which doesn't follow Qt Quick's stacking or visibility. With Qt 6.10
+    // on Android a WebView in a Dialog ended up behind the dialog and then
+    // stuck on screen after closing it, and one that was created hidden and
+    // later toggled with `visible` never showed at all (Qt 6.9 was fine
+    // with both). So this works like WebViewPage, which is fine on 6.10:
+    // a Loader creates a fresh WebView on every open, it is never hidden,
+    // and closing destroys it. Keeps the Dialog-like API
+    // (open()/close()/opened/loading) that the rest of this file uses.
+    Rectangle {
         id: contributorDialog
-        title: qsTr("Become a Contributor / Log in")
-        modal: true
-        anchors.centerIn: parent
-        standardButtons: Dialog.Cancel
-        // A mid-register/login tap on the surrounding dimmed area is easy to
-        // trigger by accident on a phone - only Cancel/Back (or the embedded
-        // page completing) should close this, not an outside tap.
-        closePolicy: Popup.CloseOnEscape
-        // Dialog doesn't auto-size itself from an explicit `width:` set on
-        // an inner child - same fix as infoDialog above. Taller than the
-        // other dialogs here since it now hosts a full web page rather
-        // than a few fields.
-        width: Math.min(app.width - 40, 480)
-        height: Math.min(app.height - 80, 640)
+        anchors.fill: parent
+        z: 100
+        visible: opened
+        color: Material.backgroundColor
 
+        property bool opened: false
         property bool loading: true
+        // Set on every open - the "&t=" cache-buster makes it differ each
+        // time, and the new WebView loads it on creation.
+        property url pageUrl
 
         // Reload the page fresh on every open - including after a
         // previous attempt handed off a result - so it always starts back
         // at the register view.
-        onOpened: {
-            contributorDialog.loading = true
+        function open() {
+            if (opened)
+                return;
+            loading = true;
             // "?embed=app" tells contributor/index.html to hand its result
             // back via the "?action=result&data=" navigation below instead of
             // redirecting to the editor page (which only makes sense for a
@@ -583,7 +590,49 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             // Cache-Control: no-cache, so iOS's WKWebView asks again each
             // time; the cache-buster also skips a copy it may still hold
             // from eccm.ee, which sent no Cache-Control at all.
-            contributorWebView.url = appConfig.contributorWebUrl + "?embed=app&t=" + Date.now()
+            pageUrl = appConfig.contributorWebUrl + "?embed=app&t=" + Date.now();
+            opened = true;
+            // Take the Back key from mainColumn (whose handler closes the
+            // app at the root) - see Keys.onBackPressed below.
+            forceActiveFocus();
+        }
+
+        function close() {
+            opened = false;
+            loading = true;
+            mainColumn.forceActiveFocus();
+        }
+
+        Keys.onBackPressed: (event) => {
+            contributorDialog.close();
+            event.accepted = true;
+        }
+
+        // Swallow taps so nothing underneath reacts while this is open.
+        MouseArea {
+            anchors.fill: parent
+        }
+
+        RowLayout {
+            id: contributorHeader
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 10
+
+            Label {
+                text: qsTr("Become a Contributor / Log in")
+                font.bold: true
+                font.pointSize: 14
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+
+            Button {
+                text: qsTr("Cancel")
+                flat: true
+                onClicked: contributorDialog.close()
+            }
         }
 
         // contributor/index.html (register/login/forgot-password) embedded
@@ -602,73 +651,91 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         // navigation forces every backend's navigation-lifecycle
         // callbacks to fire, which is what onLoadingChanged already
         // depends on for the loading indicator below regardless.
-        WebView {
-            id: contributorWebView
-            anchors.fill: parent
-            visible: !contributorDialog.loading
-
-            // Checked on every loading status and on urlChanged, not just
-            // LoadStartedStatus: which callback carries the result URL
-            // differs per backend - on iOS (WKWebView) LoadStarted can still
-            // report the previous URL, while LoadSucceeded and urlChanged
-            // only fire once the result page has committed.
-            function handleResultUrl(url) {
-                const urlString = url.toString();
-                const marker = "action=result&data=";
-                const index = urlString.indexOf(marker);
-                if (index === -1)
-                    return;
-                try {
-                    handleResultPayload(JSON.parse(decodeURIComponent(urlString.substring(index + marker.length))));
-                } catch (e) {
-                    console.warn("[contributorDialog] bad result payload:", e, urlString);
-                }
-            }
-
-            function handleResultPayload(payload) {
-                if (!payload || !contributorDialog.opened)
-                    return;
-                userSettings.role = payload.role;
-                userSettings.accessToken = payload.token;
-                if (payload.name)
-                    userSettings.contributorName = payload.name;
-                if (payload.email)
-                    userSettings.contributorEmail = payload.email;
-                contributorDialog.close();
-            }
-
-            // Extra channel alongside the URL checks: contributor/index.html
-            // also puts the result into document.title as
-            // "radio65-result:<json>", and Qt's iOS (WKWebView) backend
-            // reliably reports every title change. (runJavaScript() polling
-            // was tried first and crashed on iOS.)
-            onTitleChanged: {
-                const marker = "radio65-result:";
-                const t = contributorWebView.title;
-                if (!t || !t.startsWith(marker))
-                    return;
-                try {
-                    handleResultPayload(JSON.parse(t.substring(marker.length)));
-                } catch (e) {
-                    console.warn("[contributorDialog] bad result title:", e, t);
-                }
-            }
-
-            onLoadingChanged: function(loadRequest) {
-                if (loadRequest.status !== WebView.LoadStartedStatus)
-                    contributorDialog.loading = false
-                handleResultUrl(loadRequest.url)
-            }
-
-            onUrlChanged: {
-                handleResultUrl(contributorWebView.url)
-            }
-        }
-
+        // BusyIndicator first: the native WebView covers it once it draws
+        // anything, so it only shows until the page starts rendering.
         BusyIndicator {
             anchors.centerIn: parent
-            running: contributorDialog.loading
+            running: contributorDialog.opened && contributorDialog.loading
             visible: running
+        }
+
+        Loader {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: contributorHeader.bottom
+            anchors.bottom: parent.bottom
+            anchors.topMargin: 6
+            active: contributorDialog.opened
+            sourceComponent: contributorWebViewComponent
+        }
+
+        Component {
+            id: contributorWebViewComponent
+
+            WebView {
+                id: contributorWebView
+                url: contributorDialog.pageUrl
+
+                // Checked on every loading status and on urlChanged, not just
+                // LoadStartedStatus: which callback carries the result URL
+                // differs per backend - on iOS (WKWebView) LoadStarted can still
+                // report the previous URL, while LoadSucceeded and urlChanged
+                // only fire once the result page has committed.
+                function handleResultUrl(url) {
+                    const urlString = url.toString();
+                    const marker = "action=result&data=";
+                    const index = urlString.indexOf(marker);
+                    if (index === -1)
+                        return;
+                    try {
+                        handleResultPayload(JSON.parse(decodeURIComponent(urlString.substring(index + marker.length))));
+                    } catch (e) {
+                        console.warn("[contributorDialog] bad result payload:", e, urlString);
+                    }
+                }
+
+                function handleResultPayload(payload) {
+                    if (!payload || !contributorDialog.opened)
+                        return;
+                    userSettings.role = payload.role;
+                    userSettings.accessToken = payload.token;
+                    if (payload.name)
+                        userSettings.contributorName = payload.name;
+                    if (payload.email)
+                        userSettings.contributorEmail = payload.email;
+                    // Deferred: closing deactivates the Loader, which would
+                    // destroy this WebView while its own signal handler is
+                    // still running.
+                    Qt.callLater(contributorDialog.close);
+                }
+
+                // Extra channel alongside the URL checks: contributor/index.html
+                // also puts the result into document.title as
+                // "radio65-result:<json>", and Qt's iOS (WKWebView) backend
+                // reliably reports every title change. (runJavaScript() polling
+                // was tried first and crashed on iOS.)
+                onTitleChanged: {
+                    const marker = "radio65-result:";
+                    const t = contributorWebView.title;
+                    if (!t || !t.startsWith(marker))
+                        return;
+                    try {
+                        handleResultPayload(JSON.parse(t.substring(marker.length)));
+                    } catch (e) {
+                        console.warn("[contributorDialog] bad result title:", e, t);
+                    }
+                }
+
+                onLoadingChanged: function(loadRequest) {
+                    if (loadRequest.status !== WebView.LoadStartedStatus)
+                        contributorDialog.loading = false
+                    handleResultUrl(loadRequest.url)
+                }
+
+                onUrlChanged: {
+                    handleResultUrl(contributorWebView.url)
+                }
+            }
         }
     }
 
@@ -678,10 +745,10 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Cancel
-        // Same reasoning as contributorDialog above - width has to go on
-        // the Dialog itself, not an inner child.
+        // Same reasoning as infoDialog above - width has to go on the
+        // Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
-        // Same reasoning as contributorDialog above - an accidental outside
+        // An accidental outside
         // tap while typing a name/password shouldn't dismiss this, but
         // Cancel/Back still should.
         closePolicy: Popup.CloseOnEscape
@@ -689,7 +756,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         property string errorMessage: ""
         property bool verifying: false
 
-        // Same reasoning as contributorDialog's onOpened above.
+        // Start fresh on every open.
         onOpened: {
             tempNameField.text = ""
             tempPasswordField.text = ""
@@ -698,8 +765,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         }
 
         // Checked server-side, not locally (project-description.md #10.1
-        // item 1 is explicit about this - unlike contributorDialog's still-
-        // placeholder "1965" check above) against
+        // item 1 is explicit about this) against
         // config.TEMPORARY_CONTRIBUTOR_PASSWORD_PATH, a plain-text file an
         // admin can edit directly on the server - see server/main.py's
         // verify_temporary_contributor_password(). Plain XMLHttpRequest
@@ -783,10 +849,10 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         title: qsTr("Send Feedback")
         modal: true
         standardButtons: Dialog.Cancel
-        // Same reasoning as contributorDialog above - width has to go on
-        // the Dialog itself, not an inner child.
+        // Same reasoning as infoDialog above - width has to go on the
+        // Dialog itself, not an inner child.
         width: Math.min(app.width - 40, 420)
-        // Same reasoning as contributorDialog above - an accidental outside
+        // An accidental outside
         // tap while typing feedback shouldn't dismiss (and discard) it, but
         // Cancel/Back still should.
         closePolicy: Popup.CloseOnEscape
@@ -1074,7 +1140,10 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         property bool backExitArmed: false
 
         Keys.onBackPressed: (event) => {
-            if (drawer.opened) {
+            if (contributorDialog.opened) {
+                contributorDialog.close();
+                event.accepted = true;
+            } else if (drawer.opened) {
                 drawer.close();
                 event.accepted = true;
             } else if (stackView.depth > 1) {
