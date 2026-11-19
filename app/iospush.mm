@@ -25,7 +25,8 @@ void forwardToNotificationManager(NSDictionary *userInfo)
     NSString *body = alert[@"body"] ?: userInfo[@"body"] ?: @"";
 
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfo options:0 error:nil];
-    NSString *payload = jsonData ? [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] : @"";
+    // autorelease: no ARC in this file (see Radio65strongPushDelegate init).
+    NSString *payload = jsonData ? [[[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] autorelease] : @"";
     
     NSLog(@"[iospush] Message title: %@ body: %@", title, body);
     
@@ -43,32 +44,64 @@ void forwardToNotificationManager(NSDictionary *userInfo)
 
 // Handles FCM token/topic subscription and foreground/tap notification delivery.
 @interface Radio65strongPushDelegate : NSObject <FIRMessagingDelegate, UNUserNotificationCenterDelegate>
-@property(nonatomic, copy) NSString *pendingTopic;
+// Every topic the app wants, kept for the whole run (not cleared after a
+// subscribe): FCM refuses topic subscriptions until the APNs device token
+// is set, and the FCM token can arrive - and change - before and after
+// that, so all of them are (re)subscribed each time a token arrives with
+// APNs ready. Was a single pendingTopic slot that the second topic
+// overwrote and the first, too early, token cleared - leaving the app
+// subscribed to nothing.
+@property(nonatomic, strong) NSMutableOrderedSet<NSString *> *topics;
+- (void)subscribeAllIfReady;
 @end
 
 @implementation Radio65strongPushDelegate
 
+- (instancetype)init
+{
+    // alloc/init, not [NSMutableOrderedSet orderedSet]: this file is built
+    // WITHOUT ARC (CMakeLists.txt doesn't enable it), and assigning the
+    // ivar directly skips the property's retain - an autoreleased set was
+    // freed and its memory reused (crash: addObject: sent to a dictionary).
+    // The delegate lives for the whole app run, so it is never released.
+    if ((self = [super init]))
+        _topics = [[NSMutableOrderedSet alloc] init];
+    return self;
+}
+
+- (void)dealloc
+{
+    [_topics release];
+    [super dealloc];
+}
+
+// Main thread only (callers dispatch there).
+- (void)subscribeAllIfReady
+{
+    if (![FIRMessaging messaging].APNSToken) {
+        NSLog(@"[iospush] APNs token not set yet, topics wait: %@", self.topics.array);
+        return;
+    }
+    for (NSString *topic in self.topics) {
+        [[FIRMessaging messaging] subscribeToTopic:topic completion:^(NSError *error) {
+            if (error)
+                NSLog(@"[iospush] Topic subscribe failed: %@ (%@)", topic, error.localizedDescription);
+            else
+                NSLog(@"[iospush] Topic subscribed: %@", topic);
+        }];
+    }
+}
+
 - (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken
 {
     Q_UNUSED(messaging)
-        NSLog(@"[iospush] FCM registration token received: %@", fcmToken ?: @"<nil>");
-        
-        if (self.pendingTopic) {
-            // 1. Create a locally retained copy to safely pass into the block scope
-            NSString *topicToSubscribe = [self.pendingTopic copy];
-            self.pendingTopic = nil;
-            
-            // 2. Dispatch to the main thread to prevent cross-thread background crashes
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [[FIRMessaging messaging] subscribeToTopic:topicToSubscribe completion:^(NSError *error) {
-                    if (error) {
-                        NSLog(@"[iospush] Topic subscribe failed: %@", error.localizedDescription);
-                    } else {
-                        NSLog(@"[iospush] Topic subscribed successfully: %@", topicToSubscribe);
-                    }
-                }];
-            });
-        }}
+    NSLog(@"[iospush] FCM registration token received: %@", fcmToken ?: @"<nil>");
+    // Firebase sets the APNs token (via its app delegate proxy) before
+    // issuing the token that goes with it, so this is the moment to retry.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self subscribeAllIfReady];
+    });
+}
 
 // Foreground delivery: forward to NotificationManager and still let the banner show.
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
@@ -139,18 +172,15 @@ void iosPushInit()
 
 void iosPushSubscribeToTopic(const QString &topic)
 {
+    if (!strongPushDelegate)
+        return;
     NSString *nsTopic = topic.toNSString();
-    if ([FIRMessaging messaging].APNSToken) {
-        [[FIRMessaging messaging] subscribeToTopic:nsTopic completion:^(NSError *error) {
-            if (error)
-                NSLog(@"[iospush] Topic subscribe failed: %@", error);
-            else
-                NSLog(@"[iospush] Topic subscribed: %@", nsTopic);
-        }];
-    } else if (strongPushDelegate) {
-        // APNs token not available yet; retry once didReceiveRegistrationToken: fires.
-        strongPushDelegate.pendingTopic = nsTopic;
-    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [strongPushDelegate.topics addObject:nsTopic];
+        // Subscribes now if APNs is ready, else didReceiveRegistrationToken:
+        // does it once it is.
+        [strongPushDelegate subscribeAllIfReady];
+    });
 }
 
 // Adds a silent/content-available push handler to Qt's internal iOS app
