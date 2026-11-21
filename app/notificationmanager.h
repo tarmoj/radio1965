@@ -3,6 +3,7 @@
 #include <QAbstractListModel>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
 #include <QVariantMap>
 #include <QVector>
 
@@ -22,6 +23,9 @@ struct EventItem
     // #10) - empty when the event has no author (nothing published it via
     // a logged-in contributor, or predates this feature).
     QString authorName;
+    // -1 sentinel for "no author" (same cases as authorName being empty) -
+    // 0 is a legitimate db id, unlike e.g. payload's articleId:0 convention.
+    int authorId = -1;
 };
 
 // Holds the event feed (project-description.md #4), fed exclusively by
@@ -49,7 +53,8 @@ public:
         StatusRole,
         TagsRole,
         PayloadRole,
-        AuthorNameRole
+        AuthorNameRole,
+        AuthorIdRole
     };
 
     explicit NotificationManager(QObject *parent = nullptr);
@@ -94,6 +99,20 @@ public:
     // shape/spirit as findLiveStream() above, just for the whole subset.
     Q_INVOKABLE QVariantList shelvedEvents() const;
 
+    // Loads the locally-persisted blocklist (Main.qml's
+    // userSettings.blockedAuthorIds) once at startup, before the first
+    // fetchEvents() call, so a blocked author's events are never admitted
+    // in the first place.
+    Q_INVOKABLE void setBlockedAuthorIds(const QVariantList &ids);
+
+    // "Block author" (App Store 1.2 UGC compliance) - adds authorId to the
+    // blocklist and strips any of their events already in the model, so
+    // removal from the listener's feed is instant rather than waiting for
+    // the next fetch. The developer-notification side of blocking (emailing
+    // config.FEEDBACK_EMAIL) is a separate EventsApiClient::reportEvent()
+    // call made from QML, not handled here.
+    Q_INVOKABLE void blockAuthor(int authorId);
+
     // Singleton-style accessor so the Android JNI callback (which runs outside
     // of any QML context) can reach the instance created in main.cpp.
     static NotificationManager *instance();
@@ -108,5 +127,6 @@ private:
     int indexOfId(const QString &id) const;
 
     QVector<EventItem> m_events;
+    QSet<int> m_blockedAuthorIds;
     static NotificationManager *s_instance;
 };

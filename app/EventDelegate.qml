@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 
 // One row in the "New Arrivals"/"Collection" lists (project-description.md
 // #2.1). Tap behavior depends on `type`: "text" expands the summary
@@ -31,6 +32,10 @@ ItemDelegate {
     // eventId/eventType above); Box.qml/SearchResultsPage.qml set it
     // explicitly from modelData.authorName.
     required property string authorName
+
+    // -1 sentinel for "no author" (same cases as authorName === "") - used
+    // to enable/disable the "Block author" action below.
+    required property int authorId
 
     // Joomla-sourced "article" events carry the numeric Joomla article id
     // in payload.article_id (see server/joomla_importer.py); "webcontent"
@@ -185,6 +190,32 @@ ItemDelegate {
                 implicitWidth: 28
                 implicitHeight: 28
                 onClicked: root.expanded = !root.expanded
+            }
+
+            // Own click target, same reasoning as the expand ToolButton
+            // above - "Report"/"Block author" (App Store 1.2 UGC
+            // compliance). The dialogs themselves live in Main.qml (a
+            // different document) - reached via the Window attached
+            // property, the same cross-file-access pattern WebViewPage.qml
+            // uses for app.drawerOpened.
+            ToolButton {
+                icon.source: "qrc:/images/menu.svg"
+                implicitWidth: 28
+                implicitHeight: 28
+                onClicked: overflowMenu.open()
+
+                Menu {
+                    id: overflowMenu
+                    MenuItem {
+                        text: qsTr("Report")
+                        onTriggered: root.Window.window.reportDialog.openFor(root.eventId)
+                    }
+                    MenuItem {
+                        text: qsTr("Block author")
+                        enabled: root.authorId !== -1
+                        onTriggered: root.Window.window.blockDialog.openFor(root.authorId, root.eventId)
+                    }
+                }
             }
         }
 

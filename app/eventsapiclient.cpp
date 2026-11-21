@@ -71,3 +71,30 @@ void EventsApiClient::fetchArticle(const QString &baseUrl, int articleId)
                               obj.value("base_url").toString());
     });
 }
+
+void EventsApiClient::reportEvent(const QString &baseUrl, const QString &eventId, const QString &reason,
+                                   const QString &details)
+{
+    QNetworkRequest request(QUrl(baseUrl + "/events/" + eventId + "/report"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    const QJsonObject body{ { "reason", reason }, { "details", details } };
+    QNetworkReply *reply = m_networkManager.post(request, QJsonDocument(body).toJson());
+
+    connect(reply, &QNetworkReply::errorOccurred, this, [](QNetworkReply::NetworkError err) {
+        qDebug() << "EventsApiClient: reportEvent errorOccurred" << err;
+    });
+    connect(reply, &QNetworkReply::sslErrors, this, [](const QList<QSslError> &errors) {
+        qDebug() << "EventsApiClient: reportEvent sslErrors" << errors;
+    });
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, eventId]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            emit reportFailed(eventId, reply->errorString());
+            return;
+        }
+        emit reportSubmitted(eventId);
+    });
+}

@@ -23,6 +23,15 @@ public:
     // Joomla directly, so it never needs the Joomla API token.
     Q_INVOKABLE void fetchArticle(const QString &baseUrl, int articleId);
 
+    // Posts to POST /events/{eventId}/report (server/main.py) - the app's
+    // "Report"/"Block author" actions (App Store 1.2 UGC compliance).
+    // reason is e.g. "objectionable"/"abusive"/"blocked"/"other"; details
+    // is optional free text. Blocking's own "remove from feed" effect
+    // happens entirely client-side (NotificationManager::blockAuthor) -
+    // this call is purely the developer-notification side of it.
+    Q_INVOKABLE void reportEvent(const QString &baseUrl, const QString &eventId, const QString &reason,
+                                  const QString &details);
+
 signals:
     // One element per event, each shaped like server/db.py's Event.to_dict().
     void eventsReceived(const QJsonArray &events);
@@ -33,6 +42,9 @@ signals:
     // pass both straight to WebView.loadHtml(html, baseUrl).
     void articleReceived(int articleId, const QString &title, const QString &html, const QString &baseUrl);
     void articleFetchFailed(int articleId, const QString &errorString);
+
+    void reportSubmitted(const QString &eventId);
+    void reportFailed(const QString &eventId, const QString &errorString);
 
 private:
     QNetworkAccessManager m_networkManager;

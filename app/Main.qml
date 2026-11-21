@@ -46,6 +46,12 @@ ApplicationWindow {
     // temporarily hide the WebView itself while the drawer is open.
     property alias drawerOpened: drawer.opened
 
+    // Exposed so EventDelegate.qml/Card.qml (different documents) can open
+    // these via the Window attached property (Window.window.reportDialog /
+    // .blockDialog), the same cross-file-access pattern as drawerOpened above.
+    property alias reportDialog: reportDialogItem
+    property alias blockDialog: blockDialogItem
+
     // Drawer or the feedback dialog is open - anything that has to render
     // above a native WebView, which is hidden while this is true.
     readonly property bool overlayOpen: drawer.opened || feedbackDialog.opened
@@ -96,9 +102,23 @@ ApplicationWindow {
         // broadcast password on v2in (BroadcastPage.qml's key), as the
         // accessToken is for the other roles.
         property string temporaryPassword: ""
+        // "Block author" (App Store 1.2 UGC compliance) - JSON-encoded
+        // array of blocked author ids, local to this device/listener (no
+        // account needed). "[]" is a safe empty default since Settings
+        // writes every declared property with its default on first run for
+        // existing installs - never change this default later.
+        property string blockedAuthorIds: "[]"
     }
 
     Component.onCompleted: {
+        // Load the locally-persisted blocklist before the first fetch, so
+        // a blocked author's events are never admitted in the first place.
+        try {
+            notificationManager.setBlockedAuthorIds(JSON.parse(userSettings.blockedAuthorIds));
+        } catch (e) {
+            // Corrupt/old value - treat as empty rather than failing startup.
+        }
+
         // RADIO65_LAYOUT_PREVIEW build (app/CMakeLists.txt) - seed the real
         // model with local dummy data instead of hitting a live server, so
         // the UI has something to show on a simulator/emulator with no
@@ -490,6 +510,31 @@ ApplicationWindow {
                 text: qsTr("You are exiled. Contact the administrators if it feels unjust.")
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
+            }
+        }
+    }
+
+    // Report/Block (App Store 1.2 UGC compliance) - opened from
+    // EventDelegate.qml/Card.qml's overflow menu via
+    // Window.window.reportDialog/.blockDialog.
+    ReportDialog {
+        id: reportDialogItem
+        serverUrl: appConfig.serverUrl
+    }
+
+    BlockDialog {
+        id: blockDialogItem
+        serverUrl: appConfig.serverUrl
+        onAuthorBlocked: function (authorId) {
+            let ids = [];
+            try {
+                ids = JSON.parse(userSettings.blockedAuthorIds);
+            } catch (e) {
+                ids = [];
+            }
+            if (ids.indexOf(authorId) === -1) {
+                ids.push(authorId);
+                userSettings.blockedAuthorIds = JSON.stringify(ids);
             }
         }
     }

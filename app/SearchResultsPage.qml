@@ -77,6 +77,7 @@ Page {
             title: modelData.title
             summary: modelData.summary
             authorName: modelData.authorName
+            authorId: modelData.authorId !== undefined ? modelData.authorId : -1
             url: modelData.url
             tags: modelData.tags
             status: modelData.status

@@ -19,6 +19,8 @@ EventItem eventItemFromJson(const QJsonObject &event)
     item.shelfAt = event.value("shelf_at").toString();
     item.status = event.value("status").toString();
     item.authorName = event.value("author_name").toString();
+    const QJsonValue authorIdValue = event.value("author_id");
+    item.authorId = authorIdValue.isNull() ? -1 : authorIdValue.toInt(-1);
 
     for (const QJsonValue &tag : event.value("tags").toArray())
         item.tags.append(tag.toString());
@@ -77,6 +79,8 @@ QVariant NotificationManager::data(const QModelIndex &index, int role) const
         return event.payload;
     case AuthorNameRole:
         return event.authorName;
+    case AuthorIdRole:
+        return event.authorId;
     default:
         return {};
     }
@@ -102,7 +106,8 @@ QHash<int, QByteArray> NotificationManager::roleNames() const
         { StatusRole, "status" },
         { TagsRole, "tags" },
         { PayloadRole, "payload" },
-        { AuthorNameRole, "authorName" }
+        { AuthorNameRole, "authorName" },
+        { AuthorIdRole, "authorId" }
     };
 }
 
@@ -123,6 +128,11 @@ void NotificationManager::upsertEvents(const QJsonArray &events)
     for (const QJsonValue &value : events) {
         const EventItem item = eventItemFromJson(value.toObject());
         if (item.id.isEmpty())
+            continue;
+        // Blocked authors are never (re-)admitted - keeps a blocked
+        // author's events out of the feed across refreshes, not just at
+        // the moment blockAuthor() ran.
+        if (item.authorId != -1 && m_blockedAuthorIds.contains(item.authorId))
             continue;
         seenIds.insert(item.id);
 
@@ -197,7 +207,8 @@ QVariantMap eventItemToMap(const EventItem &item)
         { "status", item.status },
         { "tags", tags },
         { "payload", item.payload },
-        { "authorName", item.authorName }
+        { "authorName", item.authorName },
+        { "authorId", item.authorId }
     };
 }
 
@@ -211,4 +222,26 @@ QVariantList NotificationManager::shelvedEvents() const
             result.append(eventItemToMap(item));
     }
     return result;
+}
+
+void NotificationManager::setBlockedAuthorIds(const QVariantList &ids)
+{
+    m_blockedAuthorIds.clear();
+    for (const QVariant &id : ids)
+        m_blockedAuthorIds.insert(id.toInt());
+}
+
+void NotificationManager::blockAuthor(int authorId)
+{
+    if (authorId == -1 || m_blockedAuthorIds.contains(authorId))
+        return;
+    m_blockedAuthorIds.insert(authorId);
+
+    for (int i = m_events.size() - 1; i >= 0; --i) {
+        if (m_events.at(i).authorId == authorId) {
+            beginRemoveRows(QModelIndex(), i, i);
+            m_events.removeAt(i);
+            endRemoveRows();
+        }
+    }
 }

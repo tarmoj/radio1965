@@ -364,6 +364,77 @@ def send_feedback(req: FeedbackIn, request: Request):
     return {"ok": True}
 
 
+# Used by report_event() - the app's "Report"/"Block author" actions on an
+# Event (App Store 1.2 UGC compliance: flag objectionable content, and
+# notify the developer when a listener blocks an author). reason="blocked"
+# is what the app's block action sends - same endpoint, since blocking's own
+# "remove from feed" effect happens entirely client-side (notificationmanager
+# local filter), and this call is purely the developer-notification side of it.
+class ReportIn(BaseModel):
+    reason: str  # "objectionable" | "abusive" | "blocked" | "other"
+    details: str = ""
+    reporter_email: str = ""  # optional, used as Reply-To
+
+
+REPORT_MAX_LENGTH = 2000
+REPORT_RATE_LIMIT = 10  # reports per client IP...
+REPORT_RATE_WINDOW_SECONDS = 600  # ...per this many seconds
+# In-memory only (resets on restart) - same abuse-dampening role as
+# _feedback_times_by_ip above.
+_report_times_by_ip: dict[str, list[float]] = {}
+
+
+@app.post("/events/{event_id}/report")
+def report_event(event_id: str, req: ReportIn, request: Request, session: Session = Depends(db.get_db)):
+    """
+    Emails config.FEEDBACK_EMAIL so a manager can review and, within 24h,
+    delete the event (DELETE /events/{id}) and/or ban the author
+    (PATCH /users/{id}, role="banned") via manager/index.html - both already
+    exist. No DB persistence of reports themselves: there's no admin UI to
+    browse a reports table, so a plain email mirrors send_feedback() above.
+    """
+    event = session.get(db.Event, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    details = req.details.strip()
+    if len(details) > REPORT_MAX_LENGTH:
+        raise HTTPException(status_code=413, detail="Report text is too long")
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    recent = [t for t in _report_times_by_ip.get(client_ip, []) if now - t < REPORT_RATE_WINDOW_SECONDS]
+    if len(recent) >= REPORT_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many reports")
+    recent.append(now)
+    _report_times_by_ip[client_ip] = recent
+
+    reporter_email = req.reporter_email.strip()
+    reply_to = reporter_email if re.fullmatch(r"[^@\s]+@[^@\s]+", reporter_email) else None
+
+    body = (
+        f"Reason: {req.reason}\n"
+        f"Event id: {event.id}\n"
+        f"Event title: {event.title}\n"
+        f"Author: {event.author.name if event.author else '-'} (id {event.author_id if event.author_id is not None else '-'})\n"
+        f"Details: {details or '-'}\n"
+        f"Reporter IP: {client_ip}\n"
+    )
+    logger.info("report received: reason=%s event=%s author_id=%s", req.reason, event.id, event.author_id)
+    try:
+        emailer.send_email(
+            config.FEEDBACK_EMAIL,
+            f"VÄIN report: {req.reason} on event {event.id}",
+            body,
+            reply_to=reply_to,
+        )
+    except Exception:
+        logger.exception("Sending report email failed")
+        raise HTTPException(status_code=502, detail="Could not send report") from None
+
+    return {"ok": True}
+
+
 @app.post("/contributors/register")
 def register_contributor(req: ContributorRegisterIn, session: Session = Depends(db.get_db)):
     """

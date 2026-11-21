@@ -56,10 +56,45 @@
     .switch-link a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     .view { display: none; }
     .view.active { display: block; }
+    .terms-box {
+      max-height: 45vh;
+      overflow-y: auto;
+      padding: 0.8em;
+      margin-top: 0.5em;
+      background: var(--field-bg);
+      border: 1px solid var(--field-border);
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    .terms-box p { margin: 0 0 0.8em 0; }
+    .terms-box p:last-child { margin-bottom: 0; }
+    .checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5em;
+      font-weight: normal;
+      font-size: 0.9em;
+    }
+    .checkbox-label input { width: auto; margin-top: 0.15em; }
+    .checkbox-label a { color: var(--accent); }
   </style>
 </head>
 <body>
   <h1>VÄIN - Radio Tallinn 1965</h1>
+
+  <!-- terms view - shown before register/login the first time on this device/browser -->
+  <div id="termsView" class="view">
+    <p class="hint">Terms of Use</p>
+    <div class="terms-box">
+      <p>VÄIN has <strong>zero tolerance</strong> for objectionable content or abusive behavior, by contributors or listeners alike.</p>
+      <p>By continuing, you agree not to post content that is illegal, hateful, harassing, sexually explicit, or otherwise objectionable, and not to abuse or harass other users.</p>
+      <p>Any listener can report a post using the Report action in the app. Reported content and its author are reviewed by the VÄIN team, and violations result in the content being removed and the responsible account being banned, normally within 24 hours.</p>
+      <p>Any listener can also block an author at any time from within the app. Blocking hides that author's posts from your feed immediately and notifies the VÄIN team for review.</p>
+      <p>By continuing you confirm that you have read and accept these terms.</p>
+    </div>
+    <label class="checkbox-label"><input id="termsAccept" type="checkbox" /> I have read and agree to the Terms of Use above.</label>
+    <button id="termsContinueButton" type="button" disabled>Continue</button>
+  </div>
 
   <!-- register view -->
   <div id="registerView" class="view">
@@ -69,7 +104,8 @@
     <label>Email<input id="registerEmail" type="email" /></label>
     <label>Password<input id="registerPassword" type="password" /></label>
     <label>Repeat password<input id="registerRepeatPassword" type="password" /></label>
-    <button id="registerButton" type="button">Register</button>
+    <label class="checkbox-label"><input id="registerTermsAccept" type="checkbox" /> I agree to the <a id="showTermsFromRegister">Terms of Use</a>.</label>
+    <button id="registerButton" type="button" disabled>Register</button>
     <div id="registerMessage" class="message"></div>
     <div class="switch-link">Already registered? <a id="goToLogin">Log in</a></div>
   </div>
@@ -79,7 +115,8 @@
     <p class="hint">Log in</p>
     <label>Email<input id="loginEmail" type="email" /></label>
     <label>Password<input id="loginPassword" type="password" /></label>
-    <button id="loginButton" type="button">Log in</button>
+    <label class="checkbox-label"><input id="loginTermsAccept" type="checkbox" /> I agree to the <a id="showTermsFromLogin">Terms of Use</a>.</label>
+    <button id="loginButton" type="button" disabled>Log in</button>
     <div id="loginMessage" class="message"></div>
     <div class="switch-link"><a id="goToForgot">Forgot password?</a></div>
     <div class="switch-link">New here? <a id="goToRegister">Register</a></div>
@@ -107,7 +144,9 @@
   <script>
     var API_BASE = "https://live.uuu.ee/radio1965/api";
 
-    var views = ["register", "login", "forgot", "reset"];
+    var views = ["terms", "register", "login", "forgot", "reset"];
+    var TERMS_ACCEPTED_KEY = "radio65_terms_accepted";
+    var pendingViewAfterTerms = "register";
 
     function showView(name) {
       views.forEach(function (v) {
@@ -284,14 +323,54 @@
         });
     }
 
+    // Terms are gated two ways: (1) a one-time full "termsView" shown before
+    // register/login the first time on this device/browser (remembered via
+    // localStorage so it isn't re-shown every visit), and (2) an inline
+    // checkbox directly in registerView/loginView that always has to be
+    // ticked before that view's submit button is enabled, regardless of the
+    // stored flag - this is what guarantees an explicit accept gesture
+    // immediately before every register/login submission (what Apple's
+    // screen recording needs to show), even on a device where termsView was
+    // skipped because it was already accepted before.
+    function showViewGatedByTerms(name) {
+      if (localStorage.getItem(TERMS_ACCEPTED_KEY) === "1") {
+        showView(name);
+      } else {
+        pendingViewAfterTerms = name;
+        showView("terms");
+      }
+    }
+
+    document.getElementById("termsAccept").addEventListener("change", function (e) {
+      document.getElementById("termsContinueButton").disabled = !e.target.checked;
+    });
+    document.getElementById("termsContinueButton").addEventListener("click", function () {
+      localStorage.setItem(TERMS_ACCEPTED_KEY, "1");
+      showView(pendingViewAfterTerms);
+    });
+    document.getElementById("registerTermsAccept").addEventListener("change", function (e) {
+      document.getElementById("registerButton").disabled = !e.target.checked;
+    });
+    document.getElementById("loginTermsAccept").addEventListener("change", function (e) {
+      document.getElementById("loginButton").disabled = !e.target.checked;
+    });
+    document.getElementById("showTermsFromRegister").addEventListener("click", function () {
+      pendingViewAfterTerms = "register";
+      showView("terms");
+    });
+    document.getElementById("showTermsFromLogin").addEventListener("click", function () {
+      pendingViewAfterTerms = "login";
+      showView("terms");
+    });
+
     document.getElementById("registerButton").addEventListener("click", doRegister);
     document.getElementById("loginButton").addEventListener("click", doLogin);
     document.getElementById("forgotButton").addEventListener("click", doForgot);
-    document.getElementById("goToLogin").addEventListener("click", function () { showView("login"); });
-    document.getElementById("goToRegister").addEventListener("click", function () { showView("register"); });
+    document.getElementById("goToLogin").addEventListener("click", function () { showViewGatedByTerms("login"); });
+    document.getElementById("goToRegister").addEventListener("click", function () { showViewGatedByTerms("register"); });
     document.getElementById("goToForgot").addEventListener("click", function () { showView("forgot"); });
-    document.getElementById("backToLoginFromForgot").addEventListener("click", function () { showView("login"); });
-    document.getElementById("backToLoginFromReset").addEventListener("click", function () { showView("login"); });
+    document.getElementById("backToLoginFromForgot").addEventListener("click", function () { showViewGatedByTerms("login"); });
+    document.getElementById("backToLoginFromReset").addEventListener("click", function () { showViewGatedByTerms("login"); });
 
     var params = new URLSearchParams(window.location.search);
     if (params.get("action") === "result" && params.get("data")) {
@@ -303,9 +382,9 @@
       document.getElementById("resetButton").addEventListener("click", function () { doReset(token); });
       showView("reset");
     } else if (view === "login") {
-      showView("login");
+      showViewGatedByTerms("login");
     } else {
-      showView("register");
+      showViewGatedByTerms("register");
     }
   </script>
 </body>

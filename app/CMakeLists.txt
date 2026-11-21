@@ -212,6 +212,8 @@ qt_add_qml_module(appradio65
         ChannelList.qml
         VideoPage.qml
         BroadcastPage.qml
+        ReportDialog.qml
+        BlockDialog.qml
         DummyEvents.js
         RESOURCES resources.qrc
 )
