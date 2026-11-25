@@ -514,6 +514,23 @@ ApplicationWindow {
         }
     }
 
+    // Shown right after registering (contributorDialog.close() opens it);
+    // the drawer keeps the same text while the role stays "pending".
+    Dialog {
+        id: registrationPendingDialog
+        title: qsTr("Registration pending")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok
+        width: Math.min(app.width - 40, 420)
+
+        Label {
+            width: registrationPendingDialog.availableWidth
+            text: qsTr("Check your email to confirm your registration.")
+            wrapMode: Text.Wrap
+        }
+    }
+
     // Report/Block (App Store 1.2 UGC compliance) - opened from
     // EventDelegate.qml/Card.qml's overflow menu via
     // Window.window.reportDialog/.blockDialog.
@@ -642,10 +659,19 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
             forceActiveFocus();
         }
 
+        // Set by handleResultPayload when a registration just went to
+        // "pending": the popup opens only once this panel (and its native
+        // WebView, which would cover a Popup) is gone.
+        property bool showPendingNotice: false
+
         function close() {
             opened = false;
             loading = true;
             mainColumn.forceActiveFocus();
+            if (showPendingNotice) {
+                showPendingNotice = false;
+                Qt.callLater(registrationPendingDialog.open);
+            }
         }
 
         Keys.onBackPressed: (event) => {
@@ -748,6 +774,7 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
                         userSettings.contributorName = payload.name;
                     if (payload.email)
                         userSettings.contributorEmail = payload.email;
+                    contributorDialog.showPendingNotice = payload.role === "pending";
                     // Deferred: closing deactivates the Loader, which would
                     // destroy this WebView while its own signal handler is
                     // still running.
