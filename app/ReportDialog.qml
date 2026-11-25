@@ -57,70 +57,80 @@ Dialog {
         }
     }
 
+    // A single top-level content child, like leaveContributorDialog/
+    // feedbackDialog in Main.qml - Dialog only sizes its background
+    // correctly around one child's implicitHeight; two sibling items (the
+    // form and a separate "sent" Label) left the background too short and
+    // the TextArea sticking out past it.
     ColumnLayout {
         width: root.availableWidth
         spacing: 8
-        visible: !root.sent
 
-        Label {
-            text: qsTr("Why are you reporting this post?")
-            wrapMode: Text.Wrap
+        ColumnLayout {
             Layout.fillWidth: true
-        }
-
-        ComboBox {
-            id: reasonCombo
-            Layout.fillWidth: true
-            enabled: !root.sending
-            textRole: "text"
-            valueRole: "value"
-            model: [
-                { text: qsTr("Objectionable content"), value: "objectionable" },
-                { text: qsTr("Abusive behavior"), value: "abusive" },
-                { text: qsTr("Other"), value: "other" }
-            ]
-        }
-
-        TextArea {
-            id: detailsArea
-            Layout.fillWidth: true
-            Layout.preferredHeight: 80
-            enabled: !root.sending
-            wrapMode: TextEdit.Wrap
-            placeholderText: qsTr("Details (optional)")
-        }
-
-        Label {
-            text: root.errorMessage
-            wrapMode: Text.Wrap
-            Layout.fillWidth: true
-            color: "crimson"
-            visible: text !== ""
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
             spacing: 8
+            visible: !root.sent
 
-            BusyIndicator {
-                implicitWidth: 20
-                implicitHeight: 20
-                running: root.sending
-                visible: running
+            Label {
+                text: qsTr("Why are you reporting this post?")
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
             }
 
-            Button {
-                text: qsTr("Report")
+            ComboBox {
+                id: reasonCombo
+                Layout.fillWidth: true
                 enabled: !root.sending
-                onClicked: root.submit()
+                textRole: "text"
+                valueRole: "value"
+                model: [
+                    { text: qsTr("Objectionable content"), value: "objectionable" },
+                    { text: qsTr("Abusive behavior"), value: "abusive" },
+                    { text: qsTr("Other"), value: "other" }
+                ]
+            }
+
+            TextArea {
+                id: detailsArea
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                enabled: !root.sending
+                wrapMode: TextEdit.Wrap
+                placeholderText: qsTr("Details (optional)")
+            }
+
+            Label {
+                text: root.errorMessage
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                color: "crimson"
+                visible: text !== ""
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 8
+
+                BusyIndicator {
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    running: root.sending
+                    visible: running
+                }
+
+                Button {
+                    text: qsTr("Report")
+                    enabled: !root.sending
+                    onClicked: root.submit()
+                }
             }
         }
-    }
 
-    Label {
-        width: root.availableWidth
-        wrapMode: Text.Wrap
-        visible: root.sent
-        text: qsTr("Report sent - thank you. Our team reviews reports and acts on them within 24 hours.")
+        Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            visible: root.sent
+            text: qsTr("Report sent - thank you. Our team reviews reports and acts on them within 24 hours.")
+        }
     }
 }

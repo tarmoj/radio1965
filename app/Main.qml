@@ -1112,7 +1112,16 @@ VÄIN is an app created for the 'Radio Tallinn 1965' project, run by the Estonia
         property int tapCount: 0
         property real firstTapTime: 0
 
-        onOpened: lockOverlay.tapCount = 0
+        // Android screen pinning (screenpinner.h) - disables the system
+        // navigation bar's Home/Recent-apps buttons for as long as this is
+        // open, so a stray tap in a pocket can't background the app or
+        // open the app switcher despite everything below already being
+        // disabled/blocked at the QML level. No-op on other platforms.
+        onOpened: {
+            lockOverlay.tapCount = 0;
+            screenPinner.setEnabled(true);
+        }
+        onClosed: screenPinner.setEnabled(false)
 
         contentItem: MouseArea {
             anchors.fill: parent

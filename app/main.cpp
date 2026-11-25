@@ -6,6 +6,7 @@
 
 #include "eventsapiclient.h"
 #include "screenkeeper.h"
+#include "screenpinner.h"
 
 #ifdef RADIO65_ENABLE_NOTIFICATIONS
 #include "notificationmanager.h"
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
 
     EventsApiClient eventsApiClient;
     ScreenKeeper screenKeeper;
+    ScreenPinner screenPinner;
 
 #ifdef RADIO65_ENABLE_NOTIFICATIONS
     NotificationManager notificationManager;
@@ -98,6 +100,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("eventsApiClient", &eventsApiClient);
     engine.rootContext()->setContextProperty("screenKeeper", &screenKeeper);
+    engine.rootContext()->setContextProperty("screenPinner", &screenPinner);
 #ifdef RADIO65_ENABLE_NOTIFICATIONS
     engine.rootContext()->setContextProperty("notificationManager", &notificationManager);
     engine.rootContext()->setContextProperty("newEventsModel", &newEventsModel);

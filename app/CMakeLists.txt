@@ -192,6 +192,17 @@ else()
     target_sources(appradio65 PRIVATE screenkeeper_noop.cpp)
 endif()
 
+# ScreenPinner - Android "screen pinning" (Activity.startLockTask()/
+# stopLockTask()), the only way to actually disable the system navigation
+# bar's Home/Recent-apps buttons while Main.qml's lockOverlay ("pocket
+# lock") is up - see screenpinner.h. No equivalent on other platforms.
+target_sources(appradio65 PRIVATE screenpinner.h)
+if(ANDROID)
+    target_sources(appradio65 PRIVATE androidscreenpinner.cpp)
+else()
+    target_sources(appradio65 PRIVATE screenpinner_noop.cpp)
+endif()
+
 
 qt_add_qml_module(appradio65
     URI radio65
